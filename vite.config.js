@@ -3,9 +3,6 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/Thorneios/',
   plugins: [react()],
-server: {
-    allowedHosts: true
-  }
+  base: './', // Essencial para o funcionamento correto no Android/Capacitor
 })
