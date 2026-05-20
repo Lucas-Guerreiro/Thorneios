@@ -679,22 +679,22 @@ function CloudPublicChampScreen({champ,onBack,t}){
       </div>
 
       {tab==="tabela"&&c.type==="pontos"&&(
-         <StandingsTable standings={c.standings} teams={c.teams} colorOf={colorOf} t={t}/>
+         <StandingsTable standings={c.standings || []} teams={c.teams || []} colorOf={colorOf} t={t}/>
       )}
       {tab==="tabela"&&c.type==="misto"&&(
          <div>
-           {c.groups.map((g,gi)=><div key={gi} style={{marginBottom:20}}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}</h3><StandingsTable standings={g.standings} teams={c.teams} colorOf={colorOf} t={t}/></div>)}
+           {(c.groups || []).map((g,gi)=><div key={gi} style={{marginBottom:20}}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}</h3><StandingsTable standings={g.standings || []} teams={c.teams || []} colorOf={colorOf} t={t}/></div>)}
          </div>
       )}
 
       {tab==="chave"&&c.knockout&&(
         <div style={{overflowX:"auto"}}>
           <div style={{display:"flex",gap:14,minWidth:"fit-content",paddingBottom:8}}>
-            {c.knockout.map((phase,pi)=>(
+            {(c.knockout || []).map((phase,pi)=>(
               <div key={pi} style={{minWidth:200}}>
                 <div style={{fontSize:11,fontWeight:700,color:t.textSec,textAlign:"center",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>{phase.name}</div>
                 <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                  {phase.matches.map((m,mi)=>(
+                  {(phase.matches || []).map((m,mi)=>(
                     <div key={mi} style={{border:`1px solid ${t.cardBorder}`,borderRadius:12,overflow:"hidden",background:t.card}}>
                       {[{tm:m.home,s:m.homeScore,w:m.winner===m.home},{tm:m.away,s:m.awayScore,w:m.winner===m.away}].map((side,si)=>(
                         <div key={si} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",borderBottom:si===0?`1px solid ${t.cardBorder}`:"none",background:side.w?"#1D9E7514":"transparent"}}>
@@ -713,19 +713,19 @@ function CloudPublicChampScreen({champ,onBack,t}){
 
       {tab==="jogos"&&(
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
-          {c.rounds ? c.rounds.map((r,ri)=>(
+          {c.rounds ? (c.rounds || []).map((r,ri)=>(
             <Sec key={ri} title={r.name} t={t}>
               <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                {r.matches.map(renderMatch)}
+                {(r.matches || []).map(renderMatch)}
               </div>
             </Sec>
-          )) : c.groups ? c.groups.map((g,gi)=>(
+          )) : c.groups ? (c.groups || []).map((g,gi)=>(
             <Sec key={gi} title={g.name} t={t}>
-              {g.rounds.map((r,ri)=>(
+              {(g.rounds || []).map((r,ri)=>(
                 <div key={ri} style={{marginBottom:16}}>
                   <div style={{fontSize:12,fontWeight:700,color:t.textSec,marginBottom:8}}>{r.name}</div>
                   <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                    {r.matches.map(renderMatch)}
+                    {(r.matches || []).map(renderMatch)}
                   </div>
                 </div>
               ))}
@@ -2097,7 +2097,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 }
 
 /* ─────────────────────────── CAMPEONATO ─────────────────────────── */
-function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,t}){
+function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,cloudLoading,publicarNaNuvem,t}){
   const S=makeStyles(t);
   const [editingTeams,setEditingTeams] = useState(false);
   const [teamsDraft,setTeamsDraft] = useState(Array.isArray(champ.teams)?[...champ.teams]:[]);
@@ -3375,12 +3375,7 @@ export default function App(){
   const publicarNaNuvem = async (c) => {
     setCloudLoading(true);
     const payload = {
-      id: c.id,
-      name: c.name,
-      type: c.type,
-      status: c.status,
-      groups: c.groups || null,
-      rounds: c.rounds || null,
+      ...c,
       lastPublished: new Date().toISOString(),
       atletas: allAtletas.map(a => ({ id: a.id, name: a.name }))
     };
@@ -3923,6 +3918,8 @@ export default function App(){
       onBack={()=>setScreen("home")} 
       setFinanceiro={setFinanceiroWrapped}
       onAddAtleta={adicionarAtleta}
+      cloudLoading={cloudLoading}
+      publicarNaNuvem={publicarNaNuvem}
       t={t}
     />
   );
