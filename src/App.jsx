@@ -153,6 +153,7 @@ function LoginScreen({onLogin,t}){
   const[email,setEmail]=useState("");
   const[password,setPassword]=useState("");
   const[error,setError]=useState("");
+  const[showPassword,setShowPassword]=useState(false);
 
   const handleSubmit = () => {
     setError("");
@@ -181,7 +182,44 @@ function LoginScreen({onLogin,t}){
           </div>
           <div>
             <label style={S.label}>Senha</label>
-            <input style={S.input} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Senha" />
+            <div style={{position:"relative"}}>
+              <input 
+                style={{...S.input, paddingRight: 42}} 
+                type={showPassword ? "text" : "password"} 
+                value={password} 
+                onChange={e=>setPassword(e.target.value)} 
+                placeholder="Senha" 
+              />
+              <button 
+                type="button"
+                onClick={()=>setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  color: t.textSec,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0
+                }}
+              >
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
           {error && <div style={{color:"#E24B4A",fontSize:12,fontWeight:700}}>{error}</div>}
           <button onClick={handleSubmit} style={{...S.btn("#1D9E75"),padding:"12px 18px",fontSize:14}}>Entrar</button>
@@ -2744,14 +2782,46 @@ export default function App(){
   const{dark,setDark,t}=useTheme();
   const S=makeStyles(t);
 
+  // ── Estado Global (Salvo em localStorage) ─────────────────────
+  const initialAppState = {
+    campeonatos: [],
+    peladas: [],
+    datasRealizacao: [],
+    atletas: [],
+    participacoes: [],
+    financeiro: { entries: [] },
+    managers: [],
+    adminPassword: "1204110411",
+  };
+  
+  const [appState, setAppState, loading] = useLocalStorage(initialAppState);
+
   const [auth, setAuth] = useState({ role:"", name:"", manager_id: null, scope: "geral" });
   const [screen, setScreen] = useState("selection");
+
+  // Novos estados para alteração de senha
+  const [modalPassword, setModalPassword] = useState(false);
+  const [pwdForm, setPwdForm] = useState({ current: "", newPwd: "", confirm: "" });
+  const [pwdError, setPwdError] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // Getters com Fallback (Segurança extra contra tela branca)
+  const allCampeonatos = Array.isArray(appState?.campeonatos) ? appState.campeonatos : [];
+  const allPeladas = Array.isArray(appState?.peladas) ? appState.peladas : [];
+  const datasRealizacao = Array.isArray(appState?.datasRealizacao) ? appState.datasRealizacao : [];
+  const allAtletas = Array.isArray(appState?.atletas) ? appState.atletas : [];
+  const participacoes = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
+  const financeiro = appState?.financeiro && typeof appState.financeiro === 'object' ? appState.financeiro : { entries: [] };
+  const managers = Array.isArray(appState?.managers) ? appState.managers : [];
+  const adminPassword = appState?.adminPassword || "1204110411";
 
   const handleLogin = ({email,password}) => {
     const trimmed = String(email||"").trim().toLowerCase();
     if(!trimmed||!password) return "Informe e-mail e senha.";
 
-    if(trimmed === "lucas7s7@gmail.com" && password === "1204110411"){
+    if(trimmed === "lucas7s7@gmail.com" && password === adminPassword){
       setAuth({ role:"adm", name:"Lucas", manager_id: null, scope: "geral" });
       setCurrent(null);
       setScreen("home");
@@ -2781,28 +2851,53 @@ export default function App(){
     setScreen("selection");
   };
 
-  // ── Estado Global (Salvo em localStorage) ─────────────────────
-  const initialAppState = {
-    campeonatos: [],
-    peladas: [],
-    datasRealizacao: [],
-    atletas: [],
-    participacoes: [],
-    financeiro: { entries: [] },
-    managers: [],
+  const handleUpdatePassword = () => {
+    setPwdError("");
+    const { current: curPwd, newPwd, confirm } = pwdForm;
+    if (!curPwd || !newPwd || !confirm) {
+      setPwdError("Por favor, preencha todos os campos.");
+      return;
+    }
+    if (newPwd !== confirm) {
+      setPwdError("A nova senha e a confirmação não coincidem.");
+      return;
+    }
+    if (newPwd.length < 4) {
+      setPwdError("A nova senha deve ter pelo menos 4 caracteres.");
+      return;
+    }
+
+    if (auth.role === "adm") {
+      if (curPwd !== adminPassword) {
+        setPwdError("Senha atual incorreta.");
+        return;
+      }
+      setAdminPassword(newPwd);
+      alert("Senha de Administrador alterada com sucesso!");
+    } else if (auth.role === "manager") {
+      const mIdx = managers.findIndex(m => m.id === auth.manager_id);
+      if (mIdx === -1) {
+        setPwdError("Gestor não encontrado no sistema.");
+        return;
+      }
+      if (managers[mIdx].password !== curPwd) {
+        setPwdError("Senha atual incorreta.");
+        return;
+      }
+      atualizarManager(auth.manager_id, { password: newPwd });
+      alert("Senha de Gestor alterada com sucesso!");
+    } else {
+      setPwdError("Usuários não autenticados não podem alterar senhas.");
+      return;
+    }
+
+    setPwdForm({ current: "", newPwd: "", confirm: "" });
+    setShowCurrent(false);
+    setShowNew(false);
+    setShowConfirm(false);
+    setModalPassword(false);
   };
   
-  const [appState, setAppState, loading] = useLocalStorage(initialAppState);
-  
-  // Getters com Fallback (Segurança extra contra tela branca)
-  const allCampeonatos = Array.isArray(appState?.campeonatos) ? appState.campeonatos : [];
-  const allPeladas = Array.isArray(appState?.peladas) ? appState.peladas : [];
-  const datasRealizacao = Array.isArray(appState?.datasRealizacao) ? appState.datasRealizacao : [];
-  const allAtletas = Array.isArray(appState?.atletas) ? appState.atletas : [];
-  const participacoes = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
-  const financeiro = appState?.financeiro && typeof appState.financeiro === 'object' ? appState.financeiro : { entries: [] };
-  const managers = Array.isArray(appState?.managers) ? appState.managers : [];
-
   // Filtro por manager e scope
   const filterByManager = (items) => {
     if (auth.role === "adm") return items;
@@ -2839,6 +2934,7 @@ export default function App(){
   const setParticipacoes = d => setAppState(s => ({ ...s, participacoes: typeof d === 'function' ? d(Array.isArray(s.participacoes) ? s.participacoes : []) : d }));
   const setFinanceiro = d => setAppState(s => ({ ...s, financeiro: typeof d === 'function' ? d(s.financeiro && typeof s.financeiro === 'object' ? s.financeiro : { entries: [] }) : d }));
   const setManagers = d => setAppState(s => ({ ...s, managers: typeof d === 'function' ? d(Array.isArray(s.managers) ? s.managers : []) : d }));
+  const setAdminPassword = d => setAppState(s => ({ ...s, adminPassword: typeof d === 'function' ? d(s.adminPassword || "1204110411") : d }));
   const adicionarManager = d => setManagers(p => [...p, { ...d, id: Date.now() }]);
   const atualizarManager = (id, d) => setManagers(p => p.map(m => m.id === id ? { ...m, ...d } : m));
   const removerManager = id => setManagers(p => p.filter(m => m.id !== id));
@@ -3030,6 +3126,7 @@ export default function App(){
           <button onClick={()=>setScreen("financeiro")} style={{...S.btn("#BA7517"),fontSize:12,padding:"8px 14px"}}>💰 Financeiro</button>
           <button onClick={()=>setScreen("backup")} style={{...S.btn("#7F77DD"),fontSize:12,padding:"8px 14px"}}>💾 Backup</button>
           {auth.role==="adm" && <button onClick={()=>setScreen("managerRegistry")} style={{...S.btn("#7F77DD"),fontSize:12,padding:"8px 14px"}}>👥 Gestores</button>}
+          {(auth.role==="adm" || auth.role==="manager") && <button onClick={()=>setModalPassword(true)} style={{...S.btn("#1D9E75"),fontSize:12,padding:"8px 14px"}}>🔐 Alterar Senha</button>}
           <button onClick={handleLogout} style={{...S.btn("#E24B4A"),fontSize:12,padding:"8px 14px"}}>🚪 Sair</button>
           <DarkBtn/>
         </div>
@@ -3111,6 +3208,159 @@ export default function App(){
           <div style={{fontSize:40,marginBottom:12}}>⚽</div>
           <div style={{fontWeight:700,fontSize:15,color:t.text,marginBottom:6}}>Nenhum evento criado</div>
           <div style={{fontSize:13,color:t.textSec}}>Crie um campeonato, uma pelada ou cadastre atletas para começar.</div>
+        </div>
+      )}
+      {modalPassword && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10001,padding:16}}>
+          <div style={{...S.card,width:"100%",maxWidth:400,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>🔐 Alterar Minha Senha</div>
+            
+            {pwdError && (
+              <div style={{background:"#E24B4A22",color:"#E24B4A",border:"1px solid #E24B4A55",borderRadius:8,padding:10,fontSize:12,marginBottom:12}}>
+                ⚠️ {pwdError}
+              </div>
+            )}
+            
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <div>
+                <label style={S.label}>Senha Atual</label>
+                <div style={{position:"relative"}}>
+                  <input 
+                    style={{...S.input, paddingRight: 42}} 
+                    type={showCurrent ? "text" : "password"} 
+                    value={pwdForm.current} 
+                    onChange={e=>setPwdForm(v=>({...v,current:e.target.value}))} 
+                    placeholder="Digite sua senha atual"
+                  />
+                  <button 
+                    type="button"
+                    onClick={()=>setShowCurrent(!showCurrent)}
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: t.textSec,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0
+                    }}
+                  >
+                    {showCurrent ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              <div>
+                <label style={S.label}>Nova Senha (mínimo 4 caracteres)</label>
+                <div style={{position:"relative"}}>
+                  <input 
+                    style={{...S.input, paddingRight: 42}} 
+                    type={showNew ? "text" : "password"} 
+                    value={pwdForm.newPwd} 
+                    onChange={e=>setPwdForm(v=>({...v,newPwd:e.target.value}))} 
+                    placeholder="Nova senha"
+                  />
+                  <button 
+                    type="button"
+                    onClick={()=>setShowNew(!showNew)}
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: t.textSec,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0
+                    }}
+                  >
+                    {showNew ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              <div>
+                <label style={S.label}>Confirmar Nova Senha</label>
+                <div style={{position:"relative"}}>
+                  <input 
+                    style={{...S.input, paddingRight: 42}} 
+                    type={showConfirm ? "text" : "password"} 
+                    value={pwdForm.confirm} 
+                    onChange={e=>setPwdForm(v=>({...v,confirm:e.target.value}))} 
+                    placeholder="Confirme a nova senha"
+                  />
+                  <button 
+                    type="button"
+                    onClick={()=>setShowConfirm(!showConfirm)}
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: t.textSec,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0
+                    }}
+                  >
+                    {showConfirm ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{display:"flex",gap:8,marginTop:20}}>
+              <button onClick={handleUpdatePassword} style={S.btn("#1D9E75")}>Salvar Nova Senha</button>
+              <button onClick={()=>{
+                setModalPassword(false); 
+                setPwdError(""); 
+                setPwdForm({current:"",newPwd:"",confirm:""});
+                setShowCurrent(false);
+                setShowNew(false);
+                setShowConfirm(false);
+              }} style={S.btn(t.card,t.textSec)}>Cancelar</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
