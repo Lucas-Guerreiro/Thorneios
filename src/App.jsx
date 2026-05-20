@@ -242,8 +242,9 @@ function LoginScreen({onLogin,t}){
   );
 }
 
-function SelectionScreen({onPublic,onLoginScreen,t}){
+function SelectionScreen({onPublic,onLoginScreen,onAccessCloud,t}){
   const S=makeStyles(t);
+  const [code, setCode] = useState("");
   return(
     <div style={S.page}>
       <div style={{maxWidth:560,margin:"0 auto",display:"flex",flexDirection:"column",gap:24}}>
@@ -262,6 +263,31 @@ function SelectionScreen({onPublic,onLoginScreen,t}){
             <div style={{color:t.textSec,fontSize:13}}>Acesse como Admin ou Manager usando seu e-mail e senha.</div>
             <div style={{marginTop:"auto",color:"#1D9E75",fontWeight:700}}>Login</div>
           </button>
+        </div>
+
+        <div style={S.card}>
+          <div style={{fontWeight:700,fontSize:14,color:t.text,marginBottom:8}}>🌐 Acompanhar Campeonato da Nuvem</div>
+          <div style={{fontSize:12,color:t.textSec,marginBottom:12}}>Digite o código de 10 dígitos do campeonato fornecido pelo organizador para ver a tabela e placares.</div>
+          <div style={{display:"flex",gap:8}}>
+            <input 
+              style={{...S.input, flex:1}} 
+              value={code} 
+              onChange={e=>setCode(e.target.value)} 
+              placeholder="Ex: 5123abcdab" 
+            />
+            <button 
+              onClick={() => {
+                if (code.trim()) {
+                  onAccessCloud(code.trim());
+                } else {
+                  alert("Por favor, insira um codigo de campeonato.");
+                }
+              }} 
+              style={S.btn("#1D9E75")}
+            >
+              Acessar
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -549,6 +575,205 @@ function PublicScreen({campeonatos,atletas,current,setCurrent,onBack,t}){
               <div style={{fontSize:12,color:t.textSec,marginTop:12}}>Entrar para acompanhar resultados e tabela.</div>
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ──────────────────────── VISUALIZAÇÃO NUVEM PÚBLICA ──────────────── */
+function CloudPublicChampScreen({champ,onBack,t}){
+  const S=makeStyles(t);
+  const c = champ;
+  const [tab,setTab]=useState(c.type==="mata"?"chave":"tabela");
+
+  const colorOf = useCallback((n,teams)=>COLORS[(teams||[]).indexOf(n)%COLORS.length],[]);
+  const getPlayerNameById = id => {
+    const a = (c.atletas || []).find(x => String(x.id) === String(id));
+    return a ? a.name : "Atleta Desconhecido";
+  };
+
+  const allEvents = [];
+  if(c.rounds) c.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>allEvents.push(e))));
+  if(c.groups) c.groups.forEach(g=>g.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>allEvents.push(e)))));
+  if(c.knockout) c.knockout.forEach(p=>p.matches.forEach(m=>m.events?.forEach(e=>allEvents.push(e))));
+
+  const stats = {};
+  allEvents.forEach(e => {
+    const key = String(e.atletaId || e.atleta);
+    if(!stats[key]) stats[key] = { atletaId:key, gols:0, am:0, vm:0, teamName:e.teamName };
+    if(e.type==="gol") stats[key].gols++;
+    if(e.type==="amarelo") stats[key].am++;
+    if(e.type==="vermelho") stats[key].vm++;
+  });
+
+  const statsArr = Object.values(stats).map(s => ({
+    ...s,
+    name: getPlayerNameById(s.atletaId)
+  }));
+
+  const topGols = [...statsArr].filter(x=>x.gols>0).sort((a,b)=>b.gols-a.gols);
+  const topAm = [...statsArr].filter(x=>x.am>0).sort((a,b)=>b.am-a.am);
+  const topVm = [...statsArr].filter(x=>x.vm>0).sort((a,b)=>b.vm-a.vm);
+
+  const formatarDataLocal = (dStr) => {
+    if(!dStr) return "";
+    try {
+      const d = new Date(dStr);
+      return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", {hour: '2-digit', minute:'2-digit'});
+    } catch(e) { return dStr; }
+  };
+
+  const renderMatch = (m) => {
+    const matchEvents = m.events || [];
+    const leftEvents = matchEvents.filter(e=>e.teamName===m.home);
+    const rightEvents = matchEvents.filter(e=>e.teamName===m.away);
+    const renderSide = (events, sideName) => {
+      const goalsSide = events.filter(e=>e.type==="gol");
+      const yellowSide = events.filter(e=>e.type==="amarelo");
+      const redSide = events.filter(e=>e.type==="vermelho");
+      return (
+        <div style={{display:"flex",flexDirection:"column",gap:6,padding:10,border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.inputBg}}>
+          <div style={{fontSize:12,fontWeight:700,color:t.text}}>{sideName}</div>
+          {goalsSide.length>0 ? goalsSide.map((e,i)=><div key={`g-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>⚽</span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum gol</div>}
+          {yellowSide.length>0 ? yellowSide.map((e,i)=><div key={`y-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>🟨</span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum amarelo</div>}
+          {redSide.length>0 ? redSide.map((e,i)=><div key={`r-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>🟥</span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum vermelho</div>}
+        </div>
+      );
+    };
+    return (
+      <div key={`${m.home}-${m.away}-${m.date||Math.random()}`} style={{padding:12,border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0,justifyContent:"flex-start"}}><div style={{width:28,height:28,borderRadius:999,background:colorOf(m.home,c.teams),display:"grid",placeItems:"center",color:"#fff",fontWeight:700}}>{m.home?.charAt(0)}</div><span style={{fontWeight:700,color:t.text}}>{m.home}</span></div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:100,flexShrink:0}}><div style={{fontSize:18,fontWeight:800,color:t.text}}>{m.played?`${m.homeScore}×${m.awayScore}`:"—×—"}</div><div style={{fontSize:11,color:t.textSec,marginTop:4}}>{m.date?m.date.split("-").reverse().join("/"):"Data não informada"}</div></div>
+          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0,justifyContent:"flex-end"}}><span style={{fontWeight:700,color:t.text}}>{m.away}</span><div style={{width:28,height:28,borderRadius:999,background:colorOf(m.away,c.teams),display:"grid",placeItems:"center",color:"#fff",fontWeight:700}}>{m.away?.charAt(0)}</div></div>
+        </div>
+        {matchEvents.length ? (
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {renderSide(leftEvents, m.home)}
+            {renderSide(rightEvents, m.away)}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const tabs = c.type==="pontos" ? ["tabela","jogos","artilharia"] : c.type==="mata" ? ["chave","jogos","artilharia"] : ["tabela","chave","jogos","artilharia"];
+
+  return (
+    <div style={S.page}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <button onClick={onBack} style={{...S.btnSm(t.card,t.text),border:`1px solid ${t.cardBorder}`,padding:"8px 12px"}}>← Sair</button>
+          <div>
+            <h2 style={{fontSize:20,fontWeight:800,color:t.text,margin:0}}>🏆 {c.name}</h2>
+            <div style={{fontSize:11,color:t.textSec,marginTop:2}}>
+              Nuvem · Atualizado em: {formatarDataLocal(c.lastPublished)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:0,marginBottom:20,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto"}}>
+        {tabs.map(tb=><button key={tb} onClick={()=>setTab(tb)} style={S.tab(tab===tb)}>{tb.charAt(0).toUpperCase()+tb.slice(1)}</button>)}
+      </div>
+
+      {tab==="tabela"&&c.type==="pontos"&&(
+         <StandingsTable standings={c.standings} teams={c.teams} colorOf={colorOf} t={t}/>
+      )}
+      {tab==="tabela"&&c.type==="misto"&&(
+         <div>
+           {c.groups.map((g,gi)=><div key={gi} style={{marginBottom:20}}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}</h3><StandingsTable standings={g.standings} teams={c.teams} colorOf={colorOf} t={t}/></div>)}
+         </div>
+      )}
+
+      {tab==="chave"&&c.knockout&&(
+        <div style={{overflowX:"auto"}}>
+          <div style={{display:"flex",gap:14,minWidth:"fit-content",paddingBottom:8}}>
+            {c.knockout.map((phase,pi)=>(
+              <div key={pi} style={{minWidth:200}}>
+                <div style={{fontSize:11,fontWeight:700,color:t.textSec,textAlign:"center",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>{phase.name}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  {phase.matches.map((m,mi)=>(
+                    <div key={mi} style={{border:`1px solid ${t.cardBorder}`,borderRadius:12,overflow:"hidden",background:t.card}}>
+                      {[{tm:m.home,s:m.homeScore,w:m.winner===m.home},{tm:m.away,s:m.awayScore,w:m.winner===m.away}].map((side,si)=>(
+                        <div key={si} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",borderBottom:si===0?`1px solid ${t.cardBorder}`:"none",background:side.w?"#1D9E7514":"transparent"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:5}}><Avatar name={side.tm||"?"} color={colorOf(side.tm,c.teams)} size={20}/><span style={{fontSize:11,color:t.text}}>{side.tm||"—"}</span></div>
+                          <span style={{fontWeight:700,color:side.w?"#1D9E75":t.text,fontSize:13}}>{m.played?side.s:"—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab==="jogos"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          {c.rounds ? c.rounds.map((r,ri)=>(
+            <Sec key={ri} title={r.name} t={t}>
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                {r.matches.map(renderMatch)}
+              </div>
+            </Sec>
+          )) : c.groups ? c.groups.map((g,gi)=>(
+            <Sec key={gi} title={g.name} t={t}>
+              {g.rounds.map((r,ri)=>(
+                <div key={ri} style={{marginBottom:16}}>
+                  <div style={{fontSize:12,fontWeight:700,color:t.textSec,marginBottom:8}}>{r.name}</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                    {r.matches.map(renderMatch)}
+                  </div>
+                </div>
+              ))}
+            </Sec>
+          )) : null}
+        </div>
+      )}
+
+      {tab==="artilharia"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:18}}>
+          <Sec title="⚽ Artilharia (Gols)" t={t}>
+            {topGols.length===0 ? <div style={{fontSize:12,color:t.textSec}}>Nenhum gol marcado</div> : (
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {topGols.map((s,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,fontSize:13}}>
+                    <span style={{color:t.text}}>{i+1}. <strong>{s.name}</strong> ({s.teamName})</span>
+                    <strong style={{color:"#1D9E75"}}>{s.gols} gols</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Sec>
+
+          <Sec title="🟨 Cartões Amarelos" t={t}>
+            {topAm.length===0 ? <div style={{fontSize:12,color:t.textSec}}>Nenhum cartão amarelo</div> : (
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {topAm.map((s,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,fontSize:13}}>
+                    <span style={{color:t.text}}>{i+1}. <strong>{s.name}</strong> ({s.teamName})</span>
+                    <strong style={{color:"#BA7517"}}>{s.am} amarelo(s)</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Sec>
+
+          <Sec title="🟥 Cartões Vermelhos" t={t}>
+            {topVm.length===0 ? <div style={{fontSize:12,color:t.textSec}}>Nenhum cartão vermelho</div> : (
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {topVm.map((s,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,fontSize:13}}>
+                    <span style={{color:t.text}}>{i+1}. <strong>{s.name}</strong> ({s.teamName})</span>
+                    <strong style={{color:"#E24B4A"}}>{s.vm} vermelho(s)</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Sec>
         </div>
       )}
     </div>
@@ -1997,7 +2222,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   function advanceMixed(){const tc=deepClone(c);const q=[];tc.groups.forEach(g=>{if(g.standings[0])q.push(g.standings[0].name);if(g.standings[1])q.push(g.standings[1].name);});tc.knockout=generateKO(q);tc.mixedPhase="knockout";onUpdate(tc);}
   const lastPhase=c.knockout?.length>0?c.knockout[c.knockout.length-1]:null;
   const champion=(c.type==="mata"||(c.type==="misto"&&c.mixedPhase==="knockout"))&&lastPhase?.matches?.[0]?.winner||(c.type==="pontos"&&c.rounds?.every(r=>r.matches.every(m=>m.played))&&c.standings?.[0]?.name)||null;
-  const tabs=["elencos", ... (c.type==="pontos"?["tabela","jogos"]:c.type==="mata"?["chave","jogos"]:["tabela","chave","jogos"]), "estatísticas", "configurações"];
+  const tabs=["elencos", ... (c.type==="pontos"?["tabela","jogos"]:c.type==="mata"?["chave","jogos"]:["tabela","chave","jogos"]), "estatísticas", "configurações", "nuvem"];
 
   const getArtilheiro = () => {
     const evts = [];
@@ -2458,6 +2683,105 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       {tab==="elencos" && <AbaElencos />}
       {tab==="estatísticas" && renderEstatisticas()}
       {tab==="configurações" && <AbaConfiguracoes />}
+      
+      {tab==="nuvem" && (
+        <div style={{display:"flex",flexDirection:"column",gap:20}}>
+          <div style={S.card}>
+            <h3 style={{fontSize:16,fontWeight:800,marginBottom:12,color:t.text,display:"flex",alignItems:"center",gap:8}}>
+              🌐 Compartilhar na Nuvem (Público)
+            </h3>
+            <p style={{fontSize:13,color:t.textSec,lineHeight:"1.5",marginBottom:16}}>
+              Por padrão, os dados do Thorneios ficam armazenados de forma 100% segura apenas no seu dispositivo. 
+              Ao publicar na nuvem, você gera um código e um link de acesso para que jogadores e torcedores acompanhem a tabela, rodadas, placares e artilharia em tempo real de qualquer outro dispositivo, sem precisar de login.
+            </p>
+
+            {c.npointId ? (
+              <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                <div style={{background: t.bg, borderRadius:12, padding:14, border:`1px dashed ${t.cardBorder}`, display:"flex", flexDirection:"column", gap:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
+                    <span style={{color:t.textSec}}>Status de Sincronização:</span>
+                    <strong style={{color:"#1D9E75"}}>● Ativo e Compartilhado</strong>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
+                    <span style={{color:t.textSec}}>Última Atualização:</span>
+                    <strong style={{color:t.text}}>{c.lastPublished || "Desconhecida"}</strong>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
+                    <span style={{color:t.textSec}}>Código do Campeonato:</span>
+                    <strong style={{color:"#1D9E75",fontSize:16,fontFamily:"monospace",letterSpacing:0.5}}>{c.npointId}</strong>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={S.label}>Link de Acesso do Público</label>
+                  <div style={{display:"flex",gap:8,marginTop:6}}>
+                    <input 
+                      readOnly 
+                      value={`${window.location.origin}${window.location.pathname}?c=${c.npointId}`} 
+                      style={{...S.input, flex:1, fontFamily:"monospace", fontSize:12, background:t.bg}} 
+                    />
+                    <button 
+                      onClick={() => {
+                        const link = `${window.location.origin}${window.location.pathname}?c=${c.npointId}`;
+                        navigator.clipboard.writeText(link);
+                        alert("Link de acesso copiado para a área de transferência!");
+                      }} 
+                      style={S.btn("#378ADD")}
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:8}}>
+                  <button 
+                    onClick={async () => {
+                      const res = await publicarNaNuvem(c);
+                      if (res) {
+                        onUpdate(res);
+                      }
+                    }} 
+                    disabled={cloudLoading} 
+                    style={S.btn("#1D9E75")}
+                  >
+                    {cloudLoading ? "Sincronizando..." : "🔄 Atualizar Placares na Nuvem"}
+                  </button>
+
+                  <button 
+                    onClick={() => {
+                      const link = `${window.location.origin}${window.location.pathname}?c=${c.npointId}`;
+                      const text = encodeURIComponent(`Acompanhe a tabela e placares do campeonato *${c.name}* em tempo real aqui: ${link}`);
+                      window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+                    }} 
+                    style={S.btn("#25D366")}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style={{marginRight:2}}>
+                      <path d="M13.601 2.326A7.85 7.85 0 0 0 8 0a7.86 7.86 0 0 0-7.3 4.582 9.07 9.07 0 0 0-.446 1.179A9.16 9.16 0 0 0 0 8c0 1.8.6 3.51 1.7 4.9L.4 16l3.2-.8c1.3.7 2.8 1.1 4.4 1.1A7.86 7.86 0 0 0 16 8c0-2.15-.83-4.17-2.399-5.674zM10.5 11.5c-.1.1-.3.1-.4 0-1.2-1.2-2.1-2.6-2.4-3.2-.3-.6-.3-1.1-.1-1.4.1-.1.3-.3.4-.4.1-.1.1-.2.1-.3v-.3c0-.1-.1-.3-.2-.6-.1-.3-.3-.7-.4-.9-.1-.2-.2-.2-.3-.2s-.2 0-.3.1c-.1 0-.3.2-.4.4-.1.3-.2.6-.2 1 0 1 1 2.4 2.5 3.9 1.5 1.5 2.9 2.5 3.9 2.5.4 0 .7-.1 1-.2.2-.1.4-.3.4-.4.1-.1.1-.2.1-.3s-.1-.2-.4-.3z"/>
+                    </svg>
+                    WhatsApp
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{display:"flex",justifyContent:"flex-start",marginTop:12}}>
+                <button 
+                  onClick={async () => {
+                    const res = await publicarNaNuvem(c);
+                    if (res) {
+                      onUpdate(res);
+                    }
+                  }} 
+                  disabled={cloudLoading} 
+                  style={{...S.btn("#1D9E75"), padding:"12px 24px"}}
+                >
+                  {cloudLoading ? "Publicando..." : "🌐 Publicar Campeonato na Nuvem"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {tab==="chave"&&c.knockout&&(
         <div style={{overflowX:"auto"}}>
           <div style={{display:"flex",gap:14,minWidth:"fit-content",paddingBottom:8}}>
@@ -2811,6 +3135,37 @@ export default function App(){
 
   const [auth, setAuth] = useState({ role:"", name:"", manager_id: null, scope: "geral" });
   const [screen, setScreen] = useState("selection");
+  const [cloudLoading, setCloudLoading] = useState(false);
+  const [publicCloudChamp, setPublicCloudChamp] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("c") || params.get("campeonato");
+      if (code) {
+        setCloudLoading(true);
+        fetch(`https://api.npoint.io/${code}`)
+          .then(res => {
+            if (!res.ok) throw new Error("Campeonato nao encontrado ou expirado");
+            return res.json();
+          })
+          .then(data => {
+            if (data && data.id) {
+              setPublicCloudChamp(data);
+              setScreen("publicCloud");
+            } else {
+              alert("Campeonato invalido.");
+            }
+          })
+          .catch(err => {
+            alert("Erro ao conectar com a nuvem: " + err.message);
+          })
+          .finally(() => {
+            setCloudLoading(false);
+          });
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -2962,6 +3317,28 @@ export default function App(){
   const adicionarManager = d => setManagers(p => [...p, { ...d, id: Date.now() }]);
   const atualizarManager = (id, d) => setManagers(p => p.map(m => m.id === id ? { ...m, ...d } : m));
   const removerManager = id => setManagers(p => p.filter(m => m.id !== id));
+  const acessarCampeonatoNuvem = (code) => {
+    setCloudLoading(true);
+    fetch(`https://api.npoint.io/${code}`)
+      .then(res => {
+        if (!res.ok) throw new Error("Campeonato nao encontrado ou expirado");
+        return res.json();
+      })
+      .then(data => {
+        if (data && data.id) {
+          setPublicCloudChamp(data);
+          setScreen("publicCloud");
+        } else {
+          alert("Campeonato invalido.");
+        }
+      })
+      .catch(err => {
+        alert("Erro ao baixar campeonato: " + err.message);
+      })
+      .finally(() => {
+        setCloudLoading(false);
+      });
+  };
 
   const[current,setCurrent]=useState(null);
 
@@ -2992,10 +3369,67 @@ export default function App(){
   const adicionarPelada=d=>setPeladas(p=>[...p,{id:Date.now(),nome:d.nome,data_criacao:d.data_criacao||todayStr(),ativo:d.ativo!==false, manager_id: auth.role === "manager" ? auth.manager_id : null}]);
   const atualizarPelada=(id,d)=>setPeladas(p=>p.map(x=>x.id===id?{...x,...d}:x));
   const removerPelada  =id=>{setPeladas(p=>p.filter(x=>x.id!==id));setDatasRealizacao(p=>p.filter(x=>x.pelada_id!==id));setParticipacoes(p=>p.filter(x=>x.pelada_id!==id));};
-
-  // ── CRUD Campeonatos ───────────────────────────────────────────
   const atualizarChamp=u=>setCampeonatos(p=>p.map(c=>c.id===u.id?u:c));
   const removerChamp  =id=>setCampeonatos(p=>p.filter(c=>c.id!==id));
+
+  const publicarNaNuvem = async (c) => {
+    setCloudLoading(true);
+    const payload = {
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      status: c.status,
+      groups: c.groups || null,
+      rounds: c.rounds || null,
+      lastPublished: new Date().toISOString(),
+      atletas: allAtletas.map(a => ({ id: a.id, name: a.name }))
+    };
+
+    try {
+      let npointId = c.npointId;
+      let url = "https://api.npoint.io";
+      
+      if (npointId) {
+        url = `https://api.npoint.io/${npointId}`;
+      }
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error("Erro na resposta do servidor.");
+      }
+      
+      const resData = await response.json();
+      const newId = npointId || resData.id;
+      
+      if (!newId) {
+        throw new Error("ID de publicacao nao gerado.");
+      }
+      
+      const dataHoraStr = new Date().toLocaleString("pt-BR");
+      const cAtualizado = {
+        ...c,
+        npointId: newId,
+        lastPublished: dataHoraStr
+      };
+      
+      atualizarChamp(cAtualizado);
+      alert("Campeonato publicado com sucesso na nuvem!");
+      return cAtualizado;
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao publicar: " + err.message);
+      return null;
+    } finally {
+      setCloudLoading(false);
+    }
+  };
 
   // ── BACKUP / RESTAURAR ─────────────────────────────────────────
   async function exportJSON(){
@@ -3114,15 +3548,25 @@ export default function App(){
     );
   }
 
+  if (cloudLoading) {
+    return (
+      <div style={{...S.page, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16}}>
+        <div style={{fontSize:40, animation: "spin 2s linear infinite"}}>🌐</div>
+        <div style={{fontWeight:700, color:t.textSec}}>Conectando à nuvem...</div>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
   const DarkBtn=()=><button onClick={()=>setDark(d=>!d)} style={{...S.btnSm(t.card,t.text),padding:"8px 12px",fontSize:15,border:`1px solid ${t.cardBorder}`,borderRadius:12}}>{dark?"☀️":"🌙"}</button>;
 
   if(screen==="selection"){
-    return <SelectionScreen onPublic={handlePublicAccess} onLoginScreen={()=>setScreen("login")} t={t} />;
+    return <SelectionScreen onPublic={handlePublicAccess} onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
   }
 
   if(screen==="managerRegistry"){
     if(auth.role !== "adm"){
-      return <SelectionScreen onPublic={handlePublicAccess} onLoginScreen={()=>setScreen("login")} t={t} />;
+      return <SelectionScreen onPublic={handlePublicAccess} onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
     }
     return <ManagerRegistry managers={managers} onAdd={adicionarManager} onUpdate={atualizarManager} onRemove={removerManager} onBack={()=>setScreen("home")} t={t} />;
   }
@@ -3133,6 +3577,10 @@ export default function App(){
 
   if(screen==="public"){
     return <PublicScreen campeonatos={campeonatos} atletas={atletas} current={current} setCurrent={setCurrent} onBack={()=>{setCurrent(null);setScreen("selection");}} t={t} />;
+  }
+
+  if(screen==="publicCloud"){
+    return <CloudPublicChampScreen champ={publicCloudChamp} onBack={()=>{setPublicCloudChamp(null);setScreen("selection");}} t={t} />;
   }
 
   /* ── HOME ────────────────────────────────────────────────────── */
