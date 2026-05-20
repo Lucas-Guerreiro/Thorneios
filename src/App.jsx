@@ -15,7 +15,20 @@ const SKILL_NAMES  = ["Iniciante","Básico","Intermediário","Avançado","Elite"
 const LIGHT = { bg:"#f4f6fa",card:"#ffffff",cardBorder:"#e2e8f0",inputBg:"#eef2ff",inputBorder:"#c7d2fe",inputColor:"#1e1e2e",text:"#1e293b",textSec:"#64748b",tabBorder:"#e2e8f0" };
 const DARK  = { bg:"#0f1117",card:"#1a1d27",cardBorder:"#2a2d3e",inputBg:"#1e2235",inputBorder:"#3a3f5c",inputColor:"#e2e8f0",text:"#e2e8f0",textSec:"#8892b0",tabBorder:"#2a2d3e" };
 
-function useTheme(){ const[dark,setDark]=useState(false); return{dark,setDark,t:dark?DARK:LIGHT}; }
+function useTheme(){ 
+  const [dark, setDark] = useState(() => {
+    const saved = localStorage.getItem("theme_dark");
+    return saved !== null ? saved === "true" : true;
+  });
+  const toggleDark = (value) => {
+    setDark(prev => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      localStorage.setItem("theme_dark", next ? "true" : "false");
+      return next;
+    });
+  };
+  return { dark, setDark: toggleDark, t: dark ? DARK : LIGHT }; 
+}
 function makeStyles(t){
   return{
     page:  {minHeight:"100vh",padding:"60px 16px 24px",maxWidth:780,margin:"0 auto",background:t.bg,color:t.text},
