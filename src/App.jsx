@@ -2812,6 +2812,17 @@ export default function App(){
   const [auth, setAuth] = useState({ role:"", name:"", manager_id: null, scope: "geral" });
   const [screen, setScreen] = useState("selection");
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if ("scrollRestoration" in window.history) {
+        window.history.scrollRestoration = "manual";
+      }
+      if (window.scrollTo) {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      }
+    }
+  }, [screen, loading]);
+
   // Novos estados para alteração de senha
   const [modalPassword, setModalPassword] = useState(false);
   const [pwdForm, setPwdForm] = useState({ current: "", newPwd: "", confirm: "" });
