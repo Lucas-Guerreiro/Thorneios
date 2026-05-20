@@ -1830,6 +1830,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   const[sumulaModal,setSumulaModal]=useState(null); // {match, eKey, onSaveSumula, home, away}
   const[sumulaSelection,setSumulaSelection]=useState({home:"",away:""});
   const[selTeamElenco,setSelTeamElenco]=useState(champ.teams[0]||"");
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const [filtroElenco, setFiltroElenco] = useState("");
   const [modalNovoAtleta, setModalNovoAtleta] = useState(false);
@@ -1858,19 +1859,124 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   const colorOf=useCallback((n,teams)=>COLORS[(teams||[]).indexOf(n)%COLORS.length],[]);
   const c=champ;
   const rosters = c.rosters || {}; // { teamName: [id1, id2] }
-  function saveRR(ri,mi,hs,as2,dt){const tc=deepClone(c);const m=tc.rounds[ri].matches[mi];m.homeScore=hs;m.awayScore=as2;m.played=true;if(dt)m.date=dt;tc.standings=recalcStandings(tc.teams,tc.rounds);onUpdate(tc);setEditing(null);}
-  function saveGroup(gi,ri,mi,hs,as2,dt){const tc=deepClone(c);const m=tc.groups[gi].rounds[ri].matches[mi];m.homeScore=hs;m.awayScore=as2;m.played=true;if(dt)m.date=dt;tc.groups[gi].standings=recalcStandings(tc.groups[gi].teams,tc.groups[gi].rounds);onUpdate(tc);setEditing(null);}
-  function saveKO(pi,mi,hs,as2,dt){
-    if(parseInt(hs)===parseInt(as2)){alert("Sem empate no mata-mata!");return;}
-    const tc=deepClone(c);const ph=tc.knockout[pi];const m=ph.matches[mi];
-    m.homeScore=hs;m.awayScore=as2;m.played=true;m.winner=parseInt(hs)>parseInt(as2)?m.home:m.away;if(dt)m.date=dt;
-    if(ph.matches.every(x=>x.played)){ph.advancers=ph.matches.map(x=>x.winner);if(tc.knockout[pi+1]){const adv=ph.advancers;tc.knockout[pi+1].matches=[];for(let i=0;i<adv.length;i+=2)if(adv[i+1])tc.knockout[pi+1].matches.push({home:adv[i],away:adv[i+1],homeScore:"",awayScore:"",played:false,winner:null,date:""}); }}
-    onUpdate(tc);setEditing(null);
+  function saveRR(ri, mi, hs, as2, dt, newHome, newAway, newRound) {
+    const tc = deepClone(c);
+    const m = tc.rounds[ri].matches[mi];
+    m.homeScore = hs;
+    m.awayScore = as2;
+    m.played = hs !== "" && as2 !== "";
+    if (dt) m.date = dt;
+    if (!m.played) {
+      if (newHome) m.home = newHome;
+      if (newAway) m.away = newAway;
+    }
+    if (newRound !== undefined && Number(newRound) !== tc.rounds[ri].round) {
+      tc.rounds[ri].matches.splice(mi, 1);
+      const targetRound = tc.rounds.find(r => r.round === Number(newRound));
+      if (targetRound) targetRound.matches.push(m);
+    }
+    tc.standings = recalcStandings(tc.teams, tc.rounds);
+    onUpdate(tc);
+    setEditing(null);
+  }
+  function saveGroup(gi, ri, mi, hs, as2, dt, newHome, newAway, newRound) {
+    const tc = deepClone(c);
+    const m = tc.groups[gi].rounds[ri].matches[mi];
+    m.homeScore = hs;
+    m.awayScore = as2;
+    m.played = hs !== "" && as2 !== "";
+    if (dt) m.date = dt;
+    if (!m.played) {
+      if (newHome) m.home = newHome;
+      if (newAway) m.away = newAway;
+    }
+    if (newRound !== undefined && Number(newRound) !== tc.groups[gi].rounds[ri].round) {
+      tc.groups[gi].rounds[ri].matches.splice(mi, 1);
+      const targetRound = tc.groups[gi].rounds.find(r => r.round === Number(newRound));
+      if (targetRound) targetRound.matches.push(m);
+    }
+    tc.groups[gi].standings = recalcStandings(tc.groups[gi].teams, tc.groups[gi].rounds);
+    onUpdate(tc);
+    setEditing(null);
+  }
+  function saveKO(pi, mi, hs, as2, dt, newHome, newAway) {
+    if (hs !== "" && as2 !== "" && parseInt(hs) === parseInt(as2)) {
+      alert("Sem empate no mata-mata!");
+      return;
+    }
+    const tc = deepClone(c);
+    const ph = tc.knockout[pi];
+    const m = ph.matches[mi];
+    m.homeScore = hs;
+    m.awayScore = as2;
+    m.played = hs !== "" && as2 !== "";
+    if (m.played) {
+      m.winner = parseInt(hs) > parseInt(as2) ? m.home : m.away;
+    } else {
+      m.winner = null;
+    }
+    if (dt) m.date = dt;
+    if (!m.played) {
+      if (newHome) m.home = newHome;
+      if (newAway) m.away = newAway;
+    }
+    if (ph.matches.every(x => x.played)) {
+      ph.advancers = ph.matches.map(x => x.winner);
+      if (tc.knockout[pi + 1]) {
+        const adv = ph.advancers;
+        tc.knockout[pi + 1].matches = [];
+        for (let i = 0; i < adv.length; i += 2) {
+          if (adv[i + 1]) {
+            tc.knockout[pi + 1].matches.push({
+              home: adv[i],
+              away: adv[i + 1],
+              homeScore: "",
+              awayScore: "",
+              played: false,
+              winner: null,
+              date: ""
+            });
+          }
+        }
+      }
+    }
+    onUpdate(tc);
+    setEditing(null);
   }
   function advanceMixed(){const tc=deepClone(c);const q=[];tc.groups.forEach(g=>{if(g.standings[0])q.push(g.standings[0].name);if(g.standings[1])q.push(g.standings[1].name);});tc.knockout=generateKO(q);tc.mixedPhase="knockout";onUpdate(tc);}
   const lastPhase=c.knockout?.length>0?c.knockout[c.knockout.length-1]:null;
   const champion=(c.type==="mata"||(c.type==="misto"&&c.mixedPhase==="knockout"))&&lastPhase?.matches?.[0]?.winner||(c.type==="pontos"&&c.rounds?.every(r=>r.matches.every(m=>m.played))&&c.standings?.[0]?.name)||null;
   const tabs=["elencos", ... (c.type==="pontos"?["tabela","jogos"]:c.type==="mata"?["chave","jogos"]:["tabela","chave","jogos"]), "estatísticas", "configurações"];
+
+  const getArtilheiro = () => {
+    const evts = [];
+    if(c.rounds) c.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>evts.push(e))));
+    if(c.groups) c.groups.forEach(g=>g.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>evts.push(e)))));
+    if(c.knockout) c.knockout.forEach(p=>p.matches.forEach(m=>m.events?.forEach(e=>evts.push(e))));
+
+    const stats = {};
+    evts.forEach(e => {
+       if(e.type==="gol") {
+          if(!stats[e.atletaId]) stats[e.atletaId] = {gols:0, teamName: e.teamName};
+          stats[e.atletaId].gols++;
+       }
+    });
+
+    const arr = Object.keys(stats).map(aid => ({ atleta: atletas.find(x=>String(x.id)===String(aid)), ...stats[aid] })).filter(x=>x.atleta);
+    const sorted = [...arr].sort((a,b)=>b.gols-a.gols);
+    return sorted[0] || null;
+  };
+  const artilheiro = getArtilheiro();
+
+  useEffect(() => {
+    if (champion) {
+      const key = `celeb_visto_${c.id}`;
+      if (!localStorage.getItem(key)) {
+        setShowCelebration(true);
+        localStorage.setItem(key, "true");
+      }
+    }
+  }, [champion, c.id]);
 
   function handleSaveSumula(m, events) {
      const tc=deepClone(c);
@@ -2123,25 +2229,64 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     );
   }
 
-  function MatchRow({m,eKey,onSave}){
+  function MatchRow({m,eKey,onSave,roundsList=[],currentRound=null,teamsList=[]}){
     const isEd=editing?.key===eKey;
     const[hs,setHs]=useState(m.homeScore||"");const[as2,setAs2]=useState(m.awayScore||"");const[dt,setDt]=useState(m.date||"");
+    const[homeTeam,setHomeTeam]=useState(m.home);const[awayTeam,setAwayTeam]=useState(m.away);
+    const[selectedRound,setSelectedRound]=useState(currentRound||"");
     const getPlayerNameById = id => getPlayerName(atletas.find(x=>String(x.id)===String(id)));
     if(isEd)return(
       <div style={{...S.card,padding:12,border:"1.5px solid #1D9E7555"}}>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-            <div style={{display:"flex",alignItems:"center",gap:5,flex:1}}><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={22}/><span style={{fontSize:12,color:t.text}}>{m.home}</span></div>
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <input type="number" min={0} max={99} value={hs} onChange={e=>setHs(e.target.value)} style={{...S.input,width:46,textAlign:"center",padding:"5px 4px"}}/>
-              <span style={{color:t.textSec,fontWeight:700}}>×</span>
-              <input type="number" min={0} max={99} value={as2} onChange={e=>setAs2(e.target.value)} style={{...S.input,width:46,textAlign:"center",padding:"5px 4px"}}/>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {!m.played ? (
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <div>
+                <label style={{...S.label,fontSize:11,marginBottom:4}}>Time Mandante</label>
+                <select value={homeTeam} onChange={e=>setHomeTeam(e.target.value)} style={S.select}>
+                  {teamsList.map(tName=><option key={tName} value={tName}>{tName}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{...S.label,fontSize:11,marginBottom:4}}>Time Visitante</label>
+                <select value={awayTeam} onChange={e=>setAwayTeam(e.target.value)} style={S.select}>
+                  {teamsList.map(tName=><option key={tName} value={tName}>{tName}</option>)}
+                </select>
+              </div>
             </div>
-            <div style={{display:"flex",alignItems:"center",gap:5,flex:1,justifyContent:"flex-end"}}><span style={{fontSize:12,color:t.text}}>{m.away}</span><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={22}/></div>
+          ) : (
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"space-between"}}>
+              <div style={{display:"flex",alignItems:"center",gap:5}}><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={22}/><span style={{fontSize:12,fontWeight:700,color:t.text}}>{m.home}</span></div>
+              <div style={{display:"flex",alignItems:"center",gap:5}}><span style={{fontSize:12,fontWeight:700,color:t.text}}>{m.away}</span><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={22}/></div>
+            </div>
+          )}
+
+          <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:4}}>
+            <label style={{...S.label,fontSize:11}}>Resultado (Deixe em branco para partida pendente)</label>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+              <span style={{fontSize:11,color:t.textSec,flex:1,textAlign:"right"}}>{m.played?"":"Gols Mandante"}</span>
+              <input type="number" min={0} max={99} value={hs} onChange={e=>setHs(e.target.value)} style={{...S.input,width:56,textAlign:"center",padding:"6px 4px"}} placeholder="—"/>
+              <span style={{color:t.textSec,fontWeight:700}}>×</span>
+              <input type="number" min={0} max={99} value={as2} onChange={e=>setAs2(e.target.value)} style={{...S.input,width:56,textAlign:"center",padding:"6px 4px"}} placeholder="—"/>
+              <span style={{fontSize:11,color:t.textSec,flex:1}}>{m.played?"":"Gols Visitante"}</span>
+            </div>
           </div>
-          <input type="date" value={dt} onChange={e=>setDt(e.target.value)} style={S.input}/>
-          <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>onSave(hs,as2,dt)} style={{...S.btn(),flex:1,justifyContent:"center"}}>Salvar</button>
+
+          <div>
+            <label style={{...S.label,fontSize:11,marginBottom:4}}>Data da Partida</label>
+            <input type="date" value={dt} onChange={e=>setDt(e.target.value)} style={S.input}/>
+          </div>
+
+          {!m.played && roundsList.length > 1 && currentRound && (
+            <div>
+              <label style={{...S.label,fontSize:11,marginBottom:4}}>Remanejar para Rodada</label>
+              <select value={selectedRound} onChange={e=>setSelectedRound(Number(e.target.value))} style={S.select}>
+                {roundsList.map(rdNum=><option key={rdNum} value={rdNum}>Rodada {rdNum}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div style={{display:"flex",gap:8,marginTop:6}}>
+            <button onClick={()=>onSave(hs,as2,dt,homeTeam,awayTeam,selectedRound)} style={{...S.btn(),flex:1,justifyContent:"center"}}>Salvar</button>
             <button onClick={()=>setEditing(null)} style={S.btn(t.card,t.textSec)}>✕</button>
           </div>
         </div>
@@ -2194,6 +2339,54 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           <button onClick={()=>onDelete(c.id)} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
         </div>
       </div>
+
+      {champion && (
+        <div style={{
+          background: "linear-gradient(135deg, rgba(29, 158, 117, 0.12) 0%, rgba(212, 175, 55, 0.12) 100%)",
+          border: "2.5px solid #D4AF37",
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          position: "relative",
+          overflow: "hidden"
+        }}>
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: "radial-gradient(circle at 80% 20%, rgba(212, 175, 55, 0.15) 0%, transparent 50%)",
+            pointerEvents: "none"
+          }} />
+          
+          <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, zIndex: 1}}>
+            <div style={{display: "flex", alignItems: "center", gap: 12}}>
+              <span style={{fontSize: 34}}>🏆</span>
+              <div>
+                <div style={{fontSize: 10, fontWeight: 700, color: "#D4AF37", textTransform: "uppercase", letterSpacing: 1.5}}>Campeão Declarado</div>
+                <div style={{fontSize: 22, fontWeight: 900, color: t.text}}>{champion}</div>
+              </div>
+            </div>
+            
+            {artilheiro && (
+              <div style={{display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.06)", padding: "8px 14px", borderRadius: 14, border: `1px solid ${t.cardBorder}`}}>
+                <span style={{fontSize: 22}}>⚽</span>
+                <div>
+                  <div style={{fontSize: 9, fontWeight: 700, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>Artilheiro</div>
+                  <div style={{fontSize: 13, fontWeight: 700, color: t.text}}>{getPlayerName(artilheiro.atleta)}</div>
+                  <div style={{fontSize: 11, color: t.textSec}}>{artilheiro.teamName} · <strong style={{color: "#378ADD"}}>{artilheiro.gols} gols</strong></div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div style={{display: "flex", gap: 8, zIndex: 1, marginTop: 4}}>
+            <button onClick={() => setShowCelebration(true)} style={{...S.btn("#D4AF37"), color: "#000", fontWeight: 800, padding: "8px 16px", fontSize: 13, cursor: "pointer"}}>🎉 Celebrar Conquista</button>
+          </div>
+        </div>
+      )}
+
       <div style={{display:"flex",gap:0,marginBottom:20,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto"}}>
         {tabs.map(tb=><button key={tb} onClick={()=>setTab(tb)} style={S.tab(tab===tb)}>{tb.charAt(0).toUpperCase()+tb.slice(1)}</button>)}
       </div>
@@ -2259,9 +2452,9 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           </div>
         </div>
       )}
-      {tab==="jogos"&&c.type==="pontos"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{c.rounds.map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{rd.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"rr-"+ri+"-"+mi} onSave={(hs,as2,dt)=>saveRR(ri,mi,hs,as2,dt)}/>)}</div></Sec>)}</div>}
-      {tab==="jogos"&&c.type==="mata"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{c.knockout.map((phase,pi)=><Sec key={pi} title={phase.name} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{phase.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"ko-"+pi+"-"+mi} onSave={(hs,as2,dt)=>saveKO(pi,mi,hs,as2,dt)}/>)}</div></Sec>)}</div>}
-      {tab==="jogos"&&c.type==="misto"&&<div style={{display:"flex",flexDirection:"column",gap:24}}>{c.groups.map((g,gi)=><div key={gi}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}</h3>{g.rounds.map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{rd.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"gr-"+gi+"-"+ri+"-"+mi} onSave={(hs,as2,dt)=>saveGroup(gi,ri,mi,hs,as2,dt)}/>)}</div></Sec>)}</div>)}</div>}
+      {tab==="jogos"&&c.type==="pontos"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{c.rounds.map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{rd.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"rr-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveRR(ri,mi,hs,as2,dt,nh,na,nr)} roundsList={c.rounds.map(r=>r.round)} currentRound={rd.round} teamsList={c.teams}/>)}</div></Sec>)}</div>}
+      {tab==="jogos"&&c.type==="mata"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{c.knockout.map((phase,pi)=><Sec key={pi} title={phase.name} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{phase.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"ko-"+pi+"-"+mi} onSave={(hs,as2,dt,nh,na)=>saveKO(pi,mi,hs,as2,dt,nh,na)} teamsList={c.teams}/>)}</div></Sec>)}</div>}
+      {tab==="jogos"&&c.type==="misto"&&<div style={{display:"flex",flexDirection:"column",gap:24}}>{c.groups.map((g,gi)=><div key={gi}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}</h3>{g.rounds.map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{rd.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"gr-"+gi+"-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveGroup(gi,ri,mi,hs,as2,dt,nh,na,nr)} roundsList={g.rounds.map(r=>r.round)} currentRound={rd.round} teamsList={g.teams}/>)}</div></Sec>)}</div>)}</div>}
       
       {sumulaModal && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
@@ -2366,6 +2559,133 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
               <button onClick={salvarNovoAtletaCamp} style={S.btn("#378ADD")}>Salvar e Escalar</button>
               <button onClick={()=>setModalNovoAtleta(false)} style={S.btn(t.card,t.textSec)}>Cancelar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCelebration && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0, 0, 0, 0.85)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 10000,
+          padding: 16,
+          overflow: "hidden"
+        }}>
+          {/* Confetes animados em CSS puro */}
+          <div style={{position: "absolute", inset: 0, pointerEvents: "none"}}>
+            {Array.from({length: 80}).map((_, i) => {
+              const left = Math.random() * 100;
+              const delay = Math.random() * 5;
+              const duration = 3 + Math.random() * 3;
+              const colors = ["#FFD700", "#FF4500", "#1E90FF", "#00FF00", "#FF1493", "#FF8C00", "#00FFFF"];
+              const randomColor = colors[Math.floor(Math.random() * colors.length)];
+              const size = 6 + Math.random() * 8;
+              return (
+                <div key={i} style={{
+                  position: "absolute",
+                  top: -20,
+                  left: `${left}%`,
+                  width: size,
+                  height: size,
+                  backgroundColor: randomColor,
+                  borderRadius: Math.random() > 0.5 ? "50%" : "2px",
+                  opacity: 0.8,
+                  transform: `rotate(${Math.random() * 360}deg)`,
+                  animation: `confeti-fall ${duration}s linear infinite`,
+                  animationDelay: `${delay}s`
+                }} />
+              );
+            })}
+          </div>
+
+          <style>{`
+            @keyframes confeti-fall {
+              0% {
+                top: -20px;
+                transform: translateX(0) rotate(0deg);
+              }
+              50% {
+                transform: translateX(80px) rotate(180deg);
+              }
+              100% {
+                top: 105vh;
+                transform: translateX(-40px) rotate(360deg);
+              }
+            }
+            @keyframes scale-up {
+              0% { transform: scale(0.85); opacity: 0; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+          `}</style>
+
+          <div style={{
+            ...S.card,
+            width: "100%",
+            maxWidth: 460,
+            textAlign: "center",
+            padding: 30,
+            border: "2.5px solid #D4AF37",
+            boxShadow: "0 0 35px rgba(212, 175, 55, 0.35)",
+            position: "relative",
+            zIndex: 10001,
+            background: t.card,
+            animation: "scale-up 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)"
+          }}>
+            <span style={{fontSize: 70, display: "block", marginBottom: 16}}>🏆</span>
+            
+            <h1 style={{
+              fontSize: 22,
+              fontWeight: 900,
+              color: "#D4AF37",
+              textTransform: "uppercase",
+              letterSpacing: 2,
+              margin: "0 0 6px 0"
+            }}>Campeão do Torneio</h1>
+            
+            <h2 style={{
+              fontSize: 28,
+              fontWeight: 800,
+              color: t.text,
+              margin: "0 0 16px 0",
+              lineHeight: 1.2
+            }}>{champion}</h2>
+
+            <p style={{
+              fontSize: 13,
+              color: t.textSec,
+              lineHeight: 1.5,
+              marginBottom: 20,
+              padding: "0 10px"
+            }}>
+              Parabéns à equipe pela brilhante trajetória e por conquistar o título do campeonato <strong>{c.name}</strong>!
+            </p>
+
+            {artilheiro && (
+              <div style={{
+                background: "rgba(255,255,255,0.04)",
+                border: `1px solid ${t.cardBorder}`,
+                borderRadius: 14,
+                padding: "12px 18px",
+                marginBottom: 24,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 12,
+                textAlign: "left"
+              }}>
+                <span style={{fontSize: 32}}>⚽</span>
+                <div>
+                  <div style={{fontSize: 10, fontWeight: 700, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>Artilheiro do Campeonato</div>
+                  <div style={{fontSize: 15, fontWeight: 800, color: t.text}}>{getPlayerName(artilheiro.atleta)}</div>
+                  <div style={{fontSize: 12, color: t.textSec}}>{artilheiro.teamName} · <strong style={{color: "#378ADD"}}>{artilheiro.gols} gols</strong></div>
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => setShowCelebration(false)} style={{...S.btn("#1D9E75"), width: "100%", justifyContent: "center", padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer"}}>Fechar Celebração</button>
           </div>
         </div>
       )}
@@ -2562,29 +2882,34 @@ export default function App(){
     const data = {campeonatos,peladas,datasRealizacao,atletas,participacoes,financeiro,managers};
     const fileName = `futebol_manager_backup_${todayStr()}.json`;
     const jsonStr = JSON.stringify(data, null, 2);
+    const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 
-    try {
-      const result = await Filesystem.writeFile({
-        path: fileName,
-        data: jsonStr,
-        directory: Directory.Cache,
-        encoding: Encoding.UTF8,
-      });
+    if (isNative) {
+      try {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: jsonStr,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
 
-      await Share.share({
-        title: 'Exportar Backup JSON',
-        text: 'Arquivo de backup do Futebol Manager',
-        url: result.uri,
-        dialogTitle: 'Compartilhar Backup',
-      });
-    } catch (e) {
-      console.error('Erro ao exportar JSON:', e);
-      const blob = new Blob([jsonStr], {type: "application/json"});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = fileName;
-      a.click(); URL.revokeObjectURL(url);
+        await Share.share({
+          title: 'Exportar Backup JSON',
+          text: 'Arquivo de backup do Futebol Manager',
+          url: result.uri,
+          dialogTitle: 'Compartilhar Backup',
+        });
+        return;
+      } catch (e) {
+        console.error('Erro ao exportar JSON nativo:', e);
+      }
     }
+
+    const blob = new Blob([jsonStr], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = fileName;
+    a.click(); URL.revokeObjectURL(url);
   }
 
   async function exportTXT(){
@@ -2604,29 +2929,34 @@ export default function App(){
     });
 
     const fileName = `futebol_manager_backup_${todayStr()}.txt`;
+    const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 
-    try {
-      const result = await Filesystem.writeFile({
-        path: fileName,
-        data: txt,
-        directory: Directory.Cache,
-        encoding: Encoding.UTF8,
-      });
+    if (isNative) {
+      try {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: txt,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8,
+        });
 
-      await Share.share({
-        title: 'Exportar Relatório TXT',
-        text: 'Relatório do Futebol Manager',
-        url: result.uri,
-        dialogTitle: 'Compartilhar Relatório',
-      });
-    } catch (e) {
-      console.error('Erro ao exportar TXT:', e);
-      const blob = new Blob([txt], {type: "text/plain;charset=utf-8"});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = fileName;
-      a.click(); URL.revokeObjectURL(url);
+        await Share.share({
+          title: 'Exportar Relatório TXT',
+          text: 'Relatório do Futebol Manager',
+          url: result.uri,
+          dialogTitle: 'Compartilhar Relatório',
+        });
+        return;
+      } catch (e) {
+        console.error('Erro ao exportar TXT nativo:', e);
+      }
     }
+
+    const blob = new Blob([txt], {type: "text/plain;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = fileName;
+    a.click(); URL.revokeObjectURL(url);
   }
   function importJSON(e){
     const file = e.target.files[0];
