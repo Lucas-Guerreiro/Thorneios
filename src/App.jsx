@@ -3383,13 +3383,15 @@ export default function App(){
     try {
       let npointId = c.npointId;
       let url = "https://api.npoint.io";
+      let method = "POST";
       
       if (npointId) {
         url = `https://api.npoint.io/${npointId}`;
+        method = "PUT"; // PUT é mais adequado para substituir/atualizar dados existentes no npoint.io
       }
       
       const response = await fetch(url, {
-        method: "POST",
+        method: method,
         headers: {
           "Content-Type": "application/json"
         },
@@ -3397,14 +3399,23 @@ export default function App(){
       });
       
       if (!response.ok) {
-        throw new Error("Erro na resposta do servidor.");
+        if (response.status === 429) {
+          throw new Error("O servidor da nuvem (npoint.io) atingiu o limite temporário de requisições (Rate Limit). Por favor, aguarde de 1 a 2 minutos e tente salvar novamente.");
+        }
+        if (response.status === 413) {
+          throw new Error("O tamanho dos dados do campeonato excedeu o limite permitido pelo servidor gratuito.");
+        }
+        if (response.status >= 500) {
+          throw new Error("O servidor da nuvem (npoint.io) está passando por instabilidades ou manutenção interna no momento. Tente novamente em alguns instantes.");
+        }
+        throw new Error(`Erro ${response.status} na resposta do servidor.`);
       }
       
       const resData = await response.json();
       const newId = npointId || resData.id;
       
       if (!newId) {
-        throw new Error("ID de publicacao nao gerado.");
+        throw new Error("ID de publicação não gerado.");
       }
       
       const dataHoraStr = new Date().toLocaleString("pt-BR");
@@ -3419,7 +3430,11 @@ export default function App(){
       return cAtualizado;
     } catch (err) {
       console.error(err);
-      alert("Erro ao publicar: " + err.message);
+      let errMsg = err.message;
+      if (err instanceof TypeError && err.message.includes("failed to fetch")) {
+        errMsg = "Não foi possível conectar ao servidor da nuvem. Verifique sua conexão com a internet ou se o serviço do npoint.io está disponível.";
+      }
+      alert("Erro ao publicar: " + errMsg);
       return null;
     } finally {
       setCloudLoading(false);
