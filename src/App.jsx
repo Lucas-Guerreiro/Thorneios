@@ -3403,8 +3403,11 @@ export default function App(){
         atletas: allAtletas.map(a => ({ id: a.id, name: a.name }))
       };
 
+      // Remove campos com valor undefined (não suportados pelo Firestore)
+      const cleanPayload = JSON.parse(JSON.stringify(payload));
+
       // Salva ou atualiza os dados na coleção "campeonatos" do Firestore
-      await setDoc(doc(db, "campeonatos", docId), payload);
+      await setDoc(doc(db, "campeonatos", docId), cleanPayload);
 
       const dataHoraStr = new Date().toLocaleString("pt-BR");
       const cAtualizado = {
