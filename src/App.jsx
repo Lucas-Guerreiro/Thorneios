@@ -3,6 +3,9 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useLocalStorage, clearLocalStorage, getLocalStorageSize } from "./hooks/useLocalStorage";
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { db, isFirebaseConfigured } from "./firebase";
+import { doc, getDoc, setDoc, collection } from "firebase/firestore";
+
 
 /* ─────────────────────────── CONSTANTES ─────────────────────────── */
 const COLORS = ["#1D9E75","#378ADD","#D85A30","#7F77DD","#BA7517","#D4537E","#639922","#E24B4A","#5F5E5A","#0F6E56"];
@@ -3319,18 +3322,22 @@ export default function App(){
   const removerManager = id => setManagers(p => p.filter(m => m.id !== id));
   const acessarCampeonatoNuvem = (code) => {
     setCloudLoading(true);
-    fetch(`https://api.npoint.io/${code}`)
-      .then(res => {
-        if (!res.ok) throw new Error("Campeonato nao encontrado ou expirado");
-        return res.json();
-      })
-      .then(data => {
-        if (data && data.id) {
-          setPublicCloudChamp(data);
-          setScreen("publicCloud");
-        } else {
-          alert("Campeonato invalido.");
+    
+    if (!isFirebaseConfigured) {
+      alert("O Firebase Firestore não está configurado. Por favor, adicione suas credenciais no arquivo 'src/firebase.js' para poder baixar campeonatos da nuvem.");
+      setCloudLoading(false);
+      return;
+    }
+
+    const docRef = doc(db, "campeonatos", code);
+    getDoc(docRef)
+      .then(docSnap => {
+        if (!docSnap.exists()) {
+          throw new Error("Campeonato não encontrado ou código inválido.");
         }
+        const data = docSnap.data();
+        setPublicCloudChamp(data);
+        setScreen("publicCloud");
       })
       .catch(err => {
         alert("Erro ao baixar campeonato: " + err.message);
@@ -3374,65 +3381,46 @@ export default function App(){
 
   const publicarNaNuvem = async (c) => {
     setCloudLoading(true);
-    const payload = {
-      ...c,
-      lastPublished: new Date().toISOString(),
-      atletas: allAtletas.map(a => ({ id: a.id, name: a.name }))
-    };
-
+    
     try {
+      if (!isFirebaseConfigured) {
+        throw new Error("O Firebase Firestore não está configurado. Por favor, adicione suas credenciais no arquivo 'src/firebase.js' para ativar a sincronização na nuvem.");
+      }
+
       let npointId = c.npointId;
-      let url = "https://api.npoint.io";
-      let method = "POST";
-      
-      if (npointId) {
-        url = `https://api.npoint.io/${npointId}`;
-        method = "PUT"; // PUT é mais adequado para substituir/atualizar dados existentes no npoint.io
+      let docId = npointId;
+
+      if (!docId) {
+        // Cria uma referência com ID gerado automaticamente pelo Firestore
+        const novoDocRef = doc(collection(db, "campeonatos"));
+        docId = novoDocRef.id;
       }
-      
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error("O servidor da nuvem (npoint.io) atingiu o limite temporário de requisições (Rate Limit). Por favor, aguarde de 1 a 2 minutos e tente salvar novamente.");
-        }
-        if (response.status === 413) {
-          throw new Error("O tamanho dos dados do campeonato excedeu o limite permitido pelo servidor gratuito.");
-        }
-        if (response.status >= 500) {
-          throw new Error("O servidor da nuvem (npoint.io) está passando por instabilidades ou manutenção interna no momento. Tente novamente em alguns instantes.");
-        }
-        throw new Error(`Erro ${response.status} na resposta do servidor.`);
-      }
-      
-      const resData = await response.json();
-      const newId = npointId || resData.id;
-      
-      if (!newId) {
-        throw new Error("ID de publicação não gerado.");
-      }
-      
+
+      const payload = {
+        ...c,
+        npointId: docId,
+        lastPublished: new Date().toISOString(),
+        atletas: allAtletas.map(a => ({ id: a.id, name: a.name }))
+      };
+
+      // Salva ou atualiza os dados na coleção "campeonatos" do Firestore
+      await setDoc(doc(db, "campeonatos", docId), payload);
+
       const dataHoraStr = new Date().toLocaleString("pt-BR");
       const cAtualizado = {
         ...c,
-        npointId: newId,
+        npointId: docId,
         lastPublished: dataHoraStr
       };
       
       atualizarChamp(cAtualizado);
-      alert("Campeonato publicado com sucesso na nuvem!");
+      alert("Campeonato publicado com sucesso na nuvem do Firebase!");
       return cAtualizado;
     } catch (err) {
       console.error(err);
       let errMsg = err.message;
       if (err instanceof TypeError && err.message.includes("failed to fetch")) {
-        errMsg = "Não foi possível conectar ao servidor da nuvem. Verifique sua conexão com a internet ou se o serviço do npoint.io está disponível.";
+        errMsg = "Erro de conexão. Não foi possível acessar o Firestore. Verifique sua conexão com a internet.";
       }
       alert("Erro ao publicar: " + errMsg);
       return null;
