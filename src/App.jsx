@@ -163,6 +163,371 @@ function resolveMatch(ps,scoreA,scoreB){
   return{...ps,teams:newTeams,queue:[winner,...rest,loser],bench:newBench,matchLog:log,currentMatch:null};
 }
 
+/* ─────────────────────────── CRONÔMETRO E AUDIO ─────────────────── */
+const playWhistleSound = () => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    
+    const whistle = (delay, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1800, ctx.currentTime + delay);
+      
+      const oscMod = ctx.createOscillator();
+      const gainMod = ctx.createGain();
+      oscMod.frequency.value = 60;
+      gainMod.gain.value = 180;
+      
+      oscMod.connect(gainMod.gain);
+      gainMod.connect(osc.frequency);
+      
+      gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + delay + 0.05);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime + delay + duration - 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + delay + duration);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      oscMod.connect(gainMod);
+      
+      oscMod.start(ctx.currentTime + delay);
+      osc.start(ctx.currentTime + delay);
+      
+      oscMod.stop(ctx.currentTime + delay + duration);
+      osc.stop(ctx.currentTime + delay + duration);
+    };
+    
+    whistle(0, 0.25);
+    whistle(0.35, 0.25);
+    whistle(0.7, 0.7);
+  } catch (e) {
+    console.error("Erro ao gerar áudio:", e);
+  }
+};
+
+function MatchTimer({ t, defaultMinutes = 10 }) {
+  const [minutesInput, setMinutesInput] = useState(defaultMinutes);
+  const [seconds, setSeconds] = useState(defaultMinutes * 60);
+  const [initialSeconds, setInitialSeconds] = useState(defaultMinutes * 60);
+  const [running, setRunning] = useState(false);
+  const [isConfiguring, setIsConfiguring] = useState(true);
+  const [isFinished, setIsFinished] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (running) {
+      timerRef.current = setInterval(() => {
+        setSeconds(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            setRunning(false);
+            setIsFinished(true);
+            playWhistleSound();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [running]);
+
+  const handleStart = () => {
+    if (isFinished) {
+      setSeconds(initialSeconds);
+      setIsFinished(false);
+    }
+    setRunning(true);
+  };
+
+  const handlePause = () => {
+    setRunning(false);
+  };
+
+  const handleReset = () => {
+    setRunning(false);
+    setSeconds(initialSeconds);
+    setIsFinished(false);
+  };
+
+  const handleConfigSave = () => {
+    const totalSecs = Math.max(1, minutesInput) * 60;
+    setSeconds(totalSecs);
+    setInitialSeconds(totalSecs);
+    setIsConfiguring(false);
+    setIsFinished(false);
+  };
+
+  const handleAddMinute = () => {
+    setSeconds(prev => prev + 60);
+    setInitialSeconds(prev => prev + 60);
+  };
+
+  const handleSubMinute = () => {
+    setSeconds(prev => Math.max(0, prev - 60));
+    setInitialSeconds(prev => Math.max(60, prev - 60));
+  };
+
+  const formatTimer = (s) => {
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  const progressPercent = initialSeconds > 0 ? (seconds / initialSeconds) * 100 : 0;
+  const isUrgent = seconds > 0 && seconds <= 30;
+  const isDark = t.bg === "#0f1117";
+
+  return (
+    <div style={{
+      background: isDark ? "#1f2335" : "#f1f5f9",
+      border: `1.5px solid ${isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : t.cardBorder}`,
+      borderRadius: 14,
+      padding: 12,
+      display: "flex",
+      flexDirection: "column",
+      gap: 10,
+      width: "100%",
+      boxSizing: "border-box",
+      marginBottom: 14,
+      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+      transition: "all 0.3s ease"
+    }}>
+      <style>{`
+        @keyframes pulse-red-timer {
+          0% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(0.97); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes blink-red-timer {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+      `}</style>
+      {isConfiguring ? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: t.textSec, textTransform: "uppercase" }}>Tempo de Jogo:</span>
+            <input 
+              type="number" 
+              min={1} 
+              max={120} 
+              value={minutesInput} 
+              onChange={e => setMinutesInput(Math.max(1, Number(e.target.value)))}
+              style={{
+                width: 60,
+                padding: "6px 8px",
+                borderRadius: 8,
+                border: `1.5px solid ${t.inputBorder}`,
+                background: t.inputBg,
+                color: t.text,
+                fontSize: 13,
+                fontWeight: 700,
+                textAlign: "center"
+              }}
+            />
+            <span style={{ fontSize: 11, fontWeight: 600, color: t.textSec }}>min</span>
+          </div>
+          <button 
+            onClick={handleConfigSave}
+            style={{
+              padding: "7px 12px",
+              borderRadius: 8,
+              background: "#1D9E75",
+              color: "#fff",
+              border: "none",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 12
+            }}
+          >
+            ✓ Definir
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <span style={{
+                fontSize: 32,
+                fontWeight: 850,
+                fontFamily: "monospace",
+                color: isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : t.text,
+                animation: isUrgent ? "pulse-red-timer 1s infinite" : isFinished ? "blink-red-timer 1.5s infinite" : "none",
+                letterSpacing: 0.5
+              }}>
+                {formatTimer(seconds)}
+              </span>
+              {isFinished && (
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: "#E24B4A",
+                  background: "#E24B4A22",
+                  padding: "2px 6px",
+                  borderRadius: 6,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5
+                }}>
+                  ⚽ Fim!
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+              {running ? (
+                <button 
+                  onClick={handlePause} 
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    background: "#BA751722",
+                    color: "#BA7517",
+                    border: "none",
+                    fontWeight: 700,
+                    fontSize: 11,
+                    cursor: "pointer"
+                  }}
+                >
+                  ⏸ Pausar
+                </button>
+              ) : (
+                <button 
+                  onClick={handleStart} 
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    background: "#1D9E7522",
+                    color: "#1D9E75",
+                    border: "none",
+                    fontWeight: 700,
+                    fontSize: 11,
+                    cursor: "pointer"
+                  }}
+                >
+                  ▶ Iniciar
+                </button>
+              )}
+              
+              <button 
+                onClick={handleReset} 
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 8,
+                  background: isDark ? "#2d334a" : "#e2e8f0",
+                  color: t.textSec,
+                  border: "none",
+                  fontWeight: 700,
+                  fontSize: 11,
+                  cursor: "pointer"
+                }}
+              >
+                🔄 Reset
+              </button>
+
+              <button 
+                onClick={() => setIsConfiguring(true)} 
+                style={{
+                  padding: "6px 8px",
+                  borderRadius: 8,
+                  background: "transparent",
+                  color: t.textSec,
+                  border: `1.5px solid ${t.cardBorder}`,
+                  fontSize: 11,
+                  cursor: "pointer"
+                }}
+                title="Configurar Tempo"
+              >
+                ⚙️
+              </button>
+            </div>
+          </div>
+
+          {!isFinished && (
+            <div style={{
+              width: "100%",
+              height: 5,
+              borderRadius: 3,
+              background: isDark ? "#2a2d3e" : "#e2e8f0",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                width: `${progressPercent}%`,
+                height: "100%",
+                background: isUrgent ? "#E24B4A" : "#1D9E75",
+                transition: "width 1s linear"
+              }} />
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 6, justifyContent: "flex-start", marginTop: 2 }}>
+            <button 
+              onClick={handleSubMinute} 
+              style={{
+                padding: "3px 8px",
+                borderRadius: 6,
+                background: isDark ? "#25293d" : "#f8fafc",
+                color: t.textSec,
+                border: `1.5px solid ${t.cardBorder}`,
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              - 1 min
+            </button>
+            <button 
+              onClick={handleAddMinute} 
+              style={{
+                padding: "3px 8px",
+                borderRadius: 6,
+                background: isDark ? "#25293d" : "#f8fafc",
+                color: t.textSec,
+                border: `1.5px solid ${t.cardBorder}`,
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              + 1 min
+            </button>
+            {isFinished && (
+              <button 
+                onClick={() => {
+                  playWhistleSound();
+                }}
+                style={{
+                  padding: "3px 8px",
+                  borderRadius: 6,
+                  background: "#BA751722",
+                  color: "#BA7517",
+                  border: "none",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  marginLeft: "auto"
+                }}
+              >
+                🔊 Apitar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─────────────────────────── LOGIN SCREENS ───────────────────────── */
 function LoginScreen({onLogin,t}){
   const S=makeStyles(t);
@@ -2020,6 +2385,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           {peladaState?.currentMatch&&!peladaState.currentMatch.played&&(
             <div style={{...S.card,border:"2px solid #1D9E7555",marginBottom:20}}>
               <div style={{fontSize:11,fontWeight:700,color:"#1D9E75",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>⚽ Jogo {(peladaState.matchLog?.length||0)+1}</div>
+              
+              {/* Cronômetro com Alarme da Pelada */}
+              <MatchTimer t={t} defaultMinutes={10} />
+
               <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:8,alignItems:"center",marginBottom:12}}>
                 <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamA)}55`,padding:10,textAlign:"right"}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}><span style={{fontWeight:700,fontSize:13,color:t.text}}>{peladaState.currentMatch.teamA}</span><div style={{width:10,height:10,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamA),flexShrink:0}}/></div>
@@ -2517,6 +2886,10 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     if(isEd)return(
       <div style={{...S.card,padding:12,border:"1.5px solid #1D9E7555"}}>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {!m.played && (
+            /* Cronômetro com Alarme no Campeonato */
+            <MatchTimer t={t} defaultMinutes={40} />
+          )}
           {!m.played ? (
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               <div>
