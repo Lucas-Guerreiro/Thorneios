@@ -1333,7 +1333,8 @@ function CloudPublicChampScreen({champ,onBack,t}){
   const colorOf = useCallback((n,teams)=>COLORS[(teams||[]).indexOf(n)%COLORS.length],[]);
   const getPlayerNameById = id => {
     const a = (c.atletas || []).find(x => String(x.id) === String(id));
-    return a ? a.name : "Atleta Desconhecido";
+    if (!a) return "Atleta Desconhecido";
+    return a.apelido || a.nome || a.name || "Atleta Sem Nome";
   };
 
   const allEvents = [];
@@ -4967,6 +4968,10 @@ export default function App(){
   const allPeladas = Array.isArray(appState?.peladas) ? appState.peladas : [];
   const datasRealizacao = Array.isArray(appState?.datasRealizacao) ? appState.datasRealizacao : [];
   const allAtletas = Array.isArray(appState?.atletas) ? appState.atletas : [];
+  const allAtletasRef = useRef(allAtletas);
+  useEffect(() => {
+    allAtletasRef.current = allAtletas;
+  }, [allAtletas]);
   const participacoes = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
   const financeiro = appState?.financeiro && typeof appState.financeiro === 'object' ? appState.financeiro : { entries: [] };
   const managers = Array.isArray(appState?.managers) ? appState.managers : [];
@@ -5149,7 +5154,31 @@ export default function App(){
   const adicionarPelada=d=>setPeladas(p=>[...p,{id:Date.now(),nome:d.nome,data_criacao:d.data_criacao||todayStr(),ativo:d.ativo!==false, manager_id: auth.role === "manager" ? auth.manager_id : null}]);
   const atualizarPelada=(id,d)=>setPeladas(p=>p.map(x=>x.id===id?{...x,...d}:x));
   const removerPelada  =id=>{setPeladas(p=>p.filter(x=>x.id!==id));setDatasRealizacao(p=>p.filter(x=>x.pelada_id!==id));setParticipacoes(p=>p.filter(x=>x.pelada_id!==id));};
-  const atualizarChamp=u=>setCampeonatos(p=>p.map(c=>c.id===u.id?u:c));
+  const atualizarChamp = (u) => {
+    setCampeonatos(p => p.map(c => c.id === u.id ? u : c));
+    if (u.npointId) {
+      setTimeout(async () => {
+        try {
+          if (!isFirebaseConfigured) return;
+          const payload = {
+            ...u,
+            lastPublished: new Date().toISOString(),
+            atletas: allAtletasRef.current.map(a => ({ 
+              id: a.id, 
+              nome: a.nome || "", 
+              apelido: a.apelido || "", 
+              name: a.apelido || a.nome || a.name || "" 
+            }))
+          };
+          const cleanPayload = JSON.parse(JSON.stringify(payload));
+          await setDoc(doc(db, "campeonatos", u.npointId), cleanPayload);
+          console.log("Campeonato sincronizado automaticamente na nuvem!");
+        } catch (e) {
+          console.error("Erro na sincronização automática em background: ", e);
+        }
+      }, 500);
+    }
+  };
   const removerChamp  =id=>setCampeonatos(p=>p.filter(c=>c.id!==id));
 
   const publicarNaNuvem = async (c) => {
@@ -5173,7 +5202,12 @@ export default function App(){
         ...c,
         npointId: docId,
         lastPublished: new Date().toISOString(),
-        atletas: allAtletas.map(a => ({ id: a.id, name: a.name }))
+        atletas: allAtletasRef.current.map(a => ({ 
+          id: a.id, 
+          nome: a.nome || "", 
+          apelido: a.apelido || "", 
+          name: a.apelido || a.nome || a.name || "" 
+        }))
       };
 
       // Remove campos com valor undefined (não suportados pelo Firestore)
