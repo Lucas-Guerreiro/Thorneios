@@ -610,7 +610,7 @@ function LoginScreen({onLogin,t}){
   );
 }
 
-function SelectionScreen({onPublic,onLoginScreen,onAccessCloud,t}){
+function SelectionScreen({onLoginScreen,onAccessCloud,t}){
   const S=makeStyles(t);
   const [code, setCode] = useState("");
   return(
@@ -618,20 +618,14 @@ function SelectionScreen({onPublic,onLoginScreen,onAccessCloud,t}){
       <div style={{maxWidth:560,margin:"0 auto",display:"flex",flexDirection:"column",gap:24}}>
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:32,fontWeight:800,color:t.text}}>⚽ Thorneios</div>
-          <div style={{fontSize:14,color:t.textSec,marginTop:8}}>Acesse como público para acompanhar resultados ou faça login para acessar o painel de admin/manager.</div>
+          <div style={{fontSize:14,color:t.textSec,marginTop:8}}>Faça login para acessar o painel de gerenciamento ou acompanhe um campeonato compartilhado abaixo.</div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:16}}>
-          <button onClick={onPublic} style={{...S.card,background:t.card,border:`1px solid ${t.cardBorder}`,padding:20,display:"flex",flexDirection:"column",gap:12,alignItems:"flex-start"}}>
-            <div style={{fontSize:22,color:t.text}}>👥 Público</div>
-            <div style={{color:t.textSec,fontSize:13}}>Acompanhe resultados e tabelas de classificação apenas.</div>
-            <div style={{marginTop:"auto",color:"#1D9E75",fontWeight:700}}>Entrar</div>
-          </button>
-          <button onClick={onLoginScreen} style={{...S.card,background:t.card,border:`1px solid ${t.cardBorder}`,padding:20,display:"flex",flexDirection:"column",gap:12,alignItems:"flex-start"}}>
-            <div style={{fontSize:22,color:t.text}}>🔐 Login</div>
-            <div style={{color:t.textSec,fontSize:13}}>Acesse como Admin ou Manager usando seu e-mail e senha.</div>
-            <div style={{marginTop:"auto",color:"#1D9E75",fontWeight:700}}>Login</div>
-          </button>
-        </div>
+        
+        <button onClick={onLoginScreen} style={{...S.card,background:t.card,border:`1px solid ${t.cardBorder}`,padding:20,display:"flex",flexDirection:"column",gap:12,alignItems:"flex-start",cursor:"pointer",width:"100%",textAlign:"left"}}>
+          <div style={{fontSize:22,color:t.text}}>🔐 Acesso Organizador (Login)</div>
+          <div style={{color:t.textSec,fontSize:13}}>Acesse como Administrador ou Manager para gerenciar peladas, campeonatos, súmulas e moderações.</div>
+          <div style={{color:"#378ADD",fontWeight:800,fontSize:14,marginTop:4}}>Ir para o Login →</div>
+        </button>
 
         <div style={S.card}>
           <div style={{fontWeight:700,fontSize:14,color:t.text,marginBottom:8}}>🌐 Acompanhar Campeonato da Nuvem</div>
@@ -648,7 +642,7 @@ function SelectionScreen({onPublic,onLoginScreen,onAccessCloud,t}){
                 if (code.trim()) {
                   onAccessCloud(code.trim());
                 } else {
-                  alert("Por favor, insira um codigo de campeonato.");
+                  alert("Por favor, insira um código de campeonato.");
                 }
               }} 
               style={S.btn("#1D9E75")}
@@ -3042,7 +3036,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
               <tbody>
                 {rows.map((_, idx) => {
                   const aid = rosterHome[idx];
-                  const a = aid ? atletas.find(x => x.id === aid) : null;
+                  const a = aid ? atletas.find(x => String(x.id) === String(aid)) : null;
                   return (
                     <tr key={`h-${idx}`} style={{ height: "24px" }}>
                       <td style={{ textAlign: "center" }}></td>
@@ -3073,7 +3067,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
               <tbody>
                 {rows.map((_, idx) => {
                   const aid = rosterAway[idx];
-                  const a = aid ? atletas.find(x => x.id === aid) : null;
+                  const a = aid ? atletas.find(x => String(x.id) === String(aid)) : null;
                   return (
                     <tr key={`a-${idx}`} style={{ height: "24px" }}>
                       <td style={{ textAlign: "center" }}></td>
@@ -5369,12 +5363,12 @@ export default function App(){
   const DarkBtn=()=><button onClick={()=>setDark(d=>!d)} style={{...S.btnSm(t.card,t.text),padding:"8px 12px",fontSize:15,border:`1px solid ${t.cardBorder}`,borderRadius:12}}>{dark?"☀️":"🌙"}</button>;
 
   if(screen==="selection"){
-    return <SelectionScreen onPublic={handlePublicAccess} onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
+    return <SelectionScreen onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
   }
 
   if(screen==="managerRegistry"){
     if(auth.role !== "adm"){
-      return <SelectionScreen onPublic={handlePublicAccess} onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
+      return <SelectionScreen onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
     }
     return <ManagerRegistry managers={managers} onAdd={adicionarManager} onUpdate={atualizarManager} onRemove={removerManager} onBack={()=>setScreen("home")} t={t} />;
   }
