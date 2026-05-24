@@ -2905,6 +2905,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 /* ─────────────────────────── CAMPEONATO ─────────────────────────── */
 function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,onUpdateAtleta,cloudLoading,publicarNaNuvem,t}){
   const S=makeStyles(t);
+  const c = champ;
+  const rosters = c.rosters || {};
+  const colorOf = (n,teams) => COLORS[(teams||[]).indexOf(n)%COLORS.length];
   const [editingTeams,setEditingTeams] = useState(false);
   const [teamsDraft,setTeamsDraft] = useState(Array.isArray(champ.teams)?[...champ.teams]:[]);
   const[tab,setTab]=useState("jogos");
@@ -3165,9 +3168,6 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     setFiltroElenco("");
   }
 
-  const colorOf=useCallback((n,teams)=>COLORS[(teams||[]).indexOf(n)%COLORS.length],[]);
-  const c=champ;
-  const rosters = c.rosters || {}; // { teamName: [id1, id2] }
   function saveRR(ri, mi, hs, as2, dt, newHome, newAway, newRound) {
     const tc = deepClone(c);
     const m = tc.rounds[ri].matches[mi];
