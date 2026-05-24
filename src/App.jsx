@@ -81,7 +81,12 @@ const getPlayerName = a => {
 };
 const isImageUrl = url => {
   if (!url) return false;
-  return url.match(/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i) != null || url.startsWith("data:image/") || url.includes("images.unsplash.com");
+  const cleanUrl = url.toLowerCase().trim();
+  if (cleanUrl.startsWith("data:image/") || cleanUrl.includes("images.unsplash.com") || cleanUrl.includes("firebasestorage.googleapis.com") || cleanUrl.includes("imgbb.com")) {
+    return true;
+  }
+  const extensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"];
+  return extensions.some(ext => cleanUrl.includes(ext));
 };
 function PlayerAvatar({atleta, size=24}) {
   const display = getPlayerName(atleta) || "?";
