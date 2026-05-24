@@ -75,7 +75,10 @@ function resizeImage(file, maxSize, callback) {
   reader.readAsDataURL(file);
 }
 
-const getPlayerName = a => a?.apelido || a?.nome || a?.name || "";
+const getPlayerName = a => {
+  if (!a) return "";
+  return a.apelido || a.nome || a.name || `Atleta #${a.id || 'Sem ID'}`;
+};
 function PlayerAvatar({atleta, size=24}) {
   const display = getPlayerName(atleta) || "?";
   if (atleta?.foto) return <img src={atleta.foto} style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",flexShrink:0}} alt={display} />;
@@ -1327,8 +1330,8 @@ function CloudPublicChampScreen({champ,onBack,t}){
   const colorOf = useCallback((n,teams)=>COLORS[(teams||[]).indexOf(n)%COLORS.length],[]);
   const getPlayerNameById = id => {
     const a = (c.atletas || []).find(x => String(x.id) === String(id));
-    if (!a) return "Atleta Desconhecido";
-    return a.apelido || a.nome || a.name || "Atleta Sem Nome";
+    if (!a) return `Atleta Desconhecido (#${id})`;
+    return a.apelido || a.nome || a.name || `Atleta Sem Nome (#${id})`;
   };
 
   const allEvents = [];
@@ -2902,6 +2905,17 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   const c = champ;
   const rosters = c.rosters || {};
   const colorOf = (n,teams) => COLORS[(teams||[]).indexOf(n)%COLORS.length];
+  const getRosterByTeamName = (teamName) => {
+    if (!teamName || !rosters) return [];
+    if (rosters[teamName] && rosters[teamName].length > 0) {
+      return rosters[teamName];
+    }
+    const key = Object.keys(rosters).find(k => k.trim().toLowerCase() === teamName.trim().toLowerCase());
+    if (key && rosters[key] && rosters[key].length > 0) {
+      return rosters[key];
+    }
+    return [];
+  };
   const [editingTeams,setEditingTeams] = useState(false);
   const [teamsDraft,setTeamsDraft] = useState(Array.isArray(champ.teams)?[...champ.teams]:[]);
   const[tab,setTab]=useState("jogos");
@@ -2936,8 +2950,8 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     const m = sumulaModal.m;
     const tmHome = m.home;
     const tmAway = m.away;
-    const rosterHome = rosters[tmHome] || [];
-    const rosterAway = rosters[tmAway] || [];
+    const rosterHome = getRosterByTeamName(tmHome);
+    const rosterAway = getRosterByTeamName(tmAway);
 
     const maxLength = Math.max(15, rosterHome.length, rosterAway.length);
     const rows = Array.from({ length: maxLength });
@@ -3012,7 +3026,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginTop: "10px", background: "#f9f9f9", padding: "5px", border: "1px solid #ccc" }}>
-            <div><strong>RODADA:</strong> {m.round || currentRound || "—"}</div>
+            <div><strong>RODADA:</strong> {m.round || sumulaModal.round || "—"}</div>
             <div><strong>DATA:</strong> {m.date ? fmtDate(m.date) : "___/___/_____"}</div>
             <div><strong>LOCAL:</strong> _________________________</div>
           </div>
@@ -3039,9 +3053,12 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                   const a = aid ? atletas.find(x => String(x.id) === String(aid)) : null;
                   return (
                     <tr key={`h-${idx}`} style={{ height: "24px" }}>
+                      <td style={{ textAlign: "center", fontWeight: "bold" }}>{a?.numeroCamisa || "—"}</td>
+                      <td style={{ fontWeight: a ? "bold" : "normal", color: a ? "#000" : "#888" }}>
+                        <span style={{ marginRight: 6, color: "#888", fontSize: "10px" }}>{String(idx + 1).padStart(2, '0')}.</span>
+                        {a ? getPlayerName(a) : "...................................................................................................."}
+                      </td>
                       <td style={{ textAlign: "center" }}></td>
-                      <td style={{ fontWeight: a ? "bold" : "normal" }}>{a ? getPlayerName(a) : ""}</td>
-                      <td></td>
                       <td style={{ textAlign: "center", fontSize: "9px" }}>🟨 🟥</td>
                       <td></td>
                     </tr>
@@ -3070,9 +3087,12 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                   const a = aid ? atletas.find(x => String(x.id) === String(aid)) : null;
                   return (
                     <tr key={`a-${idx}`} style={{ height: "24px" }}>
+                      <td style={{ textAlign: "center", fontWeight: "bold" }}>{a?.numeroCamisa || "—"}</td>
+                      <td style={{ fontWeight: a ? "bold" : "normal", color: a ? "#000" : "#888" }}>
+                        <span style={{ marginRight: 6, color: "#888", fontSize: "10px" }}>{String(idx + 1).padStart(2, '0')}.</span>
+                        {a ? getPlayerName(a) : "...................................................................................................."}
+                      </td>
                       <td style={{ textAlign: "center" }}></td>
-                      <td style={{ fontWeight: a ? "bold" : "normal" }}>{a ? getPlayerName(a) : ""}</td>
-                      <td></td>
                       <td style={{ textAlign: "center", fontSize: "9px" }}>🟨 🟥</td>
                       <td></td>
                     </tr>
@@ -4298,7 +4318,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           <div style={{textAlign:"center",minWidth:70,flexShrink:0}}>{m.played?<span style={{fontWeight:800,fontSize:15,color:"#1D9E75"}}>{m.homeScore}×{m.awayScore}</span>:<span style={{color:t.textSec}}>—×—</span>}</div>
           <div style={{display:"flex",alignItems:"center",gap:5,flex:1,minWidth:80}}><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={24}/><span style={{fontSize:12,fontWeight:500,color:t.text}}>{m.away}</span></div>
           <div style={{display:"flex",gap:4,flexShrink:0}}>
-             <button onClick={()=>setSumulaModal({m, eKey})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}} title="Súmula da Partida">📝</button>
+             <button onClick={()=>setSumulaModal({m, eKey, round: m.round || currentRound})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}} title="Súmula da Partida">📝</button>
              <button onClick={()=>setEditing({key:eKey})} style={{...S.btnSm(),padding:"6px 12px"}}>{m.played?"✏️":"▶"}</button>
           </div>
         </div>
@@ -4523,7 +4543,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                           </div>
                         ):(
                           <div style={{padding:"5px 10px",textAlign:"center",display:"flex",gap:4,justifyContent:"center"}}>
-                            <button onClick={()=>setSumulaModal({m, eKey})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"4px 10px"}}>📝 Súmula</button>
+                            <button onClick={()=>setSumulaModal({m, eKey, round: phase.name})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"4px 10px"}}>📝 Súmula</button>
                             <button onClick={()=>setEditing({key:eKey,hs:m.homeScore||"",as2:m.awayScore||"",dt:m.date||""})} style={S.btnSm()}>{m.played?"✏️":"▶"}</button>
                           </div>
                         ))}
@@ -4572,29 +4592,36 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
             <div style={{flex:1,overflowY:"auto",paddingRight:4,display:"flex",flexDirection:"column",gap:16}}>
               {["home","away"].map(side=>{
                  const tm = sumulaModal.m[side];
-                 const tmRoster = (rosters[tm] && rosters[tm].length > 0) ? rosters[tm] : atletas.map(a=>a.id);
+                 const rst = getRosterByTeamName(tm);
+                 const tmRoster = (rst && rst.length > 0) ? rst : atletas.map(a=>a.id);
                  const evts = (sumulaModal.m.events||[]).filter(e=>e.teamName===tm);
                  return (
                    <div key={side} style={{border:`1px solid ${t.cardBorder}`,padding:10,borderRadius:12}}>
                      <div style={{fontWeight:800,color:colorOf(tm,c.teams),marginBottom:10,fontSize:13}}>{tm}</div>
                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                       {evts.map((e,i)=>(
-                         <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:t.text,background:t.inputBg,padding:"6px 10px",borderRadius:8}}>
-                           <span>{e.type==="gol"?"⚽":e.type==="amarelo"?"🟨":"🟥"}</span>
-                           <PlayerAvatar atleta={atletas.find(x=>String(x.id)===String(e.atletaId))} size={18}/>
-                           <span style={{flex:1}}>{getPlayerName(atletas.find(x=>String(x.id)===String(e.atletaId)))}</span>
-                           <button onClick={()=>{
-                              const newEvts = [...(sumulaModal.m.events||[])];
-                              newEvts.splice(newEvts.indexOf(e),1);
-                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                           }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800}}>✕</button>
-                         </div>
-                       ))}
+                       {evts.map((e,i)=>{
+                         const at = atletas.find(x=>String(x.id)===String(e.atletaId));
+                         return (
+                           <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:t.text,background:t.inputBg,padding:"6px 10px",borderRadius:8}}>
+                             <span>{e.type==="gol"?"⚽":e.type==="amarelo"?"🟨":"🟥"}</span>
+                             <PlayerAvatar atleta={at} size={18}/>
+                             <span style={{flex:1}}>{getPlayerName(at) || `Atleta #${e.atletaId}`}</span>
+                             <button onClick={()=>{
+                                const newEvts = [...(sumulaModal.m.events||[])];
+                                newEvts.splice(newEvts.indexOf(e),1);
+                                setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
+                             }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800}}>✕</button>
+                           </div>
+                         );
+                       })}
                      </div>
                      <div style={{marginTop:10,display:"flex",gap:6}}>
                        <select id={`sel-${side}`} value={sumulaSelection[side]} onChange={e=>setSumulaSelection(prev=>({...prev,[side]:e.target.value}))} style={{...S.select,padding:"6px",fontSize:12,flex:1}}>
                          <option value="">Selecione o jogador...</option>
-                         {tmRoster.map(id=><option key={id} value={id}>{getPlayerName(atletas.find(x=>String(x.id)===String(id)))}</option>)}
+                         {tmRoster.map(id=>{
+                           const at = atletas.find(x=>String(x.id)===String(id));
+                           return <option key={id} value={id}>{getPlayerName(at) || `Atleta #${id}`}</option>;
+                         })}
                        </select>
                        <div style={{display:"flex",gap:4}}>
                          <button onClick={()=>{
