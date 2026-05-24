@@ -79,6 +79,10 @@ const getPlayerName = a => {
   if (!a) return "";
   return a.apelido || a.nome || a.name || `Atleta #${a.id || 'Sem ID'}`;
 };
+const isImageUrl = url => {
+  if (!url) return false;
+  return url.match(/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i) != null || url.startsWith("data:image/") || url.includes("images.unsplash.com");
+};
 function PlayerAvatar({atleta, size=24}) {
   const display = getPlayerName(atleta) || "?";
   if (atleta?.foto) return <img src={atleta.foto} style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",flexShrink:0}} alt={display} />;
@@ -1095,6 +1099,10 @@ function CloudPublicChampScreen({champ,onBack,t}){
                           allowFullScreen
                           title={item.title}
                         />
+                      </div>
+                    ) : isImageUrl(item.mediaUrl) ? (
+                      <div style={{ borderRadius: 8, overflow: "hidden", border: `1px solid ${t.cardBorder}`, marginTop: 8 }}>
+                        <img src={item.mediaUrl} style={{ width: "100%", maxHeight: "350px", objectFit: "contain", background: "#0000000a", display: "block" }} alt={item.title} />
                       </div>
                     ) : (
                       <a href={item.mediaUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#378ADD", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -4048,6 +4056,10 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                             allowFullScreen
                             title={item.title}
                           />
+                        </div>
+                      ) : isImageUrl(item.mediaUrl) ? (
+                        <div style={{ borderRadius: 8, overflow: "hidden", border: `1px solid ${t.cardBorder}`, marginTop: 8 }}>
+                          <img src={item.mediaUrl} style={{ width: "100%", maxHeight: "350px", objectFit: "contain", background: "#0000000a", display: "block" }} alt={item.title} />
                         </div>
                       ) : (
                         <a href={item.mediaUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#378ADD", textDecoration: "none" }}>
