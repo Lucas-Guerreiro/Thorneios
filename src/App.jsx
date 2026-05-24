@@ -5365,6 +5365,63 @@ export default function App(){
     e.target.value = "";
   }
 
+  const salvarBackupNuvem = async () => {
+    if (!isFirebaseConfigured) {
+      alert("O Firebase não está configurado. Verifique o arquivo src/firebase.js.");
+      return;
+    }
+    setCloudLoading(true);
+    try {
+      const docKey = auth.role === "adm" ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
+      const payload = {
+        appState: appState,
+        lastUpdated: new Date().toISOString(),
+        updatedBy: auth.name || "Sem Nome"
+      };
+      // Clean undefined values just in case
+      const cleanPayload = JSON.parse(JSON.stringify(payload));
+      await setDoc(doc(db, "sistema", docKey), cleanPayload);
+      alert("Banco de dados completo salvo na Nuvem com sucesso! 🚀");
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao salvar na nuvem: " + e.message);
+    } finally {
+      setCloudLoading(false);
+    }
+  };
+
+  const restaurarBackupNuvem = async () => {
+    if (!isFirebaseConfigured) {
+      alert("O Firebase não está configurado. Verifique o arquivo src/firebase.js.");
+      return;
+    }
+    if (!window.confirm("Atenção: Isso irá substituir TODOS os seus dados atuais (atletas, peladas, campeonatos e financeiro) pelos dados salvos na nuvem. Deseja continuar?")) {
+      return;
+    }
+    setCloudLoading(true);
+    try {
+      const docKey = auth.role === "adm" ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
+      const docSnap = await getDoc(doc(db, "sistema", docKey));
+      if (!docSnap.exists()) {
+        alert("Nenhum backup encontrado na nuvem para a sua conta.");
+        return;
+      }
+      const data = docSnap.data();
+      if (data.appState) {
+        setAppState(data.appState);
+        alert(`Dados restaurados com sucesso a partir da nuvem! 🚀\nAtualizado em: ${new Date(data.lastUpdated).toLocaleString("pt-BR")} por ${data.updatedBy}`);
+        setScreen("home");
+      } else {
+        alert("O documento de backup na nuvem está inválido.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao restaurar da nuvem: " + e.message);
+    } finally {
+      setCloudLoading(false);
+    }
+  };
+
   useEffect(()=>{document.body.style.background=t.bg;document.body.style.color=t.text;},[t]);
 
   if (loading) {
@@ -5432,13 +5489,19 @@ export default function App(){
           <DarkBtn/>
         </div>
       </div>
-      {/* Banner informativo sobre localStorage */}
-      <div style={{...S.card,background:"#1D9E7510",borderColor:"#1D9E7555",marginBottom:20,padding:12}}>
+      {/* Banner informativo sobre localStorage / Cloud Sync */}
+      <div style={{...S.card,background:isFirebaseConfigured ? "#378ADD10" : "#1D9E7510",borderColor:isFirebaseConfigured ? "#378ADD55" : "#1D9E7555",marginBottom:20,padding:12}}>
         <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-          <div style={{fontSize:18}}>💾</div>
+          <div style={{fontSize:18}}>{isFirebaseConfigured ? "☁️" : "💾"}</div>
           <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:600,color:"#1D9E75",marginBottom:2}}>Dados salvos automaticamente</div>
-            <div style={{fontSize:12,color:t.textSec}}>Seus dados de atletas, peladas, campeonatos e financeiro são salvos automaticamente no seu navegador. Nenhuma conexão com internet é necessária! 🌐</div>
+            <div style={{fontSize:13,fontWeight:600,color:isFirebaseConfigured ? "#378ADD" : "#1D9E75",marginBottom:2}}>
+              {isFirebaseConfigured ? "Conectado à Nuvem do Firebase" : "Dados salvos localmente"}
+            </div>
+            <div style={{fontSize:12,color:t.textSec}}>
+              {isFirebaseConfigured 
+                ? "Seu sistema está conectado ao Firebase Firestore! Acesse o menu 'Backup' para salvar ou restaurar seus dados online e sincronizar tudo entre dispositivos. 🌐"
+                : "Seus dados de atletas, peladas, campeonatos e financeiro são salvos automaticamente no seu navegador. Nenhuma conexão com internet é necessária! 🌐"}
+            </div>
           </div>
         </div>
       </div>
@@ -5680,8 +5743,21 @@ export default function App(){
         <DarkBtn/>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
+        {isFirebaseConfigured && (
+          <div style={{...S.card, borderColor:"#378ADD55", background:"#378ADD08"}}>
+            <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#378ADD"}}>☁️ Backup e Sincronização na Nuvem (Firebase)</h3>
+            <p style={{fontSize:13,color:t.textSec,marginBottom:14}}>
+              Como a conexão com o Firebase está ativa, você pode salvar o banco de dados completo do sistema online e restaurá-lo em qualquer outro dispositivo!
+            </p>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <button onClick={salvarBackupNuvem} style={S.btn("#378ADD")}>🚀 Salvar Banco na Nuvem</button>
+              <button onClick={restaurarBackupNuvem} style={S.btn("#1D9E75")}>📥 Restaurar da Nuvem</button>
+            </div>
+          </div>
+        )}
+
         <div style={{...S.card,borderColor:"#1D9E7555",background:"#1D9E7508"}}>
-          <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#1D9E75"}}>✅ Armazenamento Automático</h3>
+          <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#1D9E75"}}>{isFirebaseConfigured ? "✅ Armazenamento Local" : "✅ Armazenamento Automático"}</h3>
           <p style={{fontSize:13,color:t.textSec,marginBottom:8}}>Seus dados são salvos automaticamente no navegador (localStorage) a cada alteração. Isso significa que os dados persistem mesmo após fechar e reabrir o aplicativo.</p>
           <div style={{fontSize:12,color:t.textSec,background:t.inputBg,padding:"10px",borderRadius:8,marginBottom:10}}>
             <b>Tamanho dos dados salvos:</b> {(storageSize / 1024).toFixed(2)} KB

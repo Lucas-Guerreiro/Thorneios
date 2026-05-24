@@ -1,0 +1,5 @@
+git add .
+
+git commit -m "fix: garante deploy da pasta dist e corrige caminhos"
+
+git push
