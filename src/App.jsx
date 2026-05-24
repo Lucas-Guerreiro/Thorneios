@@ -4,7 +4,7 @@ import { useLocalStorage, clearLocalStorage, getLocalStorageSize } from "./hooks
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { db, isFirebaseConfigured } from "./firebase";
-import { doc, getDoc, setDoc, collection } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 
 /* ─────────────────────────── CONSTANTES ─────────────────────────── */
@@ -955,6 +955,381 @@ function CloudPublicChampScreen({champ,onBack,t}){
   const c = champ;
   const [tab,setTab]=useState(c.type==="mata"?"chave":"tabela");
 
+  const [publicTeamName, setPublicTeamName] = useState("");
+  const [publicTeamColors, setPublicTeamColors] = useState("");
+  const [publicLeaderName, setPublicLeaderName] = useState("");
+  const [publicLeaderContact, setPublicLeaderContact] = useState("");
+  const [publicPlayersList, setPublicPlayersList] = useState([]);
+  const [submittingReg, setSubmittingReg] = useState(false);
+
+  const [playerForm, setPlayerForm] = useState({
+    nome: "",
+    apelido: "",
+    documento: "",
+    dataNascimento: "",
+    numeroCamisa: "",
+    customFields: {}
+  });
+
+  const handleAddPlayerToPublicList = () => {
+    if (!playerForm.nome.trim()) {
+      alert("Por favor, digite o nome do jogador.");
+      return;
+    }
+    setPublicPlayersList(prev => [...prev, { ...playerForm }]);
+    setPlayerForm({
+      nome: "",
+      apelido: "",
+      documento: "",
+      dataNascimento: "",
+      numeroCamisa: "",
+      customFields: {}
+    });
+  };
+
+  const handleRemovePlayerFromPublicList = (idx) => {
+    setPublicPlayersList(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSendOnlineReg = async () => {
+    if (!publicTeamName.trim()) {
+      alert("Por favor, informe o nome do time.");
+      return;
+    }
+    if (!publicLeaderName.trim()) {
+      alert("Por favor, informe o nome do responsável.");
+      return;
+    }
+    if (publicPlayersList.length === 0) {
+      alert("Por favor, adicione pelo menos um atleta.");
+      return;
+    }
+
+    try {
+      setSubmittingReg(true);
+      const docRef = doc(db, "campeonatos", c.id);
+      
+      const newReg = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        teamName: publicTeamName.trim(),
+        teamColors: publicTeamColors.trim(),
+        leaderName: publicLeaderName.trim(),
+        leaderContact: publicLeaderContact.trim(),
+        players: publicPlayersList.map((p, idx) => ({
+          ...p,
+          id: Date.now() + Math.floor(Math.random() * 100000) + idx
+        })),
+        status: "pendente",
+        date: todayStr(),
+        feedback: ""
+      };
+
+      const updatedPending = [...(c.pendingRegistrations || []), newReg];
+      
+      await setDoc(docRef, {
+        ...c,
+        pendingRegistrations: updatedPending
+      });
+
+      c.pendingRegistrations = updatedPending;
+      
+      alert("Solicitação de inscrição enviada com sucesso!");
+      
+      setPublicTeamName("");
+      setPublicTeamColors("");
+      setPublicLeaderName("");
+      setPublicLeaderContact("");
+      setPublicPlayersList([]);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao enviar a inscrição: " + e.message);
+    } finally {
+      setSubmittingReg(false);
+    }
+  };
+
+  const renderMuralPublic = () => {
+    const mural = c.mural || [];
+    const getEmbedUrl = (url) => {
+      if (!url) return null;
+      let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      let match = url.match(regExp);
+      if (match && match[2].length === 11) {
+        return `https://www.youtube.com/embed/${match[2]}`;
+      }
+      return null;
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}>📢 Mural de Notícias & Mídias</h3>
+        {mural.length === 0 ? (
+          <div style={{ ...S.card, textAlign: "center", padding: 30, color: t.textSec }}>
+            Nenhuma publicação no mural ainda. Fique atento às novidades da organização!
+          </div>
+        ) : (
+          [...mural].reverse().map((item, idx) => {
+            const embed = getEmbedUrl(item.mediaUrl);
+            return (
+              <div key={idx} style={S.card}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    color: item.type === "noticia" ? "#378ADD" : "#1D9E75",
+                    background: item.type === "noticia" ? "#378ADD18" : "#1D9E7518",
+                    padding: "2px 8px",
+                    borderRadius: 6
+                  }}>
+                    {item.type === "noticia" ? "Notícia / Comunicado" : "Mídia / Vídeo"}
+                  </span>
+                  <span style={{ fontSize: 11, color: t.textSec }}>{fmtDate(item.date)}</span>
+                </div>
+                <h4 style={{ fontSize: 15, fontWeight: 800, color: t.text, margin: "0 0 8px 0" }}>{item.title}</h4>
+                <p style={{ fontSize: 13, color: t.textSec, lineHeight: 1.5, whiteSpace: "pre-wrap", margin: "0 0 12px 0" }}>{item.content}</p>
+                {item.type === "midia" && item.mediaUrl && (
+                  <div>
+                    {embed ? (
+                      <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: 8, border: `1px solid ${t.cardBorder}` }}>
+                        <iframe 
+                          src={embed} 
+                          style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
+                          allowFullScreen
+                          title={item.title}
+                        />
+                      </div>
+                    ) : (
+                      <a href={item.mediaUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#378ADD", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        🔗 Abrir link da mídia externa →
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    );
+  };
+
+  const renderInscricaoPublic = () => {
+    const customFieldsDef = c.customFieldsDef || [];
+    const pendingRegs = c.pendingRegistrations || [];
+    const mySubmissions = pendingRegs.filter(r => publicLeaderContact && r.leaderContact === publicLeaderContact);
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={S.card}>
+          <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, marginBottom: 8 }}>✍️ Ficha de Inscrição Online</h3>
+          <p style={{ fontSize: 12, color: t.textSec, lineHeight: 1.5, marginBottom: 14 }}>
+            Preencha a ficha abaixo para enviar a solicitação de inscrição do seu time. A organização analisará os dados no painel do torneio.
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 140 }}>
+                <label style={S.label}>Nome do Time</label>
+                <input 
+                  style={S.input} 
+                  placeholder="Ex: Spartanos FC" 
+                  value={publicTeamName} 
+                  onChange={e => setPublicTeamName(e.target.value)}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 140 }}>
+                <label style={S.label}>Cores do Uniforme</label>
+                <input 
+                  style={S.input} 
+                  placeholder="Ex: Azul e Branco" 
+                  value={publicTeamColors} 
+                  onChange={e => setPublicTeamColors(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 140 }}>
+                <label style={S.label}>Nome do Responsável</label>
+                <input 
+                  style={S.input} 
+                  placeholder="Ex: João Silva" 
+                  value={publicLeaderName} 
+                  onChange={e => setPublicLeaderName(e.target.value)}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 140 }}>
+                <label style={S.label}>Contato (WhatsApp)</label>
+                <input 
+                  style={S.input} 
+                  placeholder="Ex: (11) 99999-9999" 
+                  value={publicLeaderContact} 
+                  onChange={e => setPublicLeaderContact(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div style={{ border: `1px solid ${t.cardBorder}`, borderRadius: 12, padding: 12, background: t.card, marginTop: 8 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: t.text, marginBottom: 10 }}>➕ Adicionar Jogador ao Elenco</div>
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ flex: 2, minWidth: 150 }}>
+                    <label style={{ ...S.label, fontSize: 10 }}>Nome Completo</label>
+                    <input 
+                      style={{ ...S.input, padding: "7px 10px" }} 
+                      placeholder="Nome oficial" 
+                      value={playerForm.nome} 
+                      onChange={e => setPlayerForm(v => ({ ...v, nome: e.target.value }))}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 100 }}>
+                    <label style={{ ...S.label, fontSize: 10 }}>Apelido</label>
+                    <input 
+                      style={{ ...S.input, padding: "7px 10px" }} 
+                      placeholder="Ex: Juninho" 
+                      value={playerForm.apelido} 
+                      onChange={e => setPlayerForm(v => ({ ...v, apelido: e.target.value }))}
+                    />
+                  </div>
+                  <div style={{ width: 60 }}>
+                    <label style={{ ...S.label, fontSize: 10 }}>Nº Camisa</label>
+                    <input 
+                      type="number" 
+                      style={{ ...S.input, padding: "7px 4px", textAlign: "center" }} 
+                      placeholder="—" 
+                      value={playerForm.numeroCamisa} 
+                      onChange={e => setPlayerForm(v => ({ ...v, numeroCamisa: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <label style={{ ...S.label, fontSize: 10 }}>Data de Nascimento</label>
+                    <input 
+                      type="date" 
+                      style={{ ...S.input, padding: "5px 10px" }} 
+                      value={playerForm.dataNascimento} 
+                      onChange={e => setPlayerForm(v => ({ ...v, dataNascimento: e.target.value }))}
+                    />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <label style={{ ...S.label, fontSize: 10 }}>Documento (CPF/RG)</label>
+                    <input 
+                      style={{ ...S.input, padding: "7px 10px" }} 
+                      placeholder="Apenas números" 
+                      value={playerForm.documento} 
+                      onChange={e => setPlayerForm(v => ({ ...v, documento: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {customFieldsDef.length > 0 && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", borderTop: `1px dashed ${t.cardBorder}`, paddingTop: 10 }}>
+                    {customFieldsDef.map(field => (
+                      <div key={field} style={{ flex: 1, minWidth: 120 }}>
+                        <label style={{ ...S.label, fontSize: 10 }}>{field}</label>
+                        <input 
+                          style={{ ...S.input, padding: "7px 10px" }} 
+                          placeholder={`Informe o ${field}`} 
+                          value={playerForm.customFields[field] || ""} 
+                          onChange={e => {
+                            const val = e.target.value;
+                            setPlayerForm(v => ({
+                              ...v,
+                              customFields: { ...v.customFields, [field]: val }
+                            }));
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button 
+                  onClick={handleAddPlayerToPublicList} 
+                  style={{ ...S.btn("#1D9E7522", "#1D9E75"), justifyContent: "center", padding: "8px 12px", fontSize: 12 }}
+                >
+                  ➕ Adicionar Jogador à Lista
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontWeight: 800, fontSize: 12, color: t.textSec, marginBottom: 8 }}>Jogadores Adicionados ({publicPlayersList.length}):</div>
+              {publicPlayersList.length === 0 ? (
+                <div style={{ fontSize: 11, color: t.textSec, fontStyle: "italic", textAlign: "center", padding: "10px", border: `1px dashed ${t.cardBorder}`, borderRadius: 8 }}>
+                  Nenhum jogador na lista. Adicione-os no card acima.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 150, overflowY: "auto" }}>
+                  {publicPlayersList.map((p, idx) => (
+                    <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: t.card, border: `1px solid ${t.cardBorder}`, borderRadius: 8, padding: "6px 10px", fontSize: 12 }}>
+                      <span style={{ color: t.text }}>
+                        <strong>{p.numeroCamisa ? `#${p.numeroCamisa} ` : ""}</strong>
+                        {p.nome} {p.apelido ? `(${p.apelido})` : ""}
+                      </span>
+                      <button 
+                        onClick={() => handleRemovePlayerFromPublicList(idx)} 
+                        style={{ background: "none", border: "none", color: "#E24B4A", fontWeight: 800, cursor: "pointer" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button 
+              onClick={handleSendOnlineReg} 
+              disabled={submittingReg}
+              style={{ ...S.btn("#378ADD"), justifyContent: "center", padding: "12px", width: "100%", fontSize: 13, marginTop: 10 }}
+            >
+              {submittingReg ? "Enviando Inscrição..." : "🚀 Enviar Solicitação de Inscrição"}
+            </button>
+          </div>
+        </div>
+
+        {publicLeaderContact && mySubmissions.length > 0 && (
+          <div style={S.card}>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 12 }}>📋 Minhas Solicitações</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {mySubmissions.map((sub, idx) => (
+                <div key={idx} style={{ border: `1px solid ${t.cardBorder}`, borderRadius: 10, padding: 10, background: t.inputBg }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{sub.teamName}</span>
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      color: sub.status === "aceito" ? "#1D9E75" : sub.status === "devolvido" ? "#BA7517" : sub.status === "rejeitado" ? "#E24B4A" : t.textSec,
+                      background: sub.status === "aceito" ? "#1D9E7518" : sub.status === "devolvido" ? "#BA751718" : sub.status === "rejeitado" ? "#E24B4A18" : `${t.cardBorder}55`,
+                      padding: "2px 6px",
+                      borderRadius: 6
+                    }}>
+                      {sub.status === "aceito" ? "Aceito" : sub.status === "devolvido" ? "Devolvido" : sub.status === "rejeitado" ? "Rejeitado" : "Pendente"}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: t.textSec }}>
+                    Responsável: {sub.leaderName} · {sub.players.length} jogadores
+                  </div>
+                  {sub.feedback && (
+                    <div style={{ marginTop: 8, padding: 8, background: "#BA751712", borderLeft: "3.5px solid #BA7517", borderRadius: 4, fontSize: 11, color: t.text }}>
+                      <strong>Motivo de Retorno:</strong> {sub.feedback}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const colorOf = useCallback((n,teams)=>COLORS[(teams||[]).indexOf(n)%COLORS.length],[]);
   const getPlayerNameById = id => {
     const a = (c.atletas || []).find(x => String(x.id) === String(id));
@@ -1026,7 +1401,13 @@ function CloudPublicChampScreen({champ,onBack,t}){
     );
   };
 
-  const tabs = c.type==="pontos" ? ["tabela","jogos","artilharia"] : c.type==="mata" ? ["chave","jogos","artilharia"] : ["tabela","chave","jogos","artilharia"];
+  const tabs = [
+    ...(c.type==="pontos" ? ["tabela","jogos","artilharia"] : c.type==="mata" ? ["chave","jogos","artilharia"] : ["tabela","chave","jogos","artilharia"]),
+    "mural"
+  ];
+  if (c.allowOnlineReg) {
+    tabs.push("inscrição");
+  }
 
   return (
     <div style={S.page}>
@@ -1144,6 +1525,8 @@ function CloudPublicChampScreen({champ,onBack,t}){
           </Sec>
         </div>
       )}
+      {tab==="mural"&&renderMuralPublic()}
+      {tab==="inscrição"&&c.allowOnlineReg&&renderInscricaoPublic()}
     </div>
   );
 }
@@ -1558,11 +1941,11 @@ function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,t}){
   const S=makeStyles(t);
   const[modal,setModal]=useState(false);
   const[editId,setEditId]=useState(null);
-  const[form,setForm]=useState({nome:"",apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true});
+  const[form,setForm]=useState({nome:"",apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true,documento:"",dataNascimento:"",numeroCamisa:"",customFields:{}});
   const[filtro,setFiltro]=useState("");
 
-  function abrirNovo(){setEditId(null);setForm({nome:filtro.trim(),apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true});setModal(true);}
-  function abrirEdicao(a){setEditId(a.id);setForm({nome:a.nome,apelido:a.apelido||"",foto:a.foto||"",habilidade:a.habilidade,goleiro:a.goleiro,ativo:a.ativo});setModal(true);}
+  function abrirNovo(){setEditId(null);setForm({nome:filtro.trim(),apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true,documento:"",dataNascimento:"",numeroCamisa:"",customFields:{}});setModal(true);}
+  function abrirEdicao(a){setEditId(a.id);setForm({nome:a.nome,apelido:a.apelido||"",foto:a.foto||"",habilidade:a.habilidade,goleiro:a.goleiro,ativo:a.ativo !== false,documento:a.documento||"",dataNascimento:a.dataNascimento||"",numeroCamisa:a.numeroCamisa||"",customFields:a.customFields||{}});setModal(true);}
   function salvar(){if(!form.nome.trim())return;if(editId)onUpdate(editId,form);else onAdd(form);setModal(false);}
   
   const lista=atletas.filter(a=>a.nome.toLowerCase().includes(filtro.toLowerCase()));
@@ -1585,8 +1968,24 @@ function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,t}){
             <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
               <PlayerAvatar atleta={a} size={38} />
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700,fontSize:14,color:t.text}}>{getPlayerName(a)}{a.apelido?<span style={{fontSize:11,color:t.textSec,marginLeft:6}}>({a.nome})</span>:null}{!a.ativo&&<span style={{marginLeft:8,fontSize:10,background:"#E24B4A22",color:"#E24B4A",padding:"1px 7px",borderRadius:8}}>Inativo</span>}</div>
-                <div style={{fontSize:11,color:SKILL_COLORS[a.habilidade-1],fontWeight:600}}>{"⭐".repeat(a.habilidade)} · {SKILL_NAMES[a.habilidade-1]}</div>
+                <div style={{fontWeight:700,fontSize:14,color:t.text}}>
+                  {getPlayerName(a)}
+                  {a.apelido?<span style={{fontSize:11,color:t.textSec,marginLeft:6}}>({a.nome})</span>:null}
+                  {a.numeroCamisa && <span style={{fontSize:11,fontWeight:800,color:"#378ADD",background:"#378ADD15",padding:"1px 5px",borderRadius:4,marginLeft:6}}>#{a.numeroCamisa}</span>}
+                  {!a.ativo&&<span style={{marginLeft:8,fontSize:10,background:"#E24B4A22",color:"#E24B4A",padding:"1px 7px",borderRadius:8}}>Inativo</span>}
+                </div>
+                <div style={{fontSize:11,color:SKILL_COLORS[a.habilidade-1],fontWeight:600}}>
+                  {"⭐".repeat(a.habilidade)} · {SKILL_NAMES[a.habilidade-1]}
+                  {a.dataNascimento && ` · Nasc: ${a.dataNascimento.split("-").reverse().join("/")}`}
+                  {a.documento && ` · RG/CPF: ${a.documento}`}
+                </div>
+                {a.customFields && Object.keys(a.customFields).length > 0 && (
+                  <div style={{fontSize:11,color:t.textSec,marginTop:3,display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {Object.entries(a.customFields).map(([k,v]) => v && (
+                      <span key={k}><strong>{k}:</strong> {v}</span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
                 <button onClick={()=>abrirEdicao(a)} style={S.btnSm("#378ADD22","#378ADD")}>✏️</button>
@@ -1624,6 +2023,40 @@ function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,t}){
                 <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.goleiro} onChange={e=>setForm(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
                 <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.ativo} onChange={e=>setForm(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
               </div>
+
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG/CPF)</label><input style={S.input} value={form.documento || ""} onChange={e=>setForm(v=>({...v,documento:e.target.value}))} placeholder="RG ou CPF"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={form.dataNascimento || ""} onChange={e=>setForm(v=>({...v,dataNascimento:e.target.value}))}/></div>
+              </div>
+              <div>
+                <label style={S.label}>Número da Camisa</label>
+                <input type="text" style={S.input} value={form.numeroCamisa || ""} onChange={e=>setForm(v=>({...v,numeroCamisa:e.target.value}))} placeholder="Ex: 10"/>
+              </div>
+
+              {form.customFields && Object.keys(form.customFields).length > 0 && (
+                <div style={{display:"flex",flexDirection:"column",gap:10,borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
+                  <div style={{fontSize:11,fontWeight:700,color:t.textSec}}>Campos Customizados Existentes:</div>
+                  {Object.entries(form.customFields).map(([k,v]) => (
+                    <div key={k}>
+                      <label style={S.label}>{k}</label>
+                      <input 
+                        style={S.input} 
+                        value={v || ""} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          setForm(prev => ({
+                            ...prev,
+                            customFields: {
+                              ...prev.customFields,
+                              [k]: val
+                            }
+                          }));
+                        }} 
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div style={{display:"flex",gap:8,marginTop:16}}>
               <button onClick={salvar} style={S.btn("#378ADD")}>Salvar</button>
@@ -2469,7 +2902,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 }
 
 /* ─────────────────────────── CAMPEONATO ─────────────────────────── */
-function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,cloudLoading,publicarNaNuvem,t}){
+function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,onUpdateAtleta,cloudLoading,publicarNaNuvem,t}){
   const S=makeStyles(t);
   const [editingTeams,setEditingTeams] = useState(false);
   const [teamsDraft,setTeamsDraft] = useState(Array.isArray(champ.teams)?[...champ.teams]:[]);
@@ -2482,25 +2915,252 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
 
   const [filtroElenco, setFiltroElenco] = useState("");
   const [modalNovoAtleta, setModalNovoAtleta] = useState(false);
-  const [formAtleta, setFormAtleta] = useState({nome:"", apelido:"", foto:"", habilidade:3, goleiro:false, ativo:true});
+  const [editAtletaId, setEditAtletaId] = useState(null);
+  const [formAtleta, setFormAtleta] = useState({
+    nome: "",
+    apelido: "",
+    foto: "",
+    habilidade: 3,
+    goleiro: false,
+    ativo: true,
+    documento: "",
+    dataNascimento: "",
+    numeroCamisa: "",
+    customFields: {}
+  });
+
+  const [showQuickRegister, setShowQuickRegister] = useState(false);
+  const [quickTeamName, setQuickTeamName] = useState("");
+  const [quickPlayersText, setQuickPlayersText] = useState("");
+
+  const renderPrintableSumula = () => {
+    if (!sumulaModal) return null;
+    const m = sumulaModal.m;
+    const tmHome = m.home;
+    const tmAway = m.away;
+    const rosterHome = rosters[tmHome] || [];
+    const rosterAway = rosters[tmAway] || [];
+
+    const maxLength = Math.max(15, rosterHome.length, rosterAway.length);
+    const rows = Array.from({ length: maxLength });
+
+    return (
+      <div id="printable-sumula" style={{ display: "none" }}>
+        <style>{`
+          @media print {
+            #printable-sumula {
+              display: block !important;
+              font-family: Arial, sans-serif;
+              color: #000;
+              background: #fff;
+              padding: 10px;
+              width: 100%;
+              box-sizing: border-box;
+            }
+            body * {
+              visibility: hidden;
+            }
+            #printable-sumula, #printable-sumula * {
+              visibility: visible;
+            }
+            #printable-sumula {
+              position: absolute;
+              left: 0;
+              top: 0;
+            }
+          }
+          .sumula-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            font-size: 11px;
+          }
+          .sumula-table th, .sumula-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: left;
+          }
+          .sumula-table th {
+            background-color: #f2f2f2 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        `}</style>
+
+        {/* Cabeçalho */}
+        <div style={{ border: "2px solid #000", padding: "10px", borderRadius: "8px", marginBottom: "15px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <h1 style={{ fontSize: "20px", margin: 0, fontWeight: "bold", letterSpacing: "1px" }}>🏆 THORNEIOS</h1>
+              <div style={{ fontSize: "12px", marginTop: "2px", fontWeight: "bold" }}>SÚMULA OFICIAL DE PARTIDA</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "12px", fontWeight: "bold" }}>🏆 {c.name.toUpperCase()}</div>
+              <div style={{ fontSize: "11px", color: "#333", marginTop: "2px" }}>Futebol Manager</div>
+            </div>
+          </div>
+
+          <hr style={{ border: "0", borderTop: "1px solid #000", margin: "10px 0" }} />
+
+          {/* Placar e Confronto */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "10px 0" }}>
+            <div style={{ flex: 1, fontSize: "16px", fontWeight: "bold", textAlign: "right", paddingRight: "15px" }}>{tmHome}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ border: "2px solid #000", width: "40px", height: "40px", fontSize: "24px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center" }}>{m.played ? m.homeScore : ""}</div>
+              <span style={{ fontSize: "20px", fontWeight: "bold" }}>X</span>
+              <div style={{ border: "2px solid #000", width: "40px", height: "40px", fontSize: "24px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center" }}>{m.played ? m.awayScore : ""}</div>
+            </div>
+            <div style={{ flex: 1, fontSize: "16px", fontWeight: "bold", paddingLeft: "15px" }}>{tmAway}</div>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginTop: "10px", background: "#f9f9f9", padding: "5px", border: "1px solid #ccc" }}>
+            <div><strong>RODADA:</strong> {m.round || currentRound || "—"}</div>
+            <div><strong>DATA:</strong> {m.date ? fmtDate(m.date) : "___/___/_____"}</div>
+            <div><strong>LOCAL:</strong> _________________________</div>
+          </div>
+        </div>
+
+        {/* Tabelas de Elenco Lado a Lado */}
+        <div style={{ display: "flex", gap: "15px" }}>
+          {/* Mandante */}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "12px", fontWeight: "bold", paddingBottom: "4px", borderBottom: "2px solid #000" }}>⚽ {tmHome} (MANDANTE)</div>
+            <table className="sumula-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "25px", textAlign: "center" }}>Nº</th>
+                  <th>NOME DO ATLETA</th>
+                  <th style={{ width: "50px", textAlign: "center" }}>GOLS</th>
+                  <th style={{ width: "40px", textAlign: "center" }}>CART.</th>
+                  <th style={{ width: "80px" }}>ASSINATURA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((_, idx) => {
+                  const aid = rosterHome[idx];
+                  const a = aid ? atletas.find(x => x.id === aid) : null;
+                  return (
+                    <tr key={`h-${idx}`} style={{ height: "24px" }}>
+                      <td style={{ textAlign: "center" }}></td>
+                      <td style={{ fontWeight: a ? "bold" : "normal" }}>{a ? getPlayerName(a) : ""}</td>
+                      <td></td>
+                      <td style={{ textAlign: "center", fontSize: "9px" }}>🟨 🟥</td>
+                      <td></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Visitante */}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "12px", fontWeight: "bold", paddingBottom: "4px", borderBottom: "2px solid #000" }}>⚽ {tmAway} (VISITANTE)</div>
+            <table className="sumula-table">
+              <thead>
+                <tr>
+                  <th style={{ width: "25px", textAlign: "center" }}>Nº</th>
+                  <th>NOME DO ATLETA</th>
+                  <th style={{ width: "50px", textAlign: "center" }}>GOLS</th>
+                  <th style={{ width: "40px", textAlign: "center" }}>CART.</th>
+                  <th style={{ width: "80px" }}>ASSINATURA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((_, idx) => {
+                  const aid = rosterAway[idx];
+                  const a = aid ? atletas.find(x => x.id === aid) : null;
+                  return (
+                    <tr key={`a-${idx}`} style={{ height: "24px" }}>
+                      <td style={{ textAlign: "center" }}></td>
+                      <td style={{ fontWeight: a ? "bold" : "normal" }}>{a ? getPlayerName(a) : ""}</td>
+                      <td></td>
+                      <td style={{ textAlign: "center", fontSize: "9px" }}>🟨 🟥</td>
+                      <td></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Rodapé e Observações */}
+        <div style={{ marginTop: "15px", border: "1px solid #000", padding: "8px", borderRadius: "6px" }}>
+          <div style={{ fontSize: "10px", fontWeight: "bold", marginBottom: "4px" }}>✍️ OCORRÊNCIAS / OBSERVAÇÕES DA PARTIDA:</div>
+          <div style={{ height: "55px", border: "1px dashed #ccc" }}></div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "30px", fontSize: "10px" }}>
+          <div style={{ textAlign: "center", width: "30%" }}>
+            <div style={{ borderTop: "1px solid #000", paddingTop: "5px" }}>ASSINATURA DO ÁRBITRO</div>
+          </div>
+          <div style={{ textAlign: "center", width: "30%" }}>
+            <div style={{ borderTop: "1px solid #000", paddingTop: "5px" }}>CAPITÃO MANDANTE</div>
+          </div>
+          <div style={{ textAlign: "center", width: "30%" }}>
+            <div style={{ borderTop: "1px solid #000", paddingTop: "5px" }}>CAPITÃO VISITANTE</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   function abrirNovoAtletaCamp() {
-    setFormAtleta({nome: filtroElenco.trim(), apelido:"", foto:"", habilidade:3, goleiro:false, ativo:true});
+    setEditAtletaId(null);
+    setFormAtleta({
+      nome: filtroElenco.trim(),
+      apelido: "",
+      foto: "",
+      habilidade: 3,
+      goleiro: false,
+      ativo: true,
+      documento: "",
+      dataNascimento: "",
+      numeroCamisa: "",
+      customFields: {}
+    });
+    setModalNovoAtleta(true);
+  }
+
+  function abrirEditarAtletaCamp(a) {
+    setEditAtletaId(a.id);
+    setFormAtleta({
+      nome: a.nome,
+      apelido: a.apelido || "",
+      foto: a.foto || "",
+      habilidade: a.habilidade,
+      goleiro: a.goleiro || false,
+      ativo: a.ativo !== false,
+      documento: a.documento || "",
+      dataNascimento: a.dataNascimento || "",
+      numeroCamisa: a.numeroCamisa || "",
+      customFields: a.customFields || {}
+    });
     setModalNovoAtleta(true);
   }
 
   function salvarNovoAtletaCamp() {
     if(!formAtleta.nome.trim()) return;
-    const novoId = Date.now();
-    const novoAtleta = {id: novoId, ...formAtleta};
-    onAddAtleta(novoAtleta);
     
-    const tc = deepClone(c);
-    tc.rosters = tc.rosters || {};
-    tc.rosters[selTeamElenco] = [...(tc.rosters[selTeamElenco] || []), novoId];
-    onUpdate(tc);
+    if (editAtletaId) {
+      if (onUpdateAtleta) {
+        onUpdateAtleta(editAtletaId, formAtleta);
+      }
+      alert("Cadastro do atleta atualizado com sucesso!");
+    } else {
+      const novoId = Date.now();
+      const novoAtleta = {id: novoId, ...formAtleta};
+      onAddAtleta(novoAtleta);
+      
+      const tc = deepClone(c);
+      tc.rosters = tc.rosters || {};
+      tc.rosters[selTeamElenco] = [...(tc.rosters[selTeamElenco] || []), novoId];
+      onUpdate(tc);
+    }
 
     setModalNovoAtleta(false);
+    setEditAtletaId(null);
     setFiltroElenco("");
   }
 
@@ -2594,7 +3254,15 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   function advanceMixed(){const tc=deepClone(c);const q=[];tc.groups.forEach(g=>{if(g.standings[0])q.push(g.standings[0].name);if(g.standings[1])q.push(g.standings[1].name);});tc.knockout=generateKO(q);tc.mixedPhase="knockout";onUpdate(tc);}
   const lastPhase=c.knockout?.length>0?c.knockout[c.knockout.length-1]:null;
   const champion=(c.type==="mata"||(c.type==="misto"&&c.mixedPhase==="knockout"))&&lastPhase?.matches?.[0]?.winner||(c.type==="pontos"&&c.rounds?.every(r=>r.matches.every(m=>m.played))&&c.standings?.[0]?.name)||null;
-  const tabs=["elencos", ... (c.type==="pontos"?["tabela","jogos"]:c.type==="mata"?["chave","jogos"]:["tabela","chave","jogos"]), "estatísticas", "configurações", "nuvem"];
+  const tabs = [
+    "elencos",
+    ...(c.type==="pontos"?["tabela","jogos"]:c.type==="mata"?["chave","jogos"]:["tabela","chave","jogos"]),
+    "estatísticas"
+  ];
+  if (c.allowOnlineReg) {
+    tabs.push("solicitações");
+  }
+  tabs.push("mural", "configurações", "nuvem");
 
   const getArtilheiro = () => {
     const evts = [];
@@ -2628,17 +3296,100 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
 
   function handleSaveSumula(m, events) {
      const tc=deepClone(c);
-     // Encontrar a partida no tc e salvar os events
+     
+     let golsHome = events.filter(e => e.type === "gol" && e.teamName === m.home).length;
+     let golsAway = events.filter(e => e.type === "gol" && e.teamName === m.away).length;
+     const hs = String(golsHome);
+     const as2 = String(golsAway);
+
      let found = false;
+
+     // 1. Pontos Corridos
      if(tc.rounds) {
-       for(const r of tc.rounds){ const mr=r.matches.find(x=>x.home===m.home&&x.away===m.away); if(mr){ mr.events=events; found=true; break; } }
+       for(let ri=0; ri<tc.rounds.length; ri++){ 
+         const r = tc.rounds[ri];
+         const mi = r.matches.findIndex(x=>x.home===m.home&&x.away===m.away); 
+         if(mi > -1){ 
+           const mr = r.matches[mi];
+           mr.events = events; 
+           mr.homeScore = hs;
+           mr.awayScore = as2;
+           mr.played = true;
+           if (!mr.date) mr.date = todayStr();
+           tc.standings = recalcStandings(tc.teams, tc.rounds);
+           found = true; 
+           break; 
+         } 
+       }
      }
+
+     // 2. Misto (Fase de Grupos)
      if(!found && tc.groups) {
-       for(const g of tc.groups){ for(const r of g.rounds){ const mr=r.matches.find(x=>x.home===m.home&&x.away===m.away); if(mr){ mr.events=events; found=true; break; } } }
+       for(let gi=0; gi<tc.groups.length; gi++){ 
+         const g = tc.groups[gi];
+         for(let ri=0; ri<g.rounds.length; ri++){ 
+           const r = g.rounds[ri];
+           const mi = r.matches.findIndex(x=>x.home===m.home&&x.away===m.away); 
+           if(mi > -1){ 
+             const mr = r.matches[mi];
+             mr.events = events; 
+             mr.homeScore = hs;
+             mr.awayScore = as2;
+             mr.played = true;
+             if (!mr.date) mr.date = todayStr();
+             g.standings = recalcStandings(g.teams, g.rounds);
+             found = true; 
+             break; 
+           } 
+         }
+         if (found) break;
+       }
      }
+
+     // 3. Mata-Mata
      if(!found && tc.knockout) {
-       for(const p of tc.knockout){ const mr=p.matches.find(x=>x.home===m.home&&x.away===m.away); if(mr){ mr.events=events; found=true; break; } }
+       for(let pi=0; pi<tc.knockout.length; pi++){ 
+         const ph = tc.knockout[pi];
+         const mi = ph.matches.findIndex(x=>x.home===m.home&&x.away===m.away); 
+         if(mi > -1){ 
+           if (parseInt(hs) === parseInt(as2)) {
+             alert("Sem empate no mata-mata da súmula! Por favor, adicione o desempate/pênaltis na súmula.");
+             return;
+           }
+           const mr = ph.matches[mi];
+           mr.events = events; 
+           mr.homeScore = hs;
+           mr.awayScore = as2;
+           mr.played = true;
+           mr.winner = parseInt(hs) > parseInt(as2) ? mr.home : mr.away;
+           if (!mr.date) mr.date = todayStr();
+
+           if (ph.matches.every(x => x.played)) {
+             ph.advancers = ph.matches.map(x => x.winner);
+             if (tc.knockout[pi + 1]) {
+               const adv = ph.advancers;
+               tc.knockout[pi + 1].matches = [];
+               for (let i = 0; i < adv.length; i += 2) {
+                 if (adv[i + 1]) {
+                   tc.knockout[pi + 1].matches.push({
+                     home: adv[i],
+                     away: adv[i + 1],
+                     homeScore: "",
+                     awayScore: "",
+                     played: false,
+                     winner: null,
+                     date: ""
+                   });
+                 }
+               }
+             }
+           }
+           found = true; 
+           break; 
+         } 
+       }
      }
+
      onUpdate(tc);
      setSumulaModal(null);
   }
@@ -2726,13 +3477,137 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   }
 
   function AbaElencos() {
-    if(!selTeamElenco) return null;
-    const teamRoster = rosters[selTeamElenco] || [];
+    if(!selTeamElenco && c.teams.length > 0) {
+      setSelTeamElenco(c.teams[0]);
+    }
+    const teamRoster = selTeamElenco ? (rosters[selTeamElenco] || []) : [];
     const allRosteredIds = Object.values(rosters).flat();
     const notInTeam = atletas.filter(a => !allRosteredIds.includes(a.id));
     const dispFiltrados = notInTeam.filter(a => a.nome.toLowerCase().includes(filtroElenco.toLowerCase()));
+
+    const handleQuickRegister = () => {
+      const nomeTime = quickTeamName.trim();
+      if (!nomeTime) {
+        alert("Por favor, informe o nome do time.");
+        return;
+      }
+      const listaNomes = quickPlayersText
+        .split("\n")
+        .map(n => n.trim())
+        .filter(Boolean);
+      
+      if (listaNomes.length === 0) {
+        alert("Por favor, adicione pelo menos um nome de atleta.");
+        return;
+      }
+
+      const tc = deepClone(c);
+      tc.rosters = tc.rosters || {};
+      
+      // 1. Garantir time cadastrado
+      if (!tc.teams.includes(nomeTime)) {
+        tc.teams.push(nomeTime);
+      }
+      tc.rosters[nomeTime] = tc.rosters[nomeTime] || [];
+
+      // 2. Processar atletas
+      let novosCadastrados = 0;
+      
+      listaNomes.forEach((nome, idx) => {
+        let a = atletas.find(x => x.nome.toLowerCase() === nome.toLowerCase() || (x.apelido && x.apelido.toLowerCase() === nome.toLowerCase()));
+        
+        if (!a) {
+          const novoId = Date.now() + Math.floor(Math.random() * 100000) + idx;
+          a = {
+            id: novoId,
+            nome: nome,
+            apelido: "",
+            foto: "",
+            habilidade: 3,
+            goleiro: false,
+            ativo: true
+          };
+          onAddAtleta(a);
+          novosCadastrados++;
+        }
+        
+        if (!tc.rosters[nomeTime].includes(a.id)) {
+          tc.rosters[nomeTime].push(a.id);
+        }
+      });
+
+      onUpdate(tc);
+      setSelTeamElenco(nomeTime);
+      setQuickTeamName("");
+      setQuickPlayersText("");
+      setShowQuickRegister(false);
+
+      alert(`Sucesso! Time "${nomeTime}" inscrito. ${listaNomes.length} jogadores processados (${novosCadastrados} novos cadastrados adicionados ao banco global).`);
+    };
+
     return (
       <div>
+        {/* Formulário de Inscrição Rápida de Elenco em Lote */}
+        <div style={{...S.card, marginBottom: 16, borderColor: "#378ADD55", background: t.inputBg}}>
+          <button 
+            onClick={() => setShowQuickRegister(!showQuickRegister)} 
+            style={{
+              background: "none",
+              border: "none",
+              color: "#378ADD",
+              fontWeight: 800,
+              fontSize: 14,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: 0,
+              width: "100%",
+              textAlign: "left"
+            }}
+          >
+            {showQuickRegister ? "▼ Fechar Inscrição Rápida" : "📥 Inscrição Rápida de Time e Atletas (Lote)"}
+          </button>
+          
+          {showQuickRegister && (
+            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={S.label}>Nome do Time</label>
+                <input 
+                  style={S.input} 
+                  placeholder="Ex: Real Madrid, Barcelona..." 
+                  value={quickTeamName} 
+                  onChange={e => setQuickTeamName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label style={S.label}>Lista de Atletas (um nome por linha)</label>
+                <textarea 
+                  style={{
+                    ...S.input,
+                    height: 120,
+                    fontFamily: "inherit",
+                    resize: "vertical",
+                    padding: "8px 12px"
+                  }} 
+                  placeholder="Ex:&#10;Cristiano Ronaldo&#10;Karim Benzema&#10;Luka Modric"
+                  value={quickPlayersText}
+                  onChange={e => setQuickPlayersText(e.target.value)}
+                />
+                <span style={{ fontSize: 10, color: t.textSec, marginTop: 4, display: "block" }}>
+                  💡 O sistema criará o time e cadastrará/escalará cada jogador da lista de forma 100% automática.
+                </span>
+              </div>
+              <button 
+                onClick={handleQuickRegister} 
+                style={{ ...S.btn("#378ADD"), justifyContent: "center", marginTop: 4 }}
+              >
+                📥 Inscrever Time e Elenco
+              </button>
+            </div>
+          )}
+        </div>
+
         <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12}}>
           <button onClick={()=>{setEditingTeams(e=>!e); setTeamsDraft(Array.isArray(champ.teams)?[...champ.teams]:[]);}} style={S.btnSm(editingTeams?"#BA7517":"#378ADD")}>{editingTeams?"Cancelar edição":"Editar Times"}</button>
           {editingTeams&&<button onClick={()=>{
@@ -2753,83 +3628,423 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           ))}
           {editingTeams&&<button onClick={()=>setTeamsDraft(d=>[...d,""])} style={{...S.btnSm("#1D9E7522","#1D9E75")}}>+ Time</button>}
         </div>
-        <div style={S.card}>
-          <div style={{fontWeight:800,fontSize:14,color:colorOf(selTeamElenco,c.teams),marginBottom:12}}>Elenco: {selTeamElenco}</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
-            {teamRoster.map(id=>{
-              const a = atletas.find(x=>x.id===id);
-              if(!a) return null;
-              const regs = c.registrations || [];
-              const isPaid = regs.some(r => r.atletaId === id && r.team === selTeamElenco && r.paid);
-              return (
-                <div key={id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",borderRadius:12,background:t.inputBg,border:`1px solid ${t.cardBorder}`,gap:8,flexWrap:"wrap"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,flex:1}}>
-                    <PlayerAvatar atleta={a} size={22}/>
-                    <span style={{fontSize:13,fontWeight:600,color:t.text}}>{getPlayerName(a)}</span>
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:10}}>
-                    {isPaid ? (
-                      <span style={{fontSize:11,color:"#1D9E75",fontWeight:700,background:"#1D9E7522",padding:"2px 8px",borderRadius:8}}>Inscrição Paga</span>
-                    ) : (
-                      <button onClick={()=>{
-                        const fee = Number(c.fee||0);
-                        if(fee > 0){
-                          setFinanceiro(s=>{
-                            const entries = Array.isArray(s.entries)?[...s.entries]:[];
-                            entries.push({
-                              id:Date.now(),
-                              desc:`Inscrição - ${c.name} - ${selTeamElenco} - ${getPlayerName(a)}`,
-                              amount:fee,
-                              type:"receita",
-                              date:todayStr(),
-                              category:"Taxa de inscrição",
-                              champ_id:c.id,
-                              manager_id:c.manager_id||null
+        
+        {selTeamElenco ? (
+          <div style={S.card}>
+            <div style={{fontWeight:800,fontSize:14,color:colorOf(selTeamElenco,c.teams),marginBottom:12}}>Elenco: {selTeamElenco}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+              {teamRoster.map(id=>{
+                const a = atletas.find(x=>x.id===id);
+                if(!a) return null;
+                const regs = c.registrations || [];
+                const isPaid = regs.some(r => r.atletaId === id && r.team === selTeamElenco && r.paid);
+                return (
+                  <div key={id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",borderRadius:12,background:t.inputBg,border:`1px solid ${t.cardBorder}`,gap:8,flexWrap:"wrap"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:180}}>
+                      <PlayerAvatar atleta={a} size={22}/>
+                      <div style={{display:"flex",flexDirection:"column"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{fontSize:13,fontWeight:600,color:t.text}}>{getPlayerName(a)}</span>
+                          {a.numeroCamisa && <span style={{fontSize:11,fontWeight:800,color:"#378ADD",background:"#378ADD15",padding:"1px 5px",borderRadius:4}}>#{a.numeroCamisa}</span>}
+                        </div>
+                        <div style={{fontSize:11,color:t.textSec,marginTop:2,display:"flex",gap:8,flexWrap:"wrap"}}>
+                          {a.documento && <span>RG/CPF: {a.documento}</span>}
+                          {a.dataNascimento && <span>Nasc: {a.dataNascimento.split("-").reverse().join("/")}</span>}
+                          {c.customFieldsDef && c.customFieldsDef.map(f => a.customFields?.[f] && (
+                            <span key={f}><strong>{f}:</strong> {a.customFields[f]}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      {isPaid ? (
+                        <span style={{fontSize:11,color:"#1D9E75",fontWeight:700,background:"#1D9E7522",padding:"2px 8px",borderRadius:8}}>Inscrição Paga</span>
+                      ) : (
+                        <button onClick={()=>{
+                          const fee = Number(c.fee||0);
+                          if(fee > 0){
+                            setFinanceiro(s=>{
+                              const entries = Array.isArray(s.entries)?[...s.entries]:[];
+                              entries.push({
+                                id:Date.now(),
+                                desc:`Inscrição - ${c.name} - ${selTeamElenco} - ${getPlayerName(a)}`,
+                                amount:fee,
+                                type:"receita",
+                                date:todayStr(),
+                                category:"Taxa de inscrição",
+                                champ_id:c.id,
+                                manager_id:c.manager_id||null
+                              });
+                              return {entries};
                             });
-                            return {entries};
-                          });
+                          }
+                          const tc = deepClone(c);
+                          tc.registrations = tc.registrations||[];
+                          tc.registrations.push({atletaId:id,team:selTeamElenco,paid:true,date:todayStr(),amount:fee});
+                          onUpdate(tc);
+                        }} style={S.btnSm("#378ADD22","#378ADD")}>Pagar Taxa {c.fee ? `(${fmtCur(c.fee)})` : ""}</button>
+                      )}
+                      <button onClick={()=>abrirEditarAtletaCamp(a)} style={{background:"none",border:"none",color:"#378ADD",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Editar Cadastro do Atleta">✏️</button>
+                      <button onClick={()=>{
+                        if(window.confirm(`Remover ${getPlayerName(a)} do time?`)){
+                          const tc = deepClone(c);
+                          tc.rosters = tc.rosters||{};
+                          tc.rosters[selTeamElenco]=tc.rosters[selTeamElenco].filter(x=>x!==id);
+                          tc.registrations = (tc.registrations||[]).filter(r=> !(r.atletaId===id && r.team===selTeamElenco));
+                          onUpdate(tc);
                         }
-                        const tc = deepClone(c);
-                        tc.registrations = tc.registrations||[];
-                        tc.registrations.push({atletaId:id,team:selTeamElenco,paid:true,date:todayStr(),amount:fee});
-                        onUpdate(tc);
-                      }} style={S.btnSm("#378ADD22","#378ADD")}>Pagar Taxa {c.fee ? `(${fmtCur(c.fee)})` : ""}</button>
-                    )}
-                    <button onClick={()=>{
-                      if(window.confirm(`Remover ${getPlayerName(a)} do time?`)){
-                        const tc = deepClone(c);
-                        tc.rosters = tc.rosters||{};
-                        tc.rosters[selTeamElenco]=tc.rosters[selTeamElenco].filter(x=>x!==id);
-                        tc.registrations = (tc.registrations||[]).filter(r=> !(r.atletaId===id && r.team===selTeamElenco));
-                        onUpdate(tc);
-                      }
-                    }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontSize:14,fontWeight:700,padding:"4px 8px"}}>✕</button>
+                      }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontSize:14,fontWeight:700,padding:"4px 8px"}}>✕</button>
+                    </div>
+                  </div>
+                );
+              })}
+              {teamRoster.length===0 && <div style={{fontSize:12,color:t.textSec,textAlign:"center",padding:12}}>Nenhum atleta associado a este time.</div>}
+            </div>
+            <div style={{fontWeight:700,fontSize:12,color:t.textSec,marginBottom:8}}>Adicionar ao time:</div>
+            <div style={{display:"flex",gap:8,marginBottom:10}}>
+              <input style={{...S.input,flex:1,margin:0}} placeholder="🔍 Buscar atleta para escalar..." value={filtroElenco} onChange={e=>setFiltroElenco(e.target.value)}/>
+              {filtroElenco.trim() && (
+                <button onClick={abrirNovoAtletaCamp} style={S.btn("#378ADD")}>+ Novo Atleta</button>
+              )}
+            </div>
+            <div style={{maxHeight:200,overflowY:"auto",display:"flex",flexDirection:"column",gap:4}}>
+              {dispFiltrados.map(a=>(
+                 <div key={a.id} onClick={()=>{
+                   const tc=deepClone(c); tc.rosters = tc.rosters||{}; tc.rosters[selTeamElenco]=[...(tc.rosters[selTeamElenco]||[]), a.id]; onUpdate(tc);
+                   setFiltroElenco("");
+                 }} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:8,background:t.inputBg,cursor:"pointer",border:`1px solid transparent`}}>
+                   <PlayerAvatar atleta={a} size={20}/>
+                   <span style={{fontSize:12,color:t.text}}>{getPlayerName(a)}</span>
+                   <span style={{marginLeft:"auto",color:"#378ADD",fontWeight:700,fontSize:14}}>+</span>
+                 </div>
+              ))}
+              {dispFiltrados.length === 0 && <div style={{fontSize:12,color:t.textSec,textAlign:"center",padding:10}}>Nenhum atleta disponível correspondente ou crie um acima.</div>}
+            </div>
+          </div>
+        ) : (
+          <div style={{...S.card, textAlign:"center", padding:24, color:t.textSec}}>
+            ⚽ Comece adicionando ou inscrevendo um time acima para gerenciar os elencos!
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function AbaSolicitacoes() {
+    const pendingRegs = c.pendingRegistrations || [];
+    const [feedbackTexts, setFeedbackTexts] = useState({});
+
+    const handleAccept = (sub) => {
+      if (!window.confirm(`Deseja aprovar a inscrição do time "${sub.teamName}"?`)) return;
+
+      const tc = deepClone(c);
+      tc.rosters = tc.rosters || {};
+      
+      if (!tc.teams.includes(sub.teamName)) {
+        tc.teams.push(sub.teamName);
+      }
+      tc.rosters[sub.teamName] = tc.rosters[sub.teamName] || [];
+
+      sub.players.forEach(p => {
+        let a = atletas.find(x => x.nome.toLowerCase() === p.nome.toLowerCase() || (x.apelido && x.apelido.toLowerCase() === p.apelido.toLowerCase()));
+        
+        if (!a) {
+          const newPlayer = {
+            id: p.id || Date.now() + Math.floor(Math.random() * 100000),
+            nome: p.nome,
+            apelido: p.apelido || "",
+            foto: "",
+            habilidade: p.habilidade || 3,
+            goleiro: p.goleiro || false,
+            ativo: true,
+            documento: p.documento || "",
+            dataNascimento: p.dataNascimento || "",
+            numeroCamisa: p.numeroCamisa || "",
+            customFields: p.customFields || {}
+          };
+          onAddAtleta(newPlayer);
+          a = newPlayer;
+        } else {
+          a.documento = a.documento || p.documento || "";
+          a.dataNascimento = a.dataNascimento || p.dataNascimento || "";
+          a.numeroCamisa = a.numeroCamisa || p.numeroCamisa || "";
+          a.customFields = { ...(a.customFields || {}), ...(p.customFields || {}) };
+        }
+
+        if (!tc.rosters[sub.teamName].includes(a.id)) {
+          tc.rosters[sub.teamName].push(a.id);
+        }
+      });
+
+      tc.pendingRegistrations = tc.pendingRegistrations.filter(r => r.id !== sub.id);
+
+      onUpdate(tc);
+      alert(`Inscrição do time "${sub.teamName}" aprovada!`);
+    };
+
+    const handleReject = (subId) => {
+      if (!window.confirm("Deseja rejeitar e excluir esta solicitação?")) return;
+      const tc = deepClone(c);
+      tc.pendingRegistrations = tc.pendingRegistrations.filter(r => r.id !== subId);
+      onUpdate(tc);
+      alert("Inscrição rejeitada.");
+    };
+
+    const handleReturn = (sub, feedback) => {
+      if (!feedback.trim()) {
+        alert("Por favor, informe a observação para devolução.");
+        return;
+      }
+      const tc = deepClone(c);
+      const target = tc.pendingRegistrations.find(r => r.id === sub.id);
+      if (target) {
+        target.status = "devolvido";
+        target.feedback = feedback.trim();
+      }
+      onUpdate(tc);
+      alert("Solicitação devolvida para correção.");
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={S.card}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 8 }}>📥 Solicitações de Inscrições Pendentes</h3>
+          <p style={{ fontSize: 12, color: t.textSec, lineHeight: 1.5, marginBottom: 14 }}>
+            Aprove, rejeite ou devolva inscrições de times e elencos enviadas por responsáveis do formulário online.
+          </p>
+
+          {pendingRegs.length === 0 ? (
+            <div style={{ padding: 20, textAlign: "center", color: t.textSec, fontStyle: "italic" }}>
+              Nenhuma solicitação de inscrição pendente.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {pendingRegs.map((sub, idx) => (
+                <div key={idx} style={{ border: `1.5px solid ${t.cardBorder}`, borderRadius: 12, padding: 12, background: t.inputBg }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8, marginBottom: 10, borderBottom: `1px dashed ${t.cardBorder}`, paddingBottom: 8 }}>
+                    <div>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: t.text }}>{sub.teamName}</span>
+                      {sub.teamColors && <span style={{ fontSize: 11, color: t.textSec, marginLeft: 8 }}>({sub.teamColors})</span>}
+                    </div>
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      color: sub.status === "devolvido" ? "#BA7517" : "#BA7517",
+                      background: sub.status === "devolvido" ? "#BA751718" : "transparent",
+                      padding: sub.status === "devolvido" ? "2px 6px" : "0",
+                      borderRadius: 6
+                    }}>
+                      {sub.status === "devolvido" ? "Devolvido" : "Pendente"}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: 12, color: t.textSec, marginBottom: 10 }}>
+                    <strong>Responsável:</strong> {sub.leaderName} ({sub.leaderContact}) · <strong>Data:</strong> {fmtDate(sub.date)}
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: t.textSec, marginBottom: 6 }}>ATLETAS SOLICITADOS ({sub.players?.length}):</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {sub.players?.map((p, i) => (
+                        <div key={i} style={{ fontSize: 11, color: t.text, display: "flex", justifyContent: "space-between", background: t.card, padding: "4px 8px", borderRadius: 6, border: `1px solid ${t.cardBorder}` }}>
+                          <span>
+                            <strong>{p.numeroCamisa ? `#${p.numeroCamisa} ` : ""}</strong>
+                            {p.nome} {p.apelido ? `(${p.apelido})` : ""}
+                          </span>
+                          <span style={{ fontSize: 10, color: t.textSec }}>
+                            Nasc: {p.dataNascimento ? p.dataNascimento.split("-").reverse().join("/") : "—"} · RG/CPF: {p.documento || "—"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {sub.feedback && (
+                    <div style={{ fontSize: 11, color: "#BA7517", background: "#BA751712", padding: 6, borderRadius: 6, marginBottom: 10, borderLeft: "3.5px solid #BA7517" }}>
+                      <strong>Feedback enviado:</strong> {sub.feedback}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <button onClick={() => handleAccept(sub)} style={S.btnSm("#1D9E75", "#fff")}>✓ Aprovar</button>
+                    <button onClick={() => handleReject(sub.id)} style={S.btnSm("#E24B4A22", "#E24B4A")}>🗑 Rejeitar</button>
+                    
+                    <div style={{ display: "flex", gap: 6, flex: 1, minWidth: 200, marginLeft: "auto" }}>
+                      <input 
+                        style={{ ...S.input, padding: "5px 10px", fontSize: 11, flex: 1, margin: 0 }} 
+                        placeholder="Motivo para devolver..." 
+                        value={feedbackTexts[sub.id] || ""} 
+                        onChange={e => setFeedbackTexts(prev => ({ ...prev, [sub.id]: e.target.value }))}
+                      />
+                      <button onClick={() => handleReturn(sub, feedbackTexts[sub.id] || "")} style={S.btnSm("#BA751722", "#BA7517")}>↩ Devolver</button>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function AbaMuralOrganizador() {
+    const mural = c.mural || [];
+    const [title, setTitle] = useState("");
+    const [content, setContent] = useState("");
+    const [type, setType] = useState("noticia");
+    const [mediaUrl, setMediaUrl] = useState("");
+    const [showAddPost, setShowAddPost] = useState(false);
+
+    const handleSavePost = () => {
+      if (!title.trim() || !content.trim()) {
+        alert("Por favor, preencha o título e o conteúdo.");
+        return;
+      }
+      const tc = deepClone(c);
+      tc.mural = tc.mural || [];
+      tc.mural.push({
+        id: Date.now(),
+        title: title.trim(),
+        content: content.trim(),
+        type,
+        mediaUrl: type === "midia" ? mediaUrl.trim() : "",
+        date: todayStr()
+      });
+      onUpdate(tc);
+      setTitle("");
+      setContent("");
+      setMediaUrl("");
+      setShowAddPost(false);
+      alert("Publicado no mural!");
+    };
+
+    const handleDeletePost = (id) => {
+      if (!window.confirm("Deseja excluir esta publicação?")) return;
+      const tc = deepClone(c);
+      tc.mural = (tc.mural || []).filter(item => item.id !== id);
+      onUpdate(tc);
+      alert("Publicação excluída.");
+    };
+
+    const getEmbedUrl = (url) => {
+      if (!url) return null;
+      let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      let match = url.match(regExp);
+      if (match && match[2].length === 11) {
+        return `https://www.youtube.com/embed/${match[2]}`;
+      }
+      return null;
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ ...S.card, borderColor: "#378ADD55", background: t.inputBg }}>
+          <button 
+            onClick={() => setShowAddPost(!showAddPost)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#378ADD",
+              fontWeight: 800,
+              fontSize: 14,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: 0,
+              width: "100%",
+              textAlign: "left"
+            }}
+          >
+            {showAddPost ? "▼ Fechar Novo Post" : "📣 Publicar no Mural (Notícias/Fotos/Vídeos)"}
+          </button>
+
+          {showAddPost && (
+            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={S.label}>Tipo de Publicação</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={()=>setType("noticia")} style={{ ...S.btnSm(type === "noticia" ? "#378ADD" : "transparent", type === "noticia" ? "#fff" : t.textSec), border: `1px solid ${type === "noticia" ? "#378ADD" : t.cardBorder}`, flex: 1 }}>📢 Notícia / Comunicado</button>
+                  <button onClick={()=>setType("midia")} style={{ ...S.btnSm(type === "midia" ? "#1D9E75" : "transparent", type === "midia" ? "#fff" : t.textSec), border: `1px solid ${type === "midia" ? "#1D9E75" : t.cardBorder}`, flex: 1 }}>🎬 Foto / Vídeo / Youtube</button>
+                </div>
+              </div>
+
+              <div>
+                <label style={S.label}>Título</label>
+                <input style={S.input} placeholder="Título do post" value={title} onChange={e=>setTitle(e.target.value)} />
+              </div>
+
+              <div>
+                <label style={S.label}>Conteúdo</label>
+                <textarea style={{ ...S.input, height: 100, resize: "vertical" }} placeholder="Conteúdo..." value={content} onChange={e=>setContent(e.target.value)} />
+              </div>
+
+              {type === "midia" && (
+                <div>
+                  <label style={S.label}>Link da Mídia (YouTube, fotos, etc.)</label>
+                  <input style={S.input} placeholder="https://..." value={mediaUrl} onChange={e=>setMediaUrl(e.target.value)} />
+                </div>
+              )}
+
+              <button onClick={handleSavePost} style={S.btn(type === "noticia" ? "#378ADD" : "#1D9E75")}>🚀 Publicar</button>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {mural.length === 0 ? (
+            <div style={{ ...S.card, textAlign: "center", padding: 24, color: t.textSec }}>
+              Nenhuma publicação no mural.
+            </div>
+          ) : (
+            [...mural].reverse().map((item, idx) => {
+              const embed = getEmbedUrl(item.mediaUrl);
+              return (
+                <div key={idx} style={S.card}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      color: item.type === "noticia" ? "#378ADD" : "#1D9E75",
+                      background: item.type === "noticia" ? "#378ADD18" : "#1D9E7518",
+                      padding: "2px 8px",
+                      borderRadius: 6
+                    }}>
+                      {item.type === "noticia" ? "Notícia / Comunicado" : "Mídia / Vídeo"}
+                    </span>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span style={{ fontSize: 11, color: t.textSec }}>{fmtDate(item.date)}</span>
+                      <button onClick={()=>handleDeletePost(item.id)} style={{ background: "none", border: "none", color: "#E24B4A", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>🗑</button>
+                    </div>
+                  </div>
+                  <h4 style={{ fontSize: 15, fontWeight: 800, color: t.text, margin: "0 0 8px 0" }}>{item.title}</h4>
+                  <p style={{ fontSize: 13, color: t.textSec, lineHeight: 1.5, whiteSpace: "pre-wrap", margin: "0 0 12px 0" }}>{item.content}</p>
+                  
+                  {item.type === "midia" && item.mediaUrl && (
+                    <div>
+                      {embed ? (
+                        <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: 8, border: `1px solid ${t.cardBorder}` }}>
+                          <iframe 
+                            src={embed} 
+                            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
+                            allowFullScreen
+                            title={item.title}
+                          />
+                        </div>
+                      ) : (
+                        <a href={item.mediaUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#378ADD", textDecoration: "none" }}>
+                          🔗 Link da mídia externa →
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
               );
-            })}
-            {teamRoster.length===0 && <div style={{fontSize:12,color:t.textSec,textAlign:"center",padding:12}}>Nenhum atleta associado a este time.</div>}
-          </div>
-          <div style={{fontWeight:700,fontSize:12,color:t.textSec,marginBottom:8}}>Adicionar ao time:</div>
-          <div style={{display:"flex",gap:8,marginBottom:10}}>
-            <input style={{...S.input,flex:1,margin:0}} placeholder="🔍 Buscar atleta para escalar..." value={filtroElenco} onChange={e=>setFiltroElenco(e.target.value)}/>
-            {filtroElenco.trim() && (
-              <button onClick={abrirNovoAtletaCamp} style={S.btn("#378ADD")}>+ Novo Atleta</button>
-            )}
-          </div>
-          <div style={{maxHeight:200,overflowY:"auto",display:"flex",flexDirection:"column",gap:4}}>
-            {dispFiltrados.map(a=>(
-               <div key={a.id} onClick={()=>{
-                 const tc=deepClone(c); tc.rosters = tc.rosters||{}; tc.rosters[selTeamElenco]=[...(tc.rosters[selTeamElenco]||[]), a.id]; onUpdate(tc);
-                 setFiltroElenco("");
-               }} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:8,background:t.inputBg,cursor:"pointer",border:`1px solid transparent`}}>
-                 <PlayerAvatar atleta={a} size={20}/>
-                 <span style={{fontSize:12,color:t.text}}>{getPlayerName(a)}</span>
-                 <span style={{marginLeft:"auto",color:"#378ADD",fontWeight:700,fontSize:14}}>+</span>
-               </div>
-            ))}
-            {dispFiltrados.length === 0 && <div style={{fontSize:12,color:t.textSec,textAlign:"center",padding:10}}>Nenhum atleta disponível correspondente ou crie um acima.</div>}
-          </div>
+            })
+          )}
         </div>
       </div>
     );
@@ -2839,40 +4054,161 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     const [editName, setEditName] = useState(c.name);
     const [editDate, setEditDate] = useState(c.date || "");
     const [editFee, setEditFee] = useState(c.fee || 0);
+    const [editSlug, setEditSlug] = useState(c.customSlug || "");
+    const [editAllowOnline, setEditAllowOnline] = useState(c.allowOnlineReg || false);
+    const [newCustomField, setNewCustomField] = useState("");
+    const [customFields, setCustomFields] = useState(c.customFieldsDef || []);
+
+    const handleAddField = () => {
+      const fieldName = newCustomField.trim();
+      if (!fieldName) return;
+      if (customFields.includes(fieldName)) {
+        alert("Este campo já foi adicionado.");
+        return;
+      }
+      setCustomFields(prev => [...prev, fieldName]);
+      setNewCustomField("");
+    };
+
+    const handleRemoveField = (field) => {
+      setCustomFields(prev => prev.filter(f => f !== field));
+    };
 
     const handleSaveConfig = () => {
       if(!editName.trim()){
         alert("Nome do campeonato não pode ser vazio.");
         return;
       }
+      
+      const slugVal = editSlug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, "");
+
       const tc = {
         ...c,
         name: editName.trim(),
         date: editDate,
-        fee: Number(editFee)
+        fee: Number(editFee),
+        customSlug: slugVal,
+        allowOnlineReg: editAllowOnline,
+        customFieldsDef: customFields
       };
       onUpdate(tc);
       alert("Configurações salvas com sucesso!");
     };
 
+    const getShareLink = () => {
+      const slug = editSlug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, "") || c.npointId;
+      if (!slug) return "";
+      const base = typeof window !== "undefined" ? window.location.origin + window.location.pathname : "https://futebol-manager.vercel.app";
+      return `${base}?c=${slug}`;
+    };
+
+    const shareLink = getShareLink();
+    const qrCodeUrl = shareLink ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(shareLink)}` : "";
+
     return (
-      <div style={S.card}>
-        <h3 style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:14}}>Configurações do Campeonato</h3>
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <div>
-            <label style={S.label}>Nome do Campeonato</label>
-            <input style={S.input} value={editName} onChange={e=>setEditName(e.target.value)} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={S.card}>
+          <h3 style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:14}}>Configurações Básicas</h3>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div>
+              <label style={S.label}>Nome do Campeonato</label>
+              <input style={S.input} value={editName} onChange={e=>setEditName(e.target.value)} />
+            </div>
+            <div>
+              <label style={S.label}>Data de Início</label>
+              <input type="date" style={S.input} value={editDate} onChange={e=>setEditDate(e.target.value)} />
+            </div>
+            <div>
+              <label style={S.label}>Taxa de inscrição por atleta (R$)</label>
+              <input type="number" min={0} step="0.01" style={S.input} value={editFee} onChange={e=>setEditFee(e.target.value)} />
+            </div>
           </div>
-          <div>
-            <label style={S.label}>Data de Início</label>
-            <input type="date" style={S.input} value={editDate} onChange={e=>setEditDate(e.target.value)} />
-          </div>
-          <div>
-            <label style={S.label}>Taxa de inscrição por atleta (R$)</label>
-            <input type="number" min={0} step="0.01" style={S.input} value={editFee} onChange={e=>setEditFee(e.target.value)} />
-          </div>
-          <button onClick={handleSaveConfig} style={{...S.btn("#1D9E75"),marginTop:8}}>Salvar Alterações</button>
         </div>
+
+        {/* Inscrições Online e Campos Customizados */}
+        <div style={S.card}>
+          <h3 style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:14}}>✍️ Inscrições Online Públicas</h3>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text,fontWeight:600}}>
+              <input type="checkbox" checked={editAllowOnline} onChange={e=>setEditAllowOnline(e.target.checked)} />
+              Habilitar Inscrições Públicas via Link / Nuvem
+            </label>
+            
+            {editAllowOnline && (
+              <div style={{ borderTop: `1px dashed ${t.cardBorder}`, paddingTop: 12, marginTop: 4 }}>
+                <label style={S.label}>Campos Personalizados da Ficha do Jogador</label>
+                <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                  <input 
+                    style={{ ...S.input, flex: 1, margin: 0, padding: "7px 10px" }} 
+                    placeholder="Ex: Posição, CPF, Responsável..." 
+                    value={newCustomField} 
+                    onChange={e=>setNewCustomField(e.target.value)}
+                  />
+                  <button onClick={handleAddField} style={S.btn("#378ADD")}>+ Adicionar</button>
+                </div>
+                
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {customFields.map(f => (
+                    <span key={f} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, padding: "4px 10px", borderRadius: 16, background: `${t.inputBg}`, border: `1px solid ${t.cardBorder}`, color: t.text, fontWeight: 600 }}>
+                      {f}
+                      <button onClick={()=>handleRemoveField(f)} style={{ background: "none", border: "none", color: "#E24B4A", fontWeight: 800, cursor: "pointer", padding: 0 }}>×</button>
+                    </span>
+                  ))}
+                  {customFields.length === 0 && (
+                    <div style={{ fontSize: 11, color: t.textSec, fontStyle: "italic" }}>Nenhum campo personalizado criado. O sistema exigirá apenas dados nativos (Nome, Apelido, Camisa, Documento e Nascimento).</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Divulgação & Links */}
+        <div style={S.card}>
+          <h3 style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:14}}>🔗 Divulgação & Link Amigável</h3>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div>
+              <label style={S.label}>Apelido do Campeonato (Slug na URL)</label>
+              <input 
+                style={S.input} 
+                placeholder="Ex: copa-bairro-novo-2026" 
+                value={editSlug} 
+                onChange={e=>setEditSlug(e.target.value)} 
+              />
+              <span style={{ fontSize: 10, color: t.textSec, marginTop: 4, display: "block" }}>
+                ⚠️ Apenas letras minúsculas, números e traços. Exemplo de link: <code>{shareLink || "Pendente de publicação na nuvem"}</code>
+              </span>
+            </div>
+
+            {c.npointId && shareLink && (
+              <div style={{ display: "flex", gap: 16, alignItems: "center", borderTop: `1px dashed ${t.cardBorder}`, paddingTop: 12, marginTop: 4, flexWrap: "wrap" }}>
+                <div>
+                  <img src={qrCodeUrl} alt="QR Code de Compartilhamento" style={{ width: 120, height: 120, border: `3px solid #000`, borderRadius: 8, background: "#fff", padding: 4 }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <div style={{ fontWeight: 800, fontSize: 12, color: t.text, marginBottom: 4 }}>Divulgue por QR Code!</div>
+                  <p style={{ fontSize: 11, color: t.textSec, lineHeight: 1.4, margin: "0 0 10px 0" }}>Torcedores e atletas podem escanear este código com a câmera do celular para acessar placares, tabelas e fazer inscrições.</p>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(shareLink);
+                        alert("Link de compartilhamento copiado!");
+                      }} 
+                      style={S.btnSm("#378ADD22", "#378ADD")}
+                    >
+                      📋 Copiar Link
+                    </button>
+                    <a href={qrCodeUrl} target="_blank" download="qrcode-campeonato.png" rel="noreferrer" style={{ ...S.btnSm("#1D9E7522", "#1D9E75"), textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+                      📥 Baixar QR Code
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <button onClick={handleSaveConfig} style={{...S.btn("#1D9E75"), width: "100%", justifyContent: "center", padding: "12px", fontSize: 13, marginTop: 4}}>✓ Salvar Configurações</button>
       </div>
     );
   }
@@ -2967,7 +4303,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           <div style={{textAlign:"center",minWidth:70,flexShrink:0}}>{m.played?<span style={{fontWeight:800,fontSize:15,color:"#1D9E75"}}>{m.homeScore}×{m.awayScore}</span>:<span style={{color:t.textSec}}>—×—</span>}</div>
           <div style={{display:"flex",alignItems:"center",gap:5,flex:1,minWidth:80}}><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={24}/><span style={{fontSize:12,fontWeight:500,color:t.text}}>{m.away}</span></div>
           <div style={{display:"flex",gap:4,flexShrink:0}}>
-             {m.played && <button onClick={()=>setSumulaModal({m, eKey})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}}>📝</button>}
+             <button onClick={()=>setSumulaModal({m, eKey})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}} title="Súmula da Partida">📝</button>
              <button onClick={()=>setEditing({key:eKey})} style={{...S.btnSm(),padding:"6px 12px"}}>{m.played?"✏️":"▶"}</button>
           </div>
         </div>
@@ -3058,6 +4394,8 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       
       {tab==="elencos" && <AbaElencos />}
       {tab==="estatísticas" && renderEstatisticas()}
+      {tab==="solicitações" && c.allowOnlineReg && <AbaSolicitacoes />}
+      {tab==="mural" && <AbaMuralOrganizador />}
       {tab==="configurações" && <AbaConfiguracoes />}
       
       {tab==="nuvem" && (
@@ -3190,7 +4528,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                           </div>
                         ):(
                           <div style={{padding:"5px 10px",textAlign:"center",display:"flex",gap:4,justifyContent:"center"}}>
-                            {m.played && <button onClick={()=>setSumulaModal({m, eKey})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"4px 10px"}}>📝 Súmula</button>}
+                            <button onClick={()=>setSumulaModal({m, eKey})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"4px 10px"}}>📝 Súmula</button>
                             <button onClick={()=>setEditing({key:eKey,hs:m.homeScore||"",as2:m.awayScore||"",dt:m.date||""})} style={S.btnSm()}>{m.played?"✏️":"▶"}</button>
                           </div>
                         ))}
@@ -3210,10 +4548,25 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       {sumulaModal && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
           <div style={{...S.card,width:"100%",maxWidth:400,maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
               <div style={{fontWeight:800,fontSize:16,color:t.text}}>📝 Súmula da Partida</div>
               <button onClick={()=>setSumulaModal(null)} style={{background:"none",border:"none",color:t.textSec,fontSize:20,cursor:"pointer"}}>✕</button>
             </div>
+
+            <button 
+              onClick={() => window.print()}
+              style={{
+                ...S.btn("#378ADD18", "#378ADD"),
+                justifyContent: "center",
+                marginBottom: 16,
+                fontSize: 12,
+                padding: "8px 12px",
+                width: "100%",
+                border: "1px dashed #378ADDaa"
+              }}
+            >
+              🖨️ Exportar / Imprimir Súmula Física (A4)
+            </button>
             
             <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:20}}>
               <div style={{textAlign:"center",fontWeight:700,color:t.text}}>{sumulaModal.m.home}<br/><span style={{fontSize:20,color:"#1D9E75"}}>{sumulaModal.m.homeScore}</span></div>
@@ -3280,7 +4633,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       {modalNovoAtleta && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001,padding:16}}>
           <div style={{...S.card,width:"100%",maxWidth:420,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>🆕 Cadastrar Atleta e Escalá-lo</div>
+            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editAtletaId ? "✏️ Editar Cadastro do Atleta" : "🆕 Cadastrar Atleta e Escalá-lo"}</div>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome</label><input style={S.input} value={formAtleta.nome} onChange={e=>setFormAtleta(v=>({...v,nome:e.target.value}))} placeholder="Nome completo"/></div>
@@ -3305,10 +4658,40 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                 <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.goleiro} onChange={e=>setFormAtleta(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
                 <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.ativo} onChange={e=>setFormAtleta(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
               </div>
+
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG/CPF)</label><input style={S.input} value={formAtleta.documento || ""} onChange={e=>setFormAtleta(v=>({...v,documento:e.target.value}))} placeholder="RG ou CPF"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={formAtleta.dataNascimento || ""} onChange={e=>setFormAtleta(v=>({...v,dataNascimento:e.target.value}))}/></div>
+              </div>
+              <div>
+                <label style={S.label}>Número da Camisa</label>
+                <input type="text" style={S.input} value={formAtleta.numeroCamisa || ""} onChange={e=>setFormAtleta(v=>({...v,numeroCamisa:e.target.value}))} placeholder="Ex: 10"/>
+              </div>
+
+              {c.customFieldsDef && c.customFieldsDef.map(f => (
+                <div key={f}>
+                  <label style={S.label}>{f}</label>
+                  <input 
+                    style={S.input} 
+                    value={formAtleta.customFields?.[f] || ""} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setFormAtleta(v => ({
+                        ...v,
+                        customFields: {
+                          ...(v.customFields || {}),
+                          [f]: val
+                        }
+                      }));
+                    }} 
+                    placeholder={`Informe ${f}`}
+                  />
+                </div>
+              ))}
             </div>
             <div style={{display:"flex",gap:8,marginTop:16}}>
-              <button onClick={salvarNovoAtletaCamp} style={S.btn("#378ADD")}>Salvar e Escalar</button>
-              <button onClick={()=>setModalNovoAtleta(false)} style={S.btn(t.card,t.textSec)}>Cancelar</button>
+              <button onClick={salvarNovoAtletaCamp} style={S.btn("#378ADD")}>{editAtletaId ? "Salvar Alterações" : "Salvar e Escalar"}</button>
+              <button onClick={()=>{setModalNovoAtleta(false); setEditAtletaId(null);}} style={S.btn(t.card,t.textSec)}>Cancelar</button>
             </div>
           </div>
         </div>
@@ -3440,6 +4823,9 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           </div>
         </div>
       )}
+
+      {/* Súmula Oficial Formatada para Impressão A4 Física */}
+      {renderPrintableSumula()}
     </div>
   );
 }
@@ -3520,25 +4906,39 @@ export default function App(){
       const code = params.get("c") || params.get("campeonato");
       if (code) {
         setCloudLoading(true);
-        fetch(`https://api.npoint.io/${code}`)
-          .then(res => {
-            if (!res.ok) throw new Error("Campeonato nao encontrado ou expirado");
-            return res.json();
-          })
-          .then(data => {
-            if (data && data.id) {
-              setPublicCloudChamp(data);
+        const loadFromFirestore = async () => {
+          try {
+            if (!isFirebaseConfigured) {
+              throw new Error("O Firebase Firestore não está configurado.");
+            }
+            
+            const docRef = doc(db, "campeonatos", code);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+              setPublicCloudChamp(docSnap.data());
               setScreen("publicCloud");
             } else {
-              alert("Campeonato invalido.");
+              const q = query(collection(db, "campeonatos"), where("customSlug", "==", code.toLowerCase()));
+              const querySnapshot = await getDocs(q);
+              
+              if (!querySnapshot.empty) {
+                const champData = querySnapshot.docs[0].data();
+                setPublicCloudChamp(champData);
+                setScreen("publicCloud");
+              } else {
+                throw new Error("Campeonato não encontrado.");
+              }
             }
-          })
-          .catch(err => {
+          } catch (err) {
+            console.error(err);
             alert("Erro ao conectar com a nuvem: " + err.message);
-          })
-          .finally(() => {
+          } finally {
             setCloudLoading(false);
-          });
+          }
+        };
+
+        loadFromFirestore();
       }
     }
   }, []);
@@ -3731,7 +5131,7 @@ export default function App(){
   }, [screen]);
 
   // ── CRUD Atletas ───────────────────────────────────────────────
-  const adicionarAtleta  =d=>setAtletas(p=>[...p,{...d,id:Date.now(), manager_id: auth.role === "manager" ? auth.manager_id : null}]);
+  const adicionarAtleta  =d=>setAtletas(p=>[...p,{...d,id:d.id || Date.now() + Math.floor(Math.random() * 100000), manager_id: auth.role === "manager" ? auth.manager_id : null}]);
   const atualizarAtleta  =(id,d)=>setAtletas(p=>p.map(a=>a.id===id?{...a,...d}:a));
   const removerAtleta    =id=>setAtletas(p=>p.filter(a=>a.id!==id));
 
@@ -4297,6 +5697,7 @@ export default function App(){
       onBack={()=>setScreen("home")} 
       setFinanceiro={setFinanceiroWrapped}
       onAddAtleta={adicionarAtleta}
+      onUpdateAtleta={atualizarAtleta}
       cloudLoading={cloudLoading}
       publicarNaNuvem={publicarNaNuvem}
       t={t}
