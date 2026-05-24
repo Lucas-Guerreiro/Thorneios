@@ -4998,6 +4998,47 @@ export default function App(){
   const managers = Array.isArray(appState?.managers) ? appState.managers : [];
   const adminPassword = appState?.adminPassword || "1204110411";
 
+  const autoRestaurarDaNuvem = async (role, managerId) => {
+    if (!isFirebaseConfigured) return;
+    try {
+      const docKey = role === "adm" ? "admin_data" : `manager_${managerId || "unknown"}`;
+      const docSnap = await getDoc(doc(db, "sistema", docKey));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.appState) {
+          setAppState(data.appState);
+          console.log("Dados sincronizados automaticamente da nuvem no login!");
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao sincronizar login da nuvem:", e);
+    }
+  };
+
+  // Auto-salvamento na Nuvem em background
+  useEffect(() => {
+    if (!isFirebaseConfigured || loading) return;
+    if (auth.role !== "adm" && auth.role !== "manager") return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const docKey = auth.role === "adm" ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
+        const payload = {
+          appState: appState,
+          lastUpdated: new Date().toISOString(),
+          updatedBy: auth.name || "Sem Nome"
+        };
+        const cleanPayload = JSON.parse(JSON.stringify(payload));
+        await setDoc(doc(db, "sistema", docKey), cleanPayload);
+        console.log("Banco de dados sincronizado automaticamente na Nuvem!");
+      } catch (e) {
+        console.error("Erro no auto-salvamento na nuvem:", e);
+      }
+    }, 2000); // 2 segundos de debounce para evitar excesso de requisições ao Firestore
+
+    return () => clearTimeout(timer);
+  }, [appState, auth, loading]);
+
   const handleLogin = ({email,password}) => {
     const trimmed = String(email||"").trim().toLowerCase();
     if(!trimmed||!password) return "Informe e-mail e senha.";
@@ -5006,6 +5047,7 @@ export default function App(){
       setAuth({ role:"adm", name:"Lucas", manager_id: null, scope: "geral" });
       setCurrent(null);
       setScreen("home");
+      autoRestaurarDaNuvem("adm", null);
       return "";
     }
 
@@ -5014,6 +5056,7 @@ export default function App(){
       setAuth({ role:"manager", name: manager.name || "Manager", manager_id: manager.id, scope: manager.scope });
       setCurrent(null);
       setScreen("home");
+      autoRestaurarDaNuvem("manager", manager.id);
       return "";
     }
 
@@ -5499,7 +5542,7 @@ export default function App(){
             </div>
             <div style={{fontSize:12,color:t.textSec}}>
               {isFirebaseConfigured 
-                ? "Seu sistema está conectado ao Firebase Firestore! Acesse o menu 'Backup' para salvar ou restaurar seus dados online e sincronizar tudo entre dispositivos. 🌐"
+                ? "Seu sistema está conectado ao Firebase Firestore! Seus dados são salvos online automaticamente a cada alteração e carregados ao entrar em qualquer outro dispositivo. 🌐"
                 : "Seus dados de atletas, peladas, campeonatos e financeiro são salvos automaticamente no seu navegador. Nenhuma conexão com internet é necessária! 🌐"}
             </div>
           </div>
@@ -5745,9 +5788,9 @@ export default function App(){
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
         {isFirebaseConfigured && (
           <div style={{...S.card, borderColor:"#378ADD55", background:"#378ADD08"}}>
-            <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#378ADD"}}>☁️ Backup e Sincronização na Nuvem (Firebase)</h3>
+            <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#378ADD"}}>☁️ Sincronização e Backup Online (Firebase)</h3>
             <p style={{fontSize:13,color:t.textSec,marginBottom:14}}>
-              Como a conexão com o Firebase está ativa, você pode salvar o banco de dados completo do sistema online e restaurá-lo em qualquer outro dispositivo!
+              <b>Sincronização Ativa:</b> Suas alterações locais são salvas na nuvem automaticamente 2 segundos após qualquer alteração. Ao abrir o sistema em outro dispositivo e realizar o login, seus dados atualizados serão baixados automaticamente! Use os botões abaixo para forçar o envio ou recebimento imediato dos dados caso esteja usando múltiplos dispositivos abertos ao mesmo tempo.
             </p>
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
               <button onClick={salvarBackupNuvem} style={S.btn("#378ADD")}>🚀 Salvar Banco na Nuvem</button>
