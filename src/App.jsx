@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useLocalStorage, clearLocalStorage, getLocalStorageSize } from "./hooks/useLocalStorage";
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Browser } from '@capacitor/browser';
 import { db, isFirebaseConfigured } from "./firebase";
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 
@@ -87,6 +88,14 @@ const isImageUrl = url => {
   }
   const extensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"];
   return extensions.some(ext => cleanUrl.includes(ext));
+};
+const handleOpenExternalLink = async (url) => {
+  if (!url) return;
+  try {
+    await Browser.open({ url, presentationStyle: 'popover' });
+  } catch (e) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 };
 function PlayerAvatar({atleta, size=24}) {
   const display = getPlayerName(atleta) || "?";
@@ -1110,7 +1119,11 @@ function CloudPublicChampScreen({champ,onBack,t}){
                         <img src={item.mediaUrl} style={{ width: "100%", maxHeight: "350px", objectFit: "contain", background: "#0000000a", display: "block" }} alt={item.title} />
                       </div>
                     ) : (
-                      <a href={item.mediaUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#378ADD", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <a 
+                        href={item.mediaUrl} 
+                        onClick={(e) => { e.preventDefault(); handleOpenExternalLink(item.mediaUrl); }} 
+                        style={{ fontSize: 12, color: "#378ADD", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+                      >
                         🔗 Abrir link da mídia externa →
                       </a>
                     )}
@@ -1948,12 +1961,13 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
 }
 
 /* ─────────────────────────── CRUD ATLETAS ───────────────────────── */
-function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,t}){
+function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,onExport,onImport,onDownloadTemplate,t}){
   const S=makeStyles(t);
   const[modal,setModal]=useState(false);
   const[editId,setEditId]=useState(null);
   const[form,setForm]=useState({nome:"",apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true,documento:"",dataNascimento:"",numeroCamisa:"",customFields:{}});
   const[filtro,setFiltro]=useState("");
+  const[expandMenu,setExpandMenu]=useState(false);
 
   function abrirNovo(){setEditId(null);setForm({nome:filtro.trim(),apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true,documento:"",dataNascimento:"",numeroCamisa:"",customFields:{}});setModal(true);}
   function abrirEdicao(a){setEditId(a.id);setForm({nome:a.nome,apelido:a.apelido||"",foto:a.foto||"",habilidade:a.habilidade,goleiro:a.goleiro,ativo:a.ativo !== false,documento:a.documento||"",dataNascimento:a.dataNascimento||"",numeroCamisa:a.numeroCamisa||"",customFields:a.customFields||{}});setModal(true);}
@@ -1968,10 +1982,33 @@ function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,t}){
           <div key={l} style={{...S.card,textAlign:"center",padding:10}}><div style={{fontSize:9,fontWeight:700,color:t.textSec,marginBottom:3}}>{l}</div><div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div></div>
         ))}
       </div>
-      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <input style={{...S.input,flex:1,minWidth:120}} placeholder="🔍 Buscar atleta..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
         <button onClick={abrirNovo} style={S.btn("#378ADD")}>+ Novo Atleta</button>
+        <button onClick={()=>setExpandMenu(!expandMenu)} style={{...S.btn("#1D9E75"),display:"inline-flex",gap:6}}>
+          <span>⚙️ Importar/Exportar</span>
+          <span style={{transform:expandMenu?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.3s",display:"inline-block"}}>▼</span>
+        </button>
       </div>
+      {expandMenu&&(
+        <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px solid ${t.inputBorder}`}}>
+          <div style={{display:"flex",flexDirection:"column",gap:0}}>
+            <button onClick={()=>{onExport();setExpandMenu(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.target.style.background=t.card} onMouseLeave={e=>e.target.style.background="transparent"}>
+              <span>📤</span>
+              <div><div style={{fontWeight:600}}>Exportar Atletas</div><div style={{fontSize:11,color:t.textSec}}>Baixar lista em XLS</div></div>
+            </button>
+            <button onClick={()=>{onDownloadTemplate();setExpandMenu(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.target.style.background=t.card} onMouseLeave={e=>e.target.style.background="transparent"}>
+              <span>📄</span>
+              <div><div style={{fontWeight:600}}>Baixar Modelo</div><div style={{fontSize:11,color:t.textSec}}>Planilha em branco</div></div>
+            </button>
+            <label style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s",margin:0}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span>📥</span>
+              <div><div style={{fontWeight:600}}>Importar Atletas</div><div style={{fontSize:11,color:t.textSec}}>Carregar arquivo XLS</div></div>
+              <input type="file" accept=".xls" style={{display:"none"}} onChange={(e)=>{onImport(e);setExpandMenu(false);}} />
+            </label>
+          </div>
+        </div>
+      )}
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {lista.length===0&&<div style={{color:t.textSec,fontSize:13,textAlign:"center",padding:20}}>Nenhum atleta encontrado.</div>}
         {lista.map(a=>(
@@ -4067,7 +4104,11 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                           <img src={item.mediaUrl} style={{ width: "100%", maxHeight: "350px", objectFit: "contain", background: "#0000000a", display: "block" }} alt={item.title} />
                         </div>
                       ) : (
-                        <a href={item.mediaUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#378ADD", textDecoration: "none" }}>
+                        <a 
+                          href={item.mediaUrl} 
+                          onClick={(e) => { e.preventDefault(); handleOpenExternalLink(item.mediaUrl); }} 
+                          style={{ fontSize: 12, color: "#378ADD", textDecoration: "none", cursor: "pointer" }}
+                        >
                           🔗 Link da mídia externa →
                         </a>
                       )}
@@ -5148,6 +5189,127 @@ export default function App(){
   const campeonatos = filterByManager(allCampeonatos).filter(c => auth.role === "adm" || auth.scope === "geral" || auth.scope === "campeonato");
   const peladas = filterByManager(allPeladas).filter(p => auth.role === "adm" || auth.scope === "geral" || auth.scope === "pelada");
   const atletas = filterByManager(allAtletas);
+
+  const escapeHtml = (value) => {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  };
+
+  const downloadAtletasTemplate = () => {
+    const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","customFields"];
+    const sample = {
+      id: "",
+      nome: "João Silva",
+      apelido: "João",
+      foto: "",
+      habilidade: "3",
+      goleiro: "false",
+      ativo: "true",
+      documento: "12345678900",
+      dataNascimento: "1990-01-01",
+      numeroCamisa: "10",
+      customFields: "{}"
+    };
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody><tr>${headers.map(key => `<td>${escapeHtml(sample[key] ?? "")}</td>`).join("")}</tr></tbody></table></body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `modelo-atletas.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  };
+
+  const exportAtletas = () => {
+    const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","customFields"];
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${atletas.map(a => `<tr>${headers.map(key => `<td>${escapeHtml(key === "customFields" ? JSON.stringify(a.customFields || {}) : a[key] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `atletas-${todayStr()}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  };
+
+  const parseValue = (text) => {
+    if (text === null || text === undefined) return "";
+    const trimmed = String(text).trim();
+    if (/^(true|false)$/i.test(trimmed)) return trimmed.toLowerCase() === "true";
+    if (/^-?\d+$/.test(trimmed)) return parseInt(trimmed, 10);
+    if (/^-?\d+\.\d+$/.test(trimmed)) return parseFloat(trimmed);
+    return trimmed;
+  };
+
+  const importAtletas = async (event) => {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/html");
+      const table = doc.querySelector("table");
+      if (!table) throw new Error("O arquivo XLS não contém uma tabela válida.");
+      const rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
+      if (rows.length < 2) throw new Error("A tabela XLS não contém dados de atletas.");
+      const headers = rows[0].map(h => String(h).trim());
+      const dataRows = rows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
+      const normalized = dataRows.map(cells => {
+        const item = {};
+        cells.forEach((value, index) => {
+          const key = headers[index];
+          if (!key) return;
+          if (key === "customFields") {
+            try {
+              item.customFields = JSON.parse(value || "{}");
+            } catch {
+              item.customFields = {};
+            }
+            return;
+          }
+          if (key === "habilidade") {
+            item.habilidade = Number(value) || 3;
+            return;
+          }
+          if (key === "goleiro" || key === "ativo") {
+            item[key] = String(value).trim().toLowerCase() === "true";
+            return;
+          }
+          if (key === "id") {
+            item.id = value ? Number(value) : undefined;
+            return;
+          }
+          item[key] = value;
+        });
+        return {
+          ...item,
+          id: item.id || Date.now() + Math.floor(Math.random() * 100000),
+          habilidade: Number(item.habilidade) || 3,
+          ativo: item.ativo !== false,
+          goleiro: item.goleiro === true,
+          manager_id: auth.role === "manager" ? auth.manager_id : item.manager_id,
+          customFields: item.customFields && typeof item.customFields === "object" ? item.customFields : {},
+        };
+      });
+      if (!window.confirm("Importar atletas substituirá a lista atual de atletas. Deseja continuar?")) return;
+      setAtletas(normalized);
+      alert(`Importação concluída com ${normalized.length} atletas.`);
+    } catch (error) {
+      console.error("Importar atletas falhou:", error);
+      alert("Erro ao importar atletas: " + (error.message || error));
+    } finally {
+      if (event.target) event.target.value = "";
+    }
+  };
+
   const financeiroFiltered = auth.role === "adm" ? financeiro : (auth.role === "manager" ? {
     entries: (financeiro.entries || []).filter(e => {
       if (String(e.manager_id) !== String(auth.manager_id)) return false;
@@ -5207,6 +5369,7 @@ export default function App(){
   };
 
   const[current,setCurrent]=useState(null);
+  const[expandMenuHome,setExpandMenuHome]=useState(false);
 
   const [storageSize, setStorageSize] = useState(0);
 
@@ -5539,16 +5702,48 @@ export default function App(){
             Olá {auth.name || "visitante"}, você está logado como <strong>{auth.role === "adm" ? "Administrador" : auth.role === "manager" ? "Manager" : auth.role === "user" ? "Usuário" : "convidado"}</strong>
           </p>
         </div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <button onClick={()=>setScreen("atletas")} style={{...S.btn("#378ADD"),fontSize:12,padding:"8px 14px"}}>👤 Atletas</button>
-          <button onClick={()=>setScreen("financeiro")} style={{...S.btn("#BA7517"),fontSize:12,padding:"8px 14px"}}>💰 Financeiro</button>
-          <button onClick={()=>setScreen("backup")} style={{...S.btn("#7F77DD"),fontSize:12,padding:"8px 14px"}}>💾 Backup</button>
-          {auth.role==="adm" && <button onClick={()=>setScreen("managerRegistry")} style={{...S.btn("#7F77DD"),fontSize:12,padding:"8px 14px"}}>👥 Gestores</button>}
-          {(auth.role==="adm" || auth.role==="manager") && <button onClick={()=>setModalPassword(true)} style={{...S.btn("#1D9E75"),fontSize:12,padding:"8px 14px"}}>🔐 Alterar Senha</button>}
-          <button onClick={handleLogout} style={{...S.btn("#E24B4A"),fontSize:12,padding:"8px 14px"}}>🚪 Sair</button>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button onClick={()=>setExpandMenuHome(!expandMenuHome)} style={{...S.btn("#378ADD"),display:"inline-flex",gap:6,fontSize:12,padding:"8px 14px"}}>
+            <span>☰ Menu</span>
+            <span style={{transform:expandMenuHome?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.3s",display:"inline-block"}}>▼</span>
+          </button>
           <DarkBtn/>
         </div>
       </div>
+      {expandMenuHome&&(
+        <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px solid ${t.inputBorder}`}}>
+          <div style={{display:"flex",flexDirection:"column",gap:0}}>
+            <button onClick={()=>{setScreen("atletas");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span>👤</span>
+              <div><div style={{fontWeight:600}}>Atletas</div><div style={{fontSize:11,color:t.textSec}}>Gerenciar lista de atletas</div></div>
+            </button>
+            <button onClick={()=>{setScreen("financeiro");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span>💰</span>
+              <div><div style={{fontWeight:600}}>Financeiro</div><div style={{fontSize:11,color:t.textSec}}>Controle de arrecadação</div></div>
+            </button>
+            <button onClick={()=>{setScreen("backup");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span>💾</span>
+              <div><div style={{fontWeight:600}}>Backup</div><div style={{fontSize:11,color:t.textSec}}>Exportar e restaurar dados</div></div>
+            </button>
+            {auth.role==="adm" && (
+              <button onClick={()=>{setScreen("managerRegistry");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <span>👥</span>
+                <div><div style={{fontWeight:600}}>Gestores</div><div style={{fontSize:11,color:t.textSec}}>Gerenciar managers</div></div>
+              </button>
+            )}
+            {(auth.role==="adm" || auth.role==="manager") && (
+              <button onClick={()=>{setModalPassword(true);setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                <span>🔐</span>
+                <div><div style={{fontWeight:600}}>Alterar Senha</div><div style={{fontSize:11,color:t.textSec}}>Mudar sua senha</div></div>
+              </button>
+            )}
+            <button onClick={()=>{handleLogout();setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background="#E24B4A15"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span>🚪</span>
+              <div><div style={{fontWeight:600}}>Sair</div><div style={{fontSize:11,color:t.textSec}}>Desconectar da conta</div></div>
+            </button>
+          </div>
+        </div>
+      )}
       {/* Banner informativo sobre localStorage / Cloud Sync */}
       <div style={{...S.card,background:isFirebaseConfigured ? "#378ADD10" : "#1D9E7510",borderColor:isFirebaseConfigured ? "#378ADD55" : "#1D9E7555",marginBottom:20,padding:12}}>
         <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
@@ -5858,7 +6053,7 @@ export default function App(){
         <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setScreen("home")} style={S.btnSm()}>← Voltar</button><h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>👤 Atletas</h2></div>
         <DarkBtn/>
       </div>
-      <CRUDAtletas atletas={atletas} onAdd={adicionarAtleta} onUpdate={atualizarAtleta} onRemove={removerAtleta} t={t}/>
+      <CRUDAtletas atletas={atletas} onAdd={adicionarAtleta} onUpdate={atualizarAtleta} onRemove={removerAtleta} onExport={exportAtletas} onImport={importAtletas} onDownloadTemplate={downloadAtletasTemplate} t={t}/>
     </div>
   );
 
