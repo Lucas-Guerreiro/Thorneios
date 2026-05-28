@@ -116,6 +116,39 @@ const getDirectImageUrl = (url) => {
   return cleanUrl;
 };
 
+const getOneDriveEmbedUrl = (url) => {
+  if (!url) return "";
+  let cleanUrl = url.trim();
+  
+  // Extrai o link src caso o usuário tenha colado o iframe HTML completo
+  if (cleanUrl.startsWith("<") && cleanUrl.includes("src=")) {
+    const match = cleanUrl.match(/src=["']([^"']+)["']/i);
+    if (match && match[1]) {
+      cleanUrl = match[1].trim();
+    }
+  }
+  
+  // Converte links do OneDrive Download para Embed
+  if (cleanUrl.toLowerCase().includes("onedrive.live.com") && cleanUrl.toLowerCase().includes("download")) {
+    return cleanUrl.replace(/\/download/i, "/embed");
+  }
+  
+  // Se for embed do OneDrive, retorna ele mesmo
+  if (cleanUrl.toLowerCase().includes("onedrive.live.com") && cleanUrl.toLowerCase().includes("embed")) {
+    return cleanUrl;
+  }
+  
+  // Converte links curtos do OneDrive (1drv.ms) para Embed
+  if (cleanUrl.toLowerCase().includes("1drv.ms")) {
+    cleanUrl = cleanUrl.replace(/\/[vi]\/s!/i, "/embed?s=");
+    cleanUrl = cleanUrl.replace(/\/s!/i, "/embed?s=");
+    cleanUrl = cleanUrl.replace(/\/download\?s=/i, "/embed?s=");
+    return cleanUrl;
+  }
+  
+  return cleanUrl;
+};
+
 const isImageUrl = url => {
   if (!url) return false;
   let cleanUrl = url.trim();
@@ -228,6 +261,34 @@ function GaleriaThumbnail({ mediaUrl, title, t }) {
         alt={title} 
         onError={() => setImageError(true)}
       />
+    );
+  }
+
+  // Se falhou como imagem ou é reconhecido como vídeo do OneDrive
+  if (mediaUrl && (mediaUrl.toLowerCase().includes("onedrive.live.com") || mediaUrl.toLowerCase().includes("1drv.ms"))) {
+    return (
+      <div style={{ 
+        width: "100%", 
+        height: "100%", 
+        display: "flex", 
+        flexDirection: "column",
+        justifyContent: "center", 
+        alignItems: "center", 
+        background: "linear-gradient(135deg, #1f1c2c 0%, #928dab 100%)", 
+        color: "#fff",
+        padding: 12,
+        boxSizing: "border-box",
+        textAlign: "center",
+        position: "relative"
+      }}>
+        <div style={{ fontSize: 28, marginBottom: 4 }}>🎬</div>
+        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.8, textTransform: "uppercase", letterSpacing: 0.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+          {title || "Vídeo OneDrive"}
+        </div>
+        <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(55,138,221,0.85)", borderRadius: 6, padding: "2px 6px", color: "#fff", fontSize: 9, fontWeight: 800 }}>
+          ONEDRIVE
+        </div>
+      </div>
     );
   }
 
@@ -433,14 +494,25 @@ function MuralPostCard({
                 onError={() => setImageError(true)}
               />
             ) : (isImg && imageError) || hasMedia ? (
-              <div style={{ width: "100%", background: "#000", display: "flex", justifyContent: "center" }}>
-                <video 
-                  src={getDirectImageUrl(item.mediaUrl)} 
-                  controls 
-                  preload="metadata"
-                  style={{ width: "100%", maxHeight: 460, display: "block", objectFit: "contain" }}
-                />
-              </div>
+              item.mediaUrl && (item.mediaUrl.toLowerCase().includes("onedrive.live.com") || item.mediaUrl.toLowerCase().includes("1drv.ms")) ? (
+                <div style={{ position: "relative", width: "100%", paddingTop: "56.25%" }}>
+                  <iframe 
+                    src={getOneDriveEmbedUrl(item.mediaUrl)} 
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
+                    allowFullScreen
+                    title={item.title}
+                  />
+                </div>
+              ) : (
+                <div style={{ width: "100%", background: "#000", display: "flex", justifyContent: "center" }}>
+                  <video 
+                    src={getDirectImageUrl(item.mediaUrl)} 
+                    controls 
+                    preload="metadata"
+                    style={{ width: "100%", maxHeight: 460, display: "block", objectFit: "contain" }}
+                  />
+                </div>
+              )
             ) : null}
           </div>
         )}
@@ -553,12 +625,23 @@ function MuralPostCard({
                 </div>
               ) : (isImg && imageError) || hasMedia ? (
                 <div>
-                  <video 
-                    src={getDirectImageUrl(item.mediaUrl)} 
-                    controls 
-                    preload="metadata"
-                    style={{ width: "100%", height: "auto", display: "block", maxHeight: 400, background: "#000" }} 
-                  />
+                  {item.mediaUrl && (item.mediaUrl.toLowerCase().includes("onedrive.live.com") || item.mediaUrl.toLowerCase().includes("1drv.ms")) ? (
+                    <div style={{ position: "relative", width: "100%", paddingTop: "56.25%" }}>
+                      <iframe 
+                        src={getOneDriveEmbedUrl(item.mediaUrl)} 
+                        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
+                        allowFullScreen
+                        title={item.title}
+                      />
+                    </div>
+                  ) : (
+                    <video 
+                      src={getDirectImageUrl(item.mediaUrl)} 
+                      controls 
+                      preload="metadata"
+                      style={{ width: "100%", height: "auto", display: "block", maxHeight: 400, background: "#000" }} 
+                    />
+                  )}
                   <div style={{ padding: "12px 14px", borderTop: `1px solid ${t.cardBorder}` }}>
                     <div style={{ fontSize: 11, color: t.textSec, textTransform: "lowercase", letterSpacing: 0.5, fontWeight: 700 }}>thorneios.com.br</div>
                     <div style={{ fontSize: 13.5, fontWeight: 800, color: t.text, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</div>
