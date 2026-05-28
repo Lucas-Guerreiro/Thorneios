@@ -23,8 +23,8 @@ const fmtCur  = v => `R$ ${Number(v||0).toFixed(2).replace(".",",")}`;
 const todayStr= () => new Date().toISOString().split("T")[0];
 const SKILL_COLORS = ["#888","#BA7517","#378ADD","#1D9E75","#D85A30"];
 const SKILL_NAMES  = ["Iniciante","Básico","Intermediário","Avançado","Elite"];
-const LIGHT = { bg:"#f4f6fa",card:"#ffffff",cardBorder:"#e2e8f0",inputBg:"#eef2ff",inputBorder:"#c7d2fe",inputColor:"#1e1e2e",text:"#1e293b",textSec:"#64748b",tabBorder:"#e2e8f0" };
-const DARK  = { bg:"#0f1117",card:"#1a1d27",cardBorder:"#2a2d3e",inputBg:"#1e2235",inputBorder:"#3a3f5c",inputColor:"#e2e8f0",text:"#e2e8f0",textSec:"#8892b0",tabBorder:"#2a2d3e" };
+const LIGHT = { bg: "#ffffff", card: "#ffffff", cardBorder: "#efefef", inputBg: "#fafafa", inputBorder: "#dbdbdb", inputColor: "#262626", text: "#262626", textSec: "#737373", tabBorder: "#efefef" };
+const DARK  = { bg: "#000000", card: "#121212", cardBorder: "#262626", inputBg: "#1c1c1e", inputBorder: "#262626", inputColor: "#f5f5f5", text: "#f5f5f5", textSec: "#a8a8a8", tabBorder: "#262626" };
 
 function useTheme(){ 
   const [dark, setDark] = useState(() => {
@@ -43,13 +43,13 @@ function useTheme(){
 function makeStyles(t){
   return{
     page:  {minHeight:"100vh",padding:"60px 16px 24px",maxWidth:780,margin:"0 auto",background:t.bg,color:t.text},
-    card:  {background:t.card,borderRadius:16,padding:"16px",border:`1px solid ${t.cardBorder}`},
-    input: {padding:"9px 13px",borderRadius:10,border:`1.5px solid ${t.inputBorder}`,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none"},
-    select:{padding:"9px 13px",borderRadius:10,border:`1.5px solid ${t.inputBorder}`,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none"},
-    btn:   (bg,c)=>({padding:"10px 18px",borderRadius:10,border:"none",background:bg||"#1D9E75",color:c||"#fff",cursor:"pointer",fontWeight:600,fontSize:14,display:"inline-flex",alignItems:"center",gap:6}),
-    btnSm: (bg,c)=>({padding:"6px 12px",borderRadius:8,border:"none",background:bg||t.card,color:c||t.textSec,cursor:"pointer",fontWeight:500,fontSize:12}),
+    card:  {background:t.card,borderRadius:12,padding:"16px",border:`1px solid ${t.cardBorder}`,boxShadow:"none"},
+    input: {padding:"9px 13px",borderRadius:8,border:`1px solid ${t.inputBorder}`,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"border-color 0.2s"},
+    select:{padding:"9px 13px",borderRadius:8,border:`1px solid ${t.inputBorder}`,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"border-color 0.2s"},
+    btn:   (bg,c)=>({padding:"9px 16px",borderRadius:8,border:"none",background:bg||"#0095F6",color:c||"#fff",cursor:"pointer",fontWeight:600,fontSize:14,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6,transition:"background 0.2s, opacity 0.2s"}),
+    btnSm: (bg,c)=>({padding:"6px 12px",borderRadius:6,border:`1px solid ${t.inputBorder}`,background:bg||t.inputBg,color:c||t.text,cursor:"pointer",fontWeight:600,fontSize:12,transition:"background 0.2s"}),
     label: {fontSize:11,color:t.textSec,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,marginBottom:5,display:"block"},
-    tab:   a=>({padding:"10px 14px",border:"none",borderBottom:a?"2px solid #1D9E75":"2px solid transparent",background:"none",color:a?"#1D9E75":t.textSec,cursor:"pointer",fontSize:13,fontWeight:a?700:400,whiteSpace:"nowrap"}),
+    tab:   a=>({padding:"10px 14px",border:"none",borderBottom:a?"2.5px solid #0095F6":"2.5px solid transparent",background:"none",color:a?t.text:t.textSec,cursor:"pointer",fontSize:13,fontWeight:a?800:500,letterSpacing:"0.5px",textTransform:"uppercase",whiteSpace:"nowrap"}),
   };
 }
 
@@ -362,8 +362,8 @@ function MuralPostCard({
           <div>
             <label style={S.label}>Tipo de Publicação</label>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={()=>setEditType("noticia")} style={{ ...S.btnSm(editType === "noticia" ? "#378ADD" : "transparent", editType === "noticia" ? "#fff" : t.textSec), border: `1px solid ${editType === "noticia" ? "#378ADD" : t.cardBorder}`, flex: 1, padding: "8px" }}>📢 Notícia / Comunicado</button>
-              <button onClick={()=>setEditType("midia")} style={{ ...S.btnSm(editType === "midia" ? "#1D9E75" : "transparent", editType === "midia" ? "#fff" : t.textSec), border: `1px solid ${editType === "midia" ? "#1D9E75" : t.cardBorder}`, flex: 1, padding: "8px" }}>🎬 Foto / Vídeo</button>
+              <button onClick={()=>setEditType("noticia")} style={{ ...S.btnSm(editType === "noticia" ? "#0095F6" : "transparent", editType === "noticia" ? "#fff" : t.textSec), border: `1px solid ${editType === "noticia" ? "#0095F6" : t.cardBorder}`, flex: 1, padding: "8px" }}>📢 Notícia</button>
+              <button onClick={()=>setEditType("midia")} style={{ ...S.btnSm(editType === "midia" ? "#0095F6" : "transparent", editType === "midia" ? "#fff" : t.textSec), border: `1px solid ${editType === "midia" ? "#0095F6" : t.cardBorder}`, flex: 1, padding: "8px" }}>🎬 Foto / Vídeo</button>
             </div>
           </div>
 
@@ -383,7 +383,7 @@ function MuralPostCard({
           </div>
 
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button onClick={() => onSaveEdit(item.id)} style={{ ...S.btn("#1D9E75"), padding: "10px 14px", fontSize: 13, flex: 1, justifyContent: "center" }}>💾 Salvar Alterações</button>
+            <button onClick={() => onSaveEdit(item.id)} style={{ ...S.btn("#0095F6"), padding: "10px 14px", fontSize: 13, flex: 1, justifyContent: "center" }}>💾 Salvar Alterações</button>
             <button onClick={() => setEditingPostId(null)} style={{ ...S.btn(t.card, t.textSec), border: `1.5px solid ${t.cardBorder}`, padding: "10px 14px", fontSize: 13, cursor: "pointer" }}>Cancelar</button>
           </div>
         </div>
@@ -1446,7 +1446,7 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
           <div style={{
             fontSize: 48,
             fontWeight: 900,
-            background: "linear-gradient(135deg, #1D9E75 0%, #378ADD 100%)",
+            background: "linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             display: "inline-block",
@@ -1467,15 +1467,15 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
 
         {/* Card de Autenticação Premium (Glassmorphism) */}
         <div style={{
-          background: isDark ? "rgba(26, 29, 39, 0.75)" : "rgba(255, 255, 255, 0.8)",
+          background: isDark ? "rgba(18, 18, 18, 0.75)" : "rgba(255, 255, 255, 0.8)",
           backdropFilter: "blur(18px)",
           WebkitBackdropFilter: "blur(18px)",
           borderRadius: 24,
           padding: "32px 28px",
           border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"}`,
           boxShadow: isDark 
-            ? "0 20px 40px rgba(0, 0, 0, 0.4), 0 0 50px rgba(29, 158, 117, 0.05)" 
-            : "0 20px 40px rgba(30, 41, 59, 0.1)",
+            ? "0 20px 40px rgba(0, 0, 0, 0.6), 0 0 50px rgba(0, 149, 246, 0.05)" 
+            : "0 20px 40px rgba(0, 0, 0, 0.05)",
           transition: "transform 0.3s ease, box-shadow 0.3s ease"
         }}>
           {/* Abas */}
@@ -1493,7 +1493,7 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
                 padding: "12px 6px",
                 background: "transparent",
                 border: "none",
-                borderBottom: activeTab === "login" ? "2.5px solid #1D9E75" : "2.5px solid transparent",
+                borderBottom: activeTab === "login" ? "2.5px solid #0095F6" : "2.5px solid transparent",
                 color: activeTab === "login" ? t.text : t.textSec,
                 fontSize: 14,
                 fontWeight: activeTab === "login" ? 700 : 500,
@@ -1511,7 +1511,7 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
                 padding: "12px 6px",
                 background: "transparent",
                 border: "none",
-                borderBottom: activeTab === "register" ? "2.5px solid #1D9E75" : "2.5px solid transparent",
+                borderBottom: activeTab === "register" ? "2.5px solid #0095F6" : "2.5px solid transparent",
                 color: activeTab === "register" ? t.text : t.textSec,
                 fontSize: 14,
                 fontWeight: activeTab === "register" ? 700 : 500,
@@ -1529,7 +1529,7 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
                 padding: "12px 6px",
                 background: "transparent",
                 border: "none",
-                borderBottom: activeTab === "forgot" ? "2.5px solid #1D9E75" : "2.5px solid transparent",
+                borderBottom: activeTab === "forgot" ? "2.5px solid #0095F6" : "2.5px solid transparent",
                 color: activeTab === "forgot" ? t.text : t.textSec,
                 fontSize: 14,
                 fontWeight: activeTab === "forgot" ? 700 : 500,
@@ -1645,11 +1645,11 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
             {/* Mensagem de Sucesso */}
             {success && (
               <div style={{
-                background: "rgba(29, 158, 117, 0.12)",
-                border: "1px solid rgba(29, 158, 117, 0.2)",
-                color: "#1D9E75",
+                background: "rgba(0, 149, 246, 0.12)",
+                border: "1px solid rgba(0, 149, 246, 0.2)",
+                color: "#0095F6",
                 padding: "10px 14px",
-                borderRadius: 12,
+                borderRadius: 8,
                 fontSize: 12,
                 fontWeight: 600,
                 display: "flex",
@@ -1666,14 +1666,14 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
               type="submit" 
               disabled={loading}
               style={{
-                ...S.btn(loading ? "#1D9E75aa" : "linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%)"),
+                ...S.btn(loading ? "#0095F6aa" : "#0095F6"),
                 padding: "14px 20px",
                 fontSize: 14,
                 width: "100%",
                 boxSizing: "border-box",
-                borderRadius: 12,
+                borderRadius: 8,
                 justifyContent: "center",
-                boxShadow: isDark ? "0 4px 12px rgba(29, 158, 117, 0.2)" : "0 4px 12px rgba(29, 158, 117, 0.1)",
+                boxShadow: isDark ? "0 4px 12px rgba(0, 149, 246, 0.2)" : "0 4px 12px rgba(0, 149, 246, 0.1)",
                 transition: "all 0.2s ease",
                 transform: loading ? "scale(0.98)" : "none"
               }}
