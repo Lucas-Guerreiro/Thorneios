@@ -4,8 +4,15 @@ import { useLocalStorage, clearLocalStorage, getLocalStorageSize } from "./hooks
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Browser } from '@capacitor/browser';
-import { db, isFirebaseConfigured } from "./firebase";
+import { db, auth as firebaseAuth, isFirebaseConfigured } from "./firebase";
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged, 
+  createUserWithEmailAndPassword, 
+  sendPasswordResetEmail 
+} from "firebase/auth";
 
 
 /* ─────────────────────────── CONSTANTES ─────────────────────────── */
@@ -80,15 +87,61 @@ const getPlayerName = a => {
   if (!a) return "";
   return a.apelido || a.nome || a.name || `Atleta #${a.id || 'Sem ID'}`;
 };
+const getDirectImageUrl = (url) => {
+  if (!url) return "";
+  let cleanUrl = url.trim();
+  
+  // Converte links do OneDrive Embed para Download direto para renderizar como imagem
+  if (cleanUrl.toLowerCase().includes("onedrive.live.com") && cleanUrl.toLowerCase().includes("embed")) {
+    return cleanUrl.replace(/\/embed/i, "/download");
+  }
+  
+  return cleanUrl;
+};
+
 const isImageUrl = url => {
   if (!url) return false;
   const cleanUrl = url.toLowerCase().trim();
-  if (cleanUrl.startsWith("data:image/") || cleanUrl.includes("images.unsplash.com") || cleanUrl.includes("firebasestorage.googleapis.com") || cleanUrl.includes("imgbb.com")) {
+  
+  if (
+    cleanUrl.startsWith("data:image/") || 
+    cleanUrl.includes("images.unsplash.com") || 
+    cleanUrl.includes("firebasestorage.googleapis.com") || 
+    cleanUrl.includes("imgbb.com") ||
+    cleanUrl.includes("imgur.com") ||
+    cleanUrl.includes("postimg.cc") ||
+    cleanUrl.includes("cloudinary.com") ||
+    cleanUrl.includes("media.discordapp.net") ||
+    cleanUrl.includes("onedrive.live.com") ||
+    cleanUrl.includes("1drv.ms") ||
+    cleanUrl.includes("sharepoint.com")
+  ) {
     return true;
   }
-  const extensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp"];
-  return extensions.some(ext => cleanUrl.includes(ext));
+  
+  const extensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".tiff"];
+  if (extensions.some(ext => cleanUrl.includes(ext))) {
+    return true;
+  }
+
+  // Detecta URLs com parâmetros que contêm extensões de imagens
+  if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp)\b/)) {
+    return true;
+  }
+
+  return false;
 };
+
+const getEmbedUrl = (url) => {
+  if (!url) return null;
+  let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  let match = url.match(regExp);
+  if (match && match[2].length === 11) {
+    return `https://www.youtube.com/embed/${match[2]}`;
+  }
+  return null;
+};
+
 const handleOpenExternalLink = async (url) => {
   if (!url) return;
   try {
@@ -97,6 +150,616 @@ const handleOpenExternalLink = async (url) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 };
+
+function GaleriaThumbnail({ mediaUrl, title, t }) {
+  const [imageError, setImageError] = useState(false);
+  const embed = getEmbedUrl(mediaUrl);
+  const isImg = mediaUrl && isImageUrl(mediaUrl);
+  
+  let thumbUrl = getDirectImageUrl(mediaUrl);
+  if (embed) {
+    let match = mediaUrl.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
+    if (match && match[2].length === 11) {
+      thumbUrl = `https://img.youtube.com/vi/${match[2]}/0.jpg`;
+    }
+  }
+
+  useEffect(() => {
+    setImageError(false);
+  }, [mediaUrl]);
+
+  if (embed) {
+    return (
+      <div style={{ width: "100%", height: "100%", position: "relative" }}>
+        <img 
+          src={thumbUrl} 
+          style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+          alt={title} 
+        />
+        <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center", color: "#fff", fontSize: 11 }}>
+          ▶️
+        </div>
+      </div>
+    );
+  }
+
+  if (isImg && !imageError) {
+    return (
+      <img 
+        src={thumbUrl} 
+        style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+        alt={title} 
+        onError={() => setImageError(true)}
+      />
+    );
+  }
+
+  if (mediaUrl) {
+    const directUrl = getDirectImageUrl(mediaUrl);
+    return (
+      <div style={{ width: "100%", height: "100%", position: "relative", background: "#000" }}>
+        <video 
+          src={directUrl} 
+          preload="metadata" 
+          muted 
+          style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+        />
+        <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center", color: "#fff", fontSize: 11 }}>
+          ▶️
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", fontSize: 24, background: "#00000010" }}>
+      🎬
+    </div>
+  );
+}
+
+function MuralPostCard({ 
+  item, 
+  isAdmin, 
+  onStartEdit, 
+  onDelete, 
+  t,
+  editingPostId,
+  setEditingPostId,
+  editTitle,
+  setEditTitle,
+  editContent,
+  setEditContent,
+  editType,
+  setEditType,
+  editMediaUrl,
+  setEditMediaUrl,
+  onSaveEdit
+}) {
+  const S = makeStyles(t);
+  const embed = getEmbedUrl(item.mediaUrl);
+  const isImg = item.mediaUrl && isImageUrl(item.mediaUrl);
+  const hasMedia = item.mediaUrl && (embed || isImg || item.mediaUrl.trim() !== "");
+
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [item.mediaUrl, item.id]);
+
+  // Se este post específico estiver sendo editado e o usuário for administrador
+  if (isAdmin && item.id === editingPostId) {
+    return (
+      <div className="mural-card" style={{ borderColor: "#378ADD", background: t.inputBg, borderStyle: "solid", borderWidth: "2px", borderRadius: 20, padding: 22, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${t.cardBorder}`, paddingBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: "#378ADD", display: "flex", alignItems: "center", gap: 6 }}>✏️ Editar Publicação</span>
+            <button 
+              onClick={() => setEditingPostId(null)}
+              style={{ background: "none", border: "none", color: t.textSec, cursor: "pointer", fontSize: 18, padding: 0 }}
+              title="Cancelar edição"
+            >×</button>
+          </div>
+
+          <div>
+            <label style={S.label}>Tipo de Publicação</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={()=>setEditType("noticia")} style={{ ...S.btnSm(editType === "noticia" ? "#378ADD" : "transparent", editType === "noticia" ? "#fff" : t.textSec), border: `1px solid ${editType === "noticia" ? "#378ADD" : t.cardBorder}`, flex: 1, padding: "8px" }}>📢 Notícia / Comunicado</button>
+              <button onClick={()=>setEditType("midia")} style={{ ...S.btnSm(editType === "midia" ? "#1D9E75" : "transparent", editType === "midia" ? "#fff" : t.textSec), border: `1px solid ${editType === "midia" ? "#1D9E75" : t.cardBorder}`, flex: 1, padding: "8px" }}>🎬 Foto / Vídeo</button>
+            </div>
+          </div>
+
+          <div>
+            <label style={S.label}>Título</label>
+            <input style={S.input} value={editTitle} onChange={e=>setEditTitle(e.target.value)} placeholder="Título da publicação" />
+          </div>
+
+          <div>
+            <label style={S.label}>Conteúdo</label>
+            <textarea style={{ ...S.input, height: 90, resize: "vertical" }} value={editContent} onChange={e=>setEditContent(e.target.value)} placeholder="Conteúdo da matéria..." />
+          </div>
+
+          <div>
+            <label style={S.label}>{editType === "noticia" ? "Link da Imagem de Capa (Opcional)" : "Link da Mídia (YouTube, imagem, etc.)"}</label>
+            <input style={S.input} value={editMediaUrl} onChange={e=>setEditMediaUrl(e.target.value)} placeholder="https://..." />
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <button onClick={() => onSaveEdit(item.id)} style={{ ...S.btn("#1D9E75"), padding: "10px 14px", fontSize: 13, flex: 1, justifyContent: "center" }}>💾 Salvar Alterações</button>
+            <button onClick={() => setEditingPostId(null)} style={{ ...S.btn(t.card, t.textSec), border: `1.5px solid ${t.cardBorder}`, padding: "10px 14px", fontSize: 13, cursor: "pointer" }}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (item.type === "midia") {
+    // 🎬 ESTILO INSTAGRAM (FOTO / MÍDIA)
+    return (
+      <div className="instagram-post" style={{ 
+        background: t.card, 
+        border: `1px solid ${t.cardBorder}`, 
+        borderRadius: 20, 
+        overflow: "hidden", 
+        marginBottom: 24, 
+        boxShadow: "0 6px 20px rgba(0,0,0,0.03)",
+        transition: "transform 0.3s, box-shadow 0.3s",
+        position: "relative"
+      }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${t.cardBorder}33` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {/* Instagram Style Colorful Border Avatar */}
+            <div style={{ 
+              background: "linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)", 
+              padding: "2.5px", 
+              borderRadius: "50%", 
+              display: "flex", 
+              justifyContent: "center", 
+              alignItems: "center" 
+            }}>
+              <div style={{ background: t.card, borderRadius: "50%", width: 36, height: 36, display: "flex", justifyContent: "center", alignItems: "center", fontSize: 18 }}>
+                🎬
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: t.text, display: "flex", alignItems: "center", gap: 5 }}>
+                Organização
+                <span style={{ color: "#3897f0", fontSize: 12, fontWeight: "bold" }} title="Conta Oficial">Verified ✓</span>
+              </div>
+              <div style={{ fontSize: 11, color: t.textSec }}>{fmtDate(item.date)}</div>
+            </div>
+          </div>
+          {isAdmin && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button 
+                onClick={() => onStartEdit(item)} 
+                style={{ 
+                  background: "rgba(55, 138, 221, 0.1)", 
+                  border: "none", 
+                  color: "#378ADD", 
+                  cursor: "pointer", 
+                  fontSize: 11, 
+                  fontWeight: 700, 
+                  padding: "4px 10px", 
+                  borderRadius: 8,
+                  transition: "background 0.2s"
+                }}
+              >
+                ✏️ Editar
+              </button>
+              <button 
+                onClick={() => onDelete(item.id)} 
+                style={{ 
+                  background: "rgba(226, 75, 74, 0.1)", 
+                  border: "none", 
+                  color: "#E24B4A", 
+                  cursor: "pointer", 
+                  fontSize: 11, 
+                  fontWeight: 700, 
+                  padding: "4px 10px", 
+                  borderRadius: 8,
+                  transition: "background 0.2s"
+                }}
+              >
+                🗑 Excluir
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Media Element (Image / Video) - 100% width style instagram */}
+        {hasMedia && (
+          <div style={{ 
+            background: "#00000010", 
+            borderTop: `1px solid ${t.cardBorder}33`, 
+            borderBottom: `1px solid ${t.cardBorder}33`, 
+            overflow: "hidden", 
+            display: "flex", 
+            justifyContent: "center", 
+            alignItems: "center" 
+          }}>
+            {embed ? (
+              <div style={{ position: "relative", width: "100%", paddingTop: "56.25%" }}>
+                <iframe 
+                  src={embed} 
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
+                  allowFullScreen
+                  title={item.title}
+                />
+              </div>
+            ) : isImg && !imageError ? (
+              <img 
+                src={getDirectImageUrl(item.mediaUrl)} 
+                style={{ width: "100%", maxHeight: 460, objectFit: "contain", display: "block", background: "#000" }} 
+                alt={item.title} 
+                onError={() => setImageError(true)}
+              />
+            ) : (isImg && imageError) || hasMedia ? (
+              <div style={{ width: "100%", background: "#000", display: "flex", justifyContent: "center" }}>
+                <video 
+                  src={getDirectImageUrl(item.mediaUrl)} 
+                  controls 
+                  preload="metadata"
+                  style={{ width: "100%", maxHeight: 460, display: "block", objectFit: "contain" }}
+                />
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* Instagram Action Row */}
+        <div style={{ padding: "14px 20px 8px", display: "flex", gap: 18, fontSize: 22, borderTop: hasMedia ? "none" : `1px solid ${t.cardBorder}33` }}>
+          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Curtir">❤️</span>
+          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Comentar">💬</span>
+          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Compartilhar">✈️</span>
+        </div>
+
+        {/* Title & Caption */}
+        <div style={{ padding: "0 20px 20px", display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: t.text, letterSpacing: "-0.2px" }}>{item.title}</div>
+          <div style={{ fontSize: 14, color: t.text, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+            <strong style={{ marginRight: 8, color: "#378ADD" }}>organizador_thorneios</strong>
+            {item.content}
+          </div>
+        </div>
+      </div>
+    );
+  } else {
+    // 📢 ESTILO X / TWITTER (NOTÍCIA / COMUNICADO)
+    return (
+      <div className="x-tweet" style={{ 
+        background: t.card, 
+        border: `1px solid ${t.cardBorder}`, 
+        borderRadius: 20, 
+        padding: "20px", 
+        marginBottom: 24, 
+        display: "flex", 
+        gap: 14, 
+        boxShadow: "0 6px 20px rgba(0,0,0,0.03)",
+        transition: "transform 0.3s"
+      }}>
+        {/* Left Column (Circular Twitter Avatar) */}
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ 
+            background: "rgba(55, 138, 221, 0.12)", 
+            color: "#378ADD", 
+            borderRadius: "50%", 
+            width: 44, 
+            height: 44, 
+            display: "flex", 
+            justifyContent: "center", 
+            alignItems: "center", 
+            fontSize: 22, 
+            fontWeight: 800 
+          }}>
+            📢
+          </div>
+        </div>
+
+        {/* Right Column (Tweet Body) */}
+        <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+          {/* Top row */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, fontSize: 14 }}>
+              <span style={{ fontWeight: 900, color: t.text }}>Thorneios</span>
+              <span style={{ color: t.textSec, fontSize: 13.5 }}>@thorneios_varzea</span>
+              <span style={{ color: t.textSec }}>·</span>
+              <span style={{ color: t.textSec }} title={item.date}>{fmtDate(item.date)}</span>
+            </div>
+            {isAdmin && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => onStartEdit(item)} style={{ background: "none", border: "none", color: "#378ADD", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 6px" }}>✏️ Editar</button>
+                <button onClick={() => onDelete(item.id)} style={{ background: "none", border: "none", color: "#E24B4A", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 6px" }}>🗑 Excluir</button>
+              </div>
+            )}
+          </div>
+
+          {/* Tweet content */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ fontSize: 16, fontWeight: 900, color: t.text, letterSpacing: "-0.3px", lineHeight: 1.3 }}>{item.title}</div>
+            <p style={{ fontSize: 14.5, color: t.text, lineHeight: 1.6, whiteSpace: "pre-wrap", margin: 0 }}>{item.content}</p>
+          </div>
+
+          {/* Attached Card (if mediaUrl exists) */}
+          {hasMedia && (
+            <div style={{ 
+              border: `1px solid ${t.cardBorder}`, 
+              borderRadius: 16, 
+              overflow: "hidden", 
+              marginTop: 6,
+              background: t.inputBg,
+              cursor: "pointer"
+            }}>
+              {embed ? (
+                <div style={{ position: "relative", width: "100%", paddingTop: "56.25%" }}>
+                  <iframe 
+                    src={embed} 
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
+                    allowFullScreen
+                    title={item.title}
+                  />
+                </div>
+              ) : isImg && !imageError ? (
+                <div>
+                  <img 
+                    src={getDirectImageUrl(item.mediaUrl)} 
+                    style={{ width: "100%", height: "auto", display: "block" }} 
+                    alt={item.title} 
+                    onClick={() => handleOpenExternalLink(item.mediaUrl)}
+                    onError={() => setImageError(true)}
+                  />
+                  <div style={{ padding: "12px 14px", borderTop: `1px solid ${t.cardBorder}` }} onClick={() => handleOpenExternalLink(item.mediaUrl)}>
+                    <div style={{ fontSize: 11, color: t.textSec, textTransform: "lowercase", letterSpacing: 0.5, fontWeight: 700 }}>thorneios.com.br</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 800, color: t.text, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</div>
+                  </div>
+                </div>
+              ) : (isImg && imageError) || hasMedia ? (
+                <div>
+                  <video 
+                    src={getDirectImageUrl(item.mediaUrl)} 
+                    controls 
+                    preload="metadata"
+                    style={{ width: "100%", height: "auto", display: "block", maxHeight: 400, background: "#000" }} 
+                  />
+                  <div style={{ padding: "12px 14px", borderTop: `1px solid ${t.cardBorder}` }}>
+                    <div style={{ fontSize: 11, color: t.textSec, textTransform: "lowercase", letterSpacing: 0.5, fontWeight: 700 }}>thorneios.com.br</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 800, color: t.text, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: "12px 14px" }}>
+                  <a 
+                    href={item.mediaUrl} 
+                    onClick={(e) => { e.preventDefault(); handleOpenExternalLink(item.mediaUrl); }} 
+                    style={{ fontSize: 13.5, color: "#378ADD", textDecoration: "none", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}
+                  >
+                    🔗 Abrir link oficial do comunicado →
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Twitter Action bar */}
+          <div style={{ display: "flex", justifyContent: "space-between", maxWidth: 380, marginTop: 10, color: t.textSec, fontSize: 14 }}>
+            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Responder">💬 <span style={{ fontSize: 11.5 }}>15</span></span>
+            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Retweetar">🔁 <span style={{ fontSize: 11.5 }}>8</span></span>
+            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Curtir">❤️ <span style={{ fontSize: 11.5 }}>142</span></span>
+            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Visualizações">📊 <span style={{ fontSize: 11.5 }}>2.4K</span></span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+function MuralLightboxModal({ post, onClose, t, isAdmin, onStartEdit, onDelete, editingPostId, setEditingPostId, editTitle, setEditTitle, editContent, setEditContent, editType, setEditType, editMediaUrl, setEditMediaUrl, onSaveEdit }) {
+  if (!post) return null;
+  return (
+    <div style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100vh",
+      background: "rgba(0,0,0,0.85)",
+      backdropFilter: "blur(10px)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 9999,
+      padding: 16
+    }} onClick={onClose}>
+      <div 
+        style={{ 
+          maxWidth: 640, 
+          width: "100%", 
+          maxHeight: "90vh", 
+          overflowY: "auto", 
+          background: t.card, 
+          borderRadius: 24, 
+          border: `1px solid ${t.cardBorder}`,
+          boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
+          position: "relative"
+        }} 
+        onClick={e => e.stopPropagation()} // Impede fechar ao clicar dentro do modal
+      >
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "14px 20px 0", position: "absolute", top: 0, right: 0, zIndex: 10 }}>
+          <button 
+            onClick={onClose} 
+            style={{ 
+              background: t.card, 
+              border: `1px solid ${t.cardBorder}`, 
+              borderRadius: "50%",
+              width: 32,
+              height: 32,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              color: t.text, 
+              fontSize: 18, 
+              cursor: "pointer",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              padding: 0
+            }}
+          >×</button>
+        </div>
+        <div style={{ padding: "30px 20px 20px" }}>
+          <MuralPostCard 
+            item={post} 
+            isAdmin={isAdmin} 
+            onStartEdit={onStartEdit}
+            onDelete={(id) => { onDelete(id); onClose(); }} // Fecha o lightbox ao excluir
+            t={t}
+            editingPostId={editingPostId}
+            setEditingPostId={setEditingPostId}
+            editTitle={editTitle}
+            setEditTitle={setEditTitle}
+            editContent={editContent}
+            setEditContent={setEditContent}
+            editType={editType}
+            setEditType={setEditType}
+            editMediaUrl={editMediaUrl}
+            setEditMediaUrl={setEditMediaUrl}
+            onSaveEdit={(id) => { onSaveEdit(id); onClose(); }} // Fecha o lightbox ao salvar
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AbaGaleriaOrganizador({ c, onUpdate, t }) {
+  const S = makeStyles(t);
+  const mural = c.mural || [];
+  const midias = mural.filter(item => item.type === "midia");
+  
+  const [lightboxPost, setLightboxPost] = useState(null);
+
+  // Estados para Edição de Publicação
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editType, setEditType] = useState("midia");
+  const [editMediaUrl, setEditMediaUrl] = useState("");
+
+  const handleStartEdit = (post) => {
+    setEditingPostId(post.id);
+    setEditTitle(post.title || "");
+    setEditContent(post.content || "");
+    setEditType(post.type || "midia");
+    setEditMediaUrl(post.mediaUrl || "");
+  };
+
+  const handleSaveEdit = (id) => {
+    try {
+      if (!editTitle.trim() || !editContent.trim()) {
+        alert("Por favor, preencha o título e o conteúdo.");
+        return;
+      }
+      const tc = deepClone(c);
+      tc.mural = (tc.mural || []).map(post => {
+        if (post.id === id) {
+          return {
+            ...post,
+            title: editTitle.trim(),
+            content: editContent.trim(),
+            type: editType,
+            mediaUrl: editMediaUrl.trim()
+          };
+        }
+        return post;
+      });
+      onUpdate(tc);
+      setEditingPostId(null);
+      alert("Publicação atualizada com sucesso!");
+    } catch (err) {
+      console.error("Erro fatal ao editar post do mural:", err);
+      alert("Ocorreu um erro ao salvar as alterações: " + err.message);
+    }
+  };
+
+  const handleDeletePost = (id) => {
+    try {
+      if (!window.confirm("Deseja excluir esta publicação da galeria?")) return;
+      const tc = deepClone(c);
+      tc.mural = (tc.mural || []).filter(item => item.id !== id);
+      onUpdate(tc);
+      alert("Publicação excluída.");
+    } catch (err) {
+      console.error("Erro fatal ao excluir post do mural:", err);
+      alert("Ocorreu um erro ao excluir o post: " + err.message);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}>🎬 Galeria de Fotos & Vídeos (Estilo Instagram)</h3>
+      
+      {midias.length === 0 ? (
+        <div style={{ ...S.card, textAlign: "center", padding: 24, color: t.textSec }}>
+          Nenhuma foto ou vídeo na galeria. Para publicar uma nova mídia, use a aba "Mural" e marque o tipo como "Foto / Vídeo"!
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {[...midias].reverse().map((item, idx) => (
+            <div 
+              key={item.id || idx}
+              onClick={() => setLightboxPost(item)}
+              style={{ 
+                aspectRatio: "1/1", 
+                borderRadius: 12, 
+                overflow: "hidden", 
+                cursor: "pointer", 
+                background: "#00000010",
+                position: "relative",
+                border: `1px solid ${t.cardBorder}`,
+                transition: "transform 0.2s, box-shadow 0.2s"
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = "scale(1.02)";
+                e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            >
+              <GaleriaThumbnail mediaUrl={item.mediaUrl} title={item.title} t={t} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Lightbox Modal para o Organizador (com permissões de Admin) */}
+      {lightboxPost && (
+        <MuralLightboxModal 
+          post={lightboxPost} 
+          onClose={() => setLightboxPost(null)} 
+          t={t} 
+          isAdmin={true}
+          onStartEdit={handleStartEdit}
+          onDelete={handleDeletePost}
+          editingPostId={editingPostId}
+          setEditingPostId={setEditingPostId}
+          editTitle={editTitle}
+          setEditTitle={setEditTitle}
+          editContent={editContent}
+          setEditContent={setEditContent}
+          editType={editType}
+          setEditType={setEditType}
+          editMediaUrl={editMediaUrl}
+          setEditMediaUrl={setEditMediaUrl}
+          onSaveEdit={handleSaveEdit}
+        />
+      )}
+    </div>
+  );
+}
+
+
+
 function PlayerAvatar({atleta, size=24}) {
   const display = getPlayerName(atleta) || "?";
   if (atleta?.foto) return <img src={atleta.foto} style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",flexShrink:0}} alt={display} />;
@@ -550,83 +1213,412 @@ function MatchTimer({ t, defaultMinutes = 10 }) {
 }
 
 /* ─────────────────────────── LOGIN SCREENS ───────────────────────── */
-function LoginScreen({onLogin,t}){
-  const S=makeStyles(t);
-  const[email,setEmail]=useState("");
-  const[password,setPassword]=useState("");
-  const[error,setError]=useState("");
-  const[showPassword,setShowPassword]=useState(false);
+function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
+  const S = makeStyles(t);
+  const [activeTab, setActiveTab] = useState("login"); // login | register | forgot
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
     setError("");
-    if(!email.trim()||!password.trim()){
-      setError("Informe e-mail e senha.");
-      return;
-    }
-    const result = onLogin({email: email.trim(), password});
-    if(result){
-      setError(result);
+    setSuccess("");
+    setLoading(true);
+
+    try {
+      if (activeTab === "login") {
+        if (!email.trim() || !password.trim()) {
+          setError("Informe seu e-mail e sua senha.");
+          setLoading(false);
+          return;
+        }
+        const err = await onLogin({ email: email.trim(), password });
+        if (err) setError(err);
+      } else if (activeTab === "register") {
+        if (!email.trim() || !password.trim() || !name.trim()) {
+          setError("Preencha todos os campos.");
+          setLoading(false);
+          return;
+        }
+        const err = await onRegister({ email: email.trim(), password, name: name.trim() });
+        if (err) {
+          setError(err);
+        } else {
+          setSuccess("Conta criada com sucesso! Você já pode entrar.");
+          setActiveTab("login");
+          setPassword("");
+        }
+      } else if (activeTab === "forgot") {
+        if (!email.trim()) {
+          setError("Informe o seu e-mail cadastrado.");
+          setLoading(false);
+          return;
+        }
+        const err = await onForgotPassword(email.trim());
+        if (err) {
+          setError(err);
+        } else {
+          setSuccess("Link de redefinição de senha enviado para o seu e-mail!");
+        }
+      }
+    } catch (err) {
+      setError("Ocorreu um erro inesperado.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  return(
-    <div style={S.page}>
-      <div style={{maxWidth:520,margin:"0 auto",display:"flex",flexDirection:"column",gap:22}}>
-        <div style={{textAlign:"center"}}>
-          <div style={{fontSize:32,marginBottom:10,color:t.text}}>⚽ Login</div>
-          <div style={{fontSize:13,color:t.textSec}}>Informe seu e-mail e senha para entrar como Admin ou Manager.</div>
+  const isDark = t.bg === "#0f1117";
+
+  return (
+    <div style={{
+      ...S.page,
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      position: "relative",
+      overflow: "hidden",
+      padding: "24px 16px"
+    }}>
+      {/* Esferas de background brilhantes para efeito de profundidade premium */}
+      <div style={{
+        position: "absolute",
+        width: 300,
+        height: 300,
+        borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(29, 158, 117, 0.4) 0%, rgba(29, 158, 117, 0) 70%)",
+        top: "-50px",
+        left: "-50px",
+        filter: "blur(40px)",
+        pointerEvents: "none",
+        zIndex: 0
+      }} />
+      <div style={{
+        position: "absolute",
+        width: 350,
+        height: 350,
+        borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(55, 138, 221, 0.35) 0%, rgba(55, 138, 221, 0) 70%)",
+        bottom: "-100px",
+        right: "-50px",
+        filter: "blur(50px)",
+        pointerEvents: "none",
+        zIndex: 0
+      }} />
+
+      <div style={{
+        width: "100%",
+        maxWidth: 480,
+        position: "relative",
+        zIndex: 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: 20
+      }}>
+        {/* Logotipo/Cabeçalho */}
+        <div style={{ textAlign: "center", marginBottom: 10 }}>
+          <div style={{
+            fontSize: 48,
+            fontWeight: 900,
+            background: "linear-gradient(135deg, #1D9E75 0%, #378ADD 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            display: "inline-block",
+            animation: "pulse-logo 3s infinite ease-in-out",
+            letterSpacing: "-1.5px"
+          }}>
+            ⚽ Thorneios
+          </div>
+          <p style={{
+            color: t.textSec,
+            fontSize: 14,
+            margin: "8px 0 0",
+            fontWeight: 500
+          }}>
+            O gerenciador definitivo para seus campeonatos e peladas
+          </p>
         </div>
 
-        <div style={{...S.card,display:"flex",flexDirection:"column",gap:14}}>
-          <div>
-            <label style={S.label}>E-mail</label>
-            <input style={S.input} value={email} onChange={e=>setEmail(e.target.value)} placeholder="seu@exemplo.com" />
+        {/* Card de Autenticação Premium (Glassmorphism) */}
+        <div style={{
+          background: isDark ? "rgba(26, 29, 39, 0.75)" : "rgba(255, 255, 255, 0.8)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          borderRadius: 24,
+          padding: "32px 28px",
+          border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"}`,
+          boxShadow: isDark 
+            ? "0 20px 40px rgba(0, 0, 0, 0.4), 0 0 50px rgba(29, 158, 117, 0.05)" 
+            : "0 20px 40px rgba(30, 41, 59, 0.1)",
+          transition: "transform 0.3s ease, box-shadow 0.3s ease"
+        }}>
+          {/* Abas */}
+          <div style={{
+            display: "flex",
+            borderBottom: `1.5px solid ${t.cardBorder}`,
+            marginBottom: 26,
+            gap: 12
+          }}>
+            <button 
+              type="button"
+              onClick={() => { setActiveTab("login"); setError(""); setSuccess(""); }}
+              style={{
+                flex: 1,
+                padding: "12px 6px",
+                background: "transparent",
+                border: "none",
+                borderBottom: activeTab === "login" ? "2.5px solid #1D9E75" : "2.5px solid transparent",
+                color: activeTab === "login" ? t.text : t.textSec,
+                fontSize: 14,
+                fontWeight: activeTab === "login" ? 700 : 500,
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+            >
+              🔑 Entrar
+            </button>
+            <button 
+              type="button"
+              onClick={() => { setActiveTab("register"); setError(""); setSuccess(""); }}
+              style={{
+                flex: 1,
+                padding: "12px 6px",
+                background: "transparent",
+                border: "none",
+                borderBottom: activeTab === "register" ? "2.5px solid #1D9E75" : "2.5px solid transparent",
+                color: activeTab === "register" ? t.text : t.textSec,
+                fontSize: 14,
+                fontWeight: activeTab === "register" ? 700 : 500,
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+            >
+              📝 Criar Conta
+            </button>
+            <button 
+              type="button"
+              onClick={() => { setActiveTab("forgot"); setError(""); setSuccess(""); }}
+              style={{
+                flex: 1,
+                padding: "12px 6px",
+                background: "transparent",
+                border: "none",
+                borderBottom: activeTab === "forgot" ? "2.5px solid #1D9E75" : "2.5px solid transparent",
+                color: activeTab === "forgot" ? t.text : t.textSec,
+                fontSize: 14,
+                fontWeight: activeTab === "forgot" ? 700 : 500,
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+            >
+              ❓ Recuperar
+            </button>
           </div>
-          <div>
-            <label style={S.label}>Senha</label>
-            <div style={{position:"relative"}}>
-              <input 
-                style={{...S.input, paddingRight: 42}} 
-                type={showPassword ? "text" : "password"} 
-                value={password} 
-                onChange={e=>setPassword(e.target.value)} 
-                placeholder="Senha" 
-              />
-              <button 
-                type="button"
-                onClick={()=>setShowPassword(!showPassword)}
-                style={{
-                  position: "absolute",
-                  right: 12,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  color: t.textSec,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: 0
-                }}
-              >
-                {showPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                  </svg>
-                )}
-              </button>
+
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {/* Campo Nome (Apenas Registro) */}
+            {activeTab === "register" && (
+              <div>
+                <label style={S.label}>Nome Completo</label>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>👤</span>
+                  <input 
+                    style={{ ...S.input, paddingLeft: 38 }}
+                    value={name} 
+                    onChange={e => setName(e.target.value)} 
+                    placeholder="Seu nome" 
+                    required 
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Campo E-mail (Todos os modos) */}
+            <div>
+              <label style={S.label}>E-mail</label>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>✉️</span>
+                <input 
+                  type="email"
+                  style={{ ...S.input, paddingLeft: 38 }}
+                  value={email} 
+                  onChange={e => setEmail(e.target.value)} 
+                  placeholder="seu@email.com" 
+                  required 
+                />
+              </div>
             </div>
-          </div>
-          {error && <div style={{color:"#E24B4A",fontSize:12,fontWeight:700}}>{error}</div>}
-          <button onClick={handleSubmit} style={{...S.btn("#1D9E75"),padding:"12px 18px",fontSize:14}}>Entrar</button>
+
+            {/* Campo Senha (Login e Registro) */}
+            {activeTab !== "forgot" && (
+              <div>
+                <label style={S.label}>Senha</label>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>🔒</span>
+                  <input 
+                    style={{ ...S.input, paddingLeft: 38, paddingRight: 42 }} 
+                    type={showPassword ? "text" : "password"} 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    placeholder="Sua senha" 
+                    required 
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: t.textSec,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0
+                    }}
+                  >
+                    {showPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: 18, height: 18 }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: 18, height: 18 }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Mensagem de Erro */}
+            {error && (
+              <div style={{
+                background: "rgba(226, 75, 74, 0.12)",
+                border: "1px solid rgba(226, 75, 74, 0.2)",
+                color: "#E24B4A",
+                padding: "10px 14px",
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                animation: "shake 0.4s"
+              }}>
+                <span>⚠️</span>
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Mensagem de Sucesso */}
+            {success && (
+              <div style={{
+                background: "rgba(29, 158, 117, 0.12)",
+                border: "1px solid rgba(29, 158, 117, 0.2)",
+                color: "#1D9E75",
+                padding: "10px 14px",
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 8
+              }}>
+                <span>✅</span>
+                <span>{success}</span>
+              </div>
+            )}
+
+            {/* Botão de Ação */}
+            <button 
+              type="submit" 
+              disabled={loading}
+              style={{
+                ...S.btn(loading ? "#1D9E75aa" : "linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%)"),
+                padding: "14px 20px",
+                fontSize: 14,
+                width: "100%",
+                boxSizing: "border-box",
+                borderRadius: 12,
+                justifyContent: "center",
+                boxShadow: isDark ? "0 4px 12px rgba(29, 158, 117, 0.2)" : "0 4px 12px rgba(29, 158, 117, 0.1)",
+                transition: "all 0.2s ease",
+                transform: loading ? "scale(0.98)" : "none"
+              }}
+            >
+              {loading ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    width: 14,
+                    height: 14,
+                    border: "2px solid rgba(255,255,255,0.4)",
+                    borderTop: "2px solid #fff",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite"
+                  }} />
+                  <span>Processando...</span>
+                </div>
+              ) : activeTab === "login" ? "Entrar na Minha Conta" : activeTab === "register" ? "Cadastrar Minha Conta" : "Enviar E-mail de Recuperação"}
+            </button>
+          </form>
         </div>
+
+        {/* Botão de Voltar para Seleção */}
+        <button 
+          onClick={onBack}
+          style={{
+            alignSelf: "center",
+            padding: "10px 20px",
+            background: "transparent",
+            border: `1.5px solid ${t.cardBorder}`,
+            color: t.text,
+            borderRadius: 14,
+            cursor: "pointer",
+            fontWeight: 700,
+            fontSize: 13,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            transition: "all 0.2s ease"
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = t.card;
+            e.currentTarget.style.transform = "translateY(-1px)";
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.transform = "none";
+          }}
+        >
+          <span>←</span>
+          <span>Acompanhar Campeonatos (Voltar)</span>
+        </button>
       </div>
+
+      {/* Estilos e animações globais inseridos dinamicamente */}
+      <style>{`
+        @keyframes pulse-logo {
+          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(29, 158, 117, 0.1)); }
+          50% { transform: scale(1.02); filter: drop-shadow(0 0 10px rgba(55, 138, 221, 0.2)); }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-6px); }
+          75% { transform: translateX(6px); }
+        }
+      `}</style>
     </div>
   );
 }
@@ -969,6 +1961,7 @@ function CloudPublicChampScreen({champ,onBack,t}){
   const S=makeStyles(t);
   const c = champ;
   const [tab,setTab]=useState(c.type==="mata"?"chave":"tabela");
+  const [lightboxPost, setLightboxPost] = useState(null);
 
   const [publicTeamName, setPublicTeamName] = useState("");
   const [publicTeamColors, setPublicTeamColors] = useState("");
@@ -1064,74 +2057,70 @@ function CloudPublicChampScreen({champ,onBack,t}){
   };
 
   const renderMuralPublic = () => {
-    const mural = c.mural || [];
-    const getEmbedUrl = (url) => {
-      if (!url) return null;
-      let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-      let match = url.match(regExp);
-      if (match && match[2].length === 11) {
-        return `https://www.youtube.com/embed/${match[2]}`;
-      }
-      return null;
-    };
+    const noticias = (c.mural || []).filter(item => item.type === "noticia");
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}>📢 Mural de Notícias & Mídias</h3>
-        {mural.length === 0 ? (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}>📢 Mural de Comunicados (Estilo X)</h3>
+        
+        {noticias.length === 0 ? (
           <div style={{ ...S.card, textAlign: "center", padding: 30, color: t.textSec }}>
-            Nenhuma publicação no mural ainda. Fique atento às novidades da organização!
+            Nenhum comunicado publicado no mural ainda. Fique atento às novidades da organização!
           </div>
         ) : (
-          [...mural].reverse().map((item, idx) => {
-            const embed = getEmbedUrl(item.mediaUrl);
-            return (
-              <div key={idx} style={S.card}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    color: item.type === "noticia" ? "#378ADD" : "#1D9E75",
-                    background: item.type === "noticia" ? "#378ADD18" : "#1D9E7518",
-                    padding: "2px 8px",
-                    borderRadius: 6
-                  }}>
-                    {item.type === "noticia" ? "Notícia / Comunicado" : "Mídia / Vídeo"}
-                  </span>
-                  <span style={{ fontSize: 11, color: t.textSec }}>{fmtDate(item.date)}</span>
-                </div>
-                <h4 style={{ fontSize: 15, fontWeight: 800, color: t.text, margin: "0 0 8px 0" }}>{item.title}</h4>
-                <p style={{ fontSize: 13, color: t.textSec, lineHeight: 1.5, whiteSpace: "pre-wrap", margin: "0 0 12px 0" }}>{item.content}</p>
-                {item.type === "midia" && item.mediaUrl && (
-                  <div>
-                    {embed ? (
-                      <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: 8, border: `1px solid ${t.cardBorder}` }}>
-                        <iframe 
-                          src={embed} 
-                          style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
-                          allowFullScreen
-                          title={item.title}
-                        />
-                      </div>
-                    ) : isImageUrl(item.mediaUrl) ? (
-                      <div style={{ borderRadius: 8, overflow: "hidden", border: `1px solid ${t.cardBorder}`, marginTop: 8 }}>
-                        <img src={item.mediaUrl} style={{ width: "100%", maxHeight: "350px", objectFit: "contain", background: "#0000000a", display: "block" }} alt={item.title} />
-                      </div>
-                    ) : (
-                      <a 
-                        href={item.mediaUrl} 
-                        onClick={(e) => { e.preventDefault(); handleOpenExternalLink(item.mediaUrl); }} 
-                        style={{ fontSize: 12, color: "#378ADD", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
-                      >
-                        🔗 Abrir link da mídia externa →
-                      </a>
-                    )}
-                  </div>
-                )}
+          [...noticias].reverse().map((item, idx) => (
+            <MuralPostCard 
+              key={item.id || idx}
+              item={item}
+              isAdmin={false}
+              t={t}
+            />
+          ))
+        )}
+      </div>
+    );
+  };
+
+  const renderGaleriaPublic = () => {
+    const midias = (c.mural || []).filter(item => item.type === "midia");
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}>🎬 Galeria de Fotos e Mídias (Estilo Instagram)</h3>
+        
+        {midias.length === 0 ? (
+          <div style={{ ...S.card, textAlign: "center", padding: 30, color: t.textSec }}>
+            Nenhuma foto ou mídia publicada na galeria ainda.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            {[...midias].reverse().map((item, idx) => (
+              <div 
+                key={item.id || idx}
+                onClick={() => setLightboxPost(item)}
+                style={{ 
+                  aspectRatio: "1/1", 
+                  borderRadius: 12, 
+                  overflow: "hidden", 
+                  cursor: "pointer", 
+                  background: "#00000010",
+                  position: "relative",
+                  border: `1px solid ${t.cardBorder}`,
+                  transition: "transform 0.2s, box-shadow 0.2s"
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "scale(1.02)";
+                  e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                <GaleriaThumbnail mediaUrl={item.mediaUrl} title={item.title} t={t} />
               </div>
-            );
-          })
+            ))}
+          </div>
         )}
       </div>
     );
@@ -1427,7 +2416,8 @@ function CloudPublicChampScreen({champ,onBack,t}){
 
   const tabs = [
     ...(c.type==="pontos" ? ["tabela","jogos","artilharia"] : c.type==="mata" ? ["chave","jogos","artilharia"] : ["tabela","chave","jogos","artilharia"]),
-    "mural"
+    "mural",
+    "galeria"
   ];
   if (c.allowOnlineReg) {
     tabs.push("inscrição");
@@ -1550,7 +2540,18 @@ function CloudPublicChampScreen({champ,onBack,t}){
         </div>
       )}
       {tab==="mural"&&renderMuralPublic()}
+      {tab==="galeria"&&renderGaleriaPublic()}
       {tab==="inscrição"&&c.allowOnlineReg&&renderInscricaoPublic()}
+
+      {/* Modal de Lightbox para exibição premium */}
+      {lightboxPost && (
+        <MuralLightboxModal 
+          post={lightboxPost} 
+          onClose={() => setLightboxPost(null)} 
+          t={t} 
+          isAdmin={false} 
+        />
+      )}
     </div>
   );
 }
@@ -2949,6 +3950,338 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   );
 }
 
+
+/* ─────────────────────────── MURAL ORGANIZADOR ───────────────────── */
+function AbaMuralOrganizador({ c, onUpdate, t }) {
+  const S = makeStyles(t);
+  const mural = (c.mural || []).filter(item => item.type === "noticia");
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [type, setType] = useState("noticia");
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [showAddPost, setShowAddPost] = useState(false);
+
+  // Estados para Edição de Publicação
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editType, setEditType] = useState("noticia");
+  const [editMediaUrl, setEditMediaUrl] = useState("");
+
+  const handleStartEdit = (post) => {
+    setEditingPostId(post.id);
+    setEditTitle(post.title || "");
+    setEditContent(post.content || "");
+    setEditType(post.type || "noticia");
+    setEditMediaUrl(post.mediaUrl || "");
+  };
+
+  const handleSaveEdit = (id) => {
+    try {
+      if (!editTitle.trim() || !editContent.trim()) {
+        alert("Por favor, preencha o título e o conteúdo.");
+        return;
+      }
+      const tc = deepClone(c);
+      tc.mural = (tc.mural || []).map(post => {
+        if (post.id === id) {
+          return {
+            ...post,
+            title: editTitle.trim(),
+            content: editContent.trim(),
+            type: editType,
+            mediaUrl: editMediaUrl.trim()
+          };
+        }
+        return post;
+      });
+      onUpdate(tc);
+      setEditingPostId(null);
+      alert("Publicação atualizada com sucesso!");
+    } catch (err) {
+      console.error("Erro fatal ao editar post do mural:", err);
+      alert("Ocorreu um erro ao salvar as alterações: " + err.message);
+    }
+  };
+
+  const handleSavePost = () => {
+    console.log("Iniciando handleSavePost...");
+    try {
+      if (!title.trim() || !content.trim()) {
+        alert("Por favor, preencha o título e o conteúdo.");
+        return;
+      }
+      console.log("Validações de título e conteúdo passaram com sucesso. Título:", title);
+      const tc = deepClone(c);
+      tc.mural = tc.mural || [];
+      const newPost = {
+        id: Date.now(),
+        title: title.trim(),
+        content: content.trim(),
+        type,
+        mediaUrl: mediaUrl.trim(),
+        date: todayStr()
+      };
+      tc.mural.push(newPost);
+      console.log("Novo post criado:", newPost);
+      
+      console.log("Chamando prop onUpdate...");
+      onUpdate(tc);
+      console.log("onUpdate executada com sucesso!");
+      
+      setTitle("");
+      setContent("");
+      setMediaUrl("");
+      setShowAddPost(false);
+      alert("Publicado no mural!");
+    } catch (err) {
+      console.error("Erro fatal ao salvar post no mural:", err);
+      alert("Ocorreu um erro ao salvar o post: " + err.message);
+    }
+  };
+
+  const handleDeletePost = (id) => {
+    console.log("Iniciando handleDeletePost para o ID:", id);
+    try {
+      if (!window.confirm("Deseja excluir esta publicação?")) return;
+      const tc = deepClone(c);
+      tc.mural = (tc.mural || []).filter(item => item.id !== id);
+      console.log("Lista filtrada de mural após exclusão do post:", tc.mural);
+      
+      console.log("Chamando prop onUpdate...");
+      onUpdate(tc);
+      console.log("onUpdate executada com sucesso!");
+      
+      alert("Publicação excluída.");
+    } catch (err) {
+      console.error("Erro fatal ao excluir post do mural:", err);
+      alert("Ocorreu um erro ao excluir o post: " + err.message);
+    }
+  };
+
+  const getEmbedUrl = (url) => {
+    if (!url) return null;
+    let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    let match = url.match(regExp);
+    if (match && match[2].length === 11) {
+      return `https://www.youtube.com/embed/${match[2]}`;
+    }
+    return null;
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ ...S.card, borderColor: "#378ADD55", background: t.inputBg }}>
+        <button 
+          onClick={() => setShowAddPost(!showAddPost)}
+          style={{
+            background: "none",
+            border: "none",
+            color: "#378ADD",
+            fontWeight: 800,
+            fontSize: 14,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: 0,
+            width: "100%",
+            textAlign: "left"
+          }}
+        >
+          {showAddPost ? "▼ Fechar Novo Post" : "📣 Publicar no Mural (Notícias/Fotos/Vídeos)"}
+        </button>
+
+        {showAddPost && (
+          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={S.label}>Tipo de Publicação</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={()=>setType("noticia")} style={{ ...S.btnSm(type === "noticia" ? "#378ADD" : "transparent", type === "noticia" ? "#fff" : t.textSec), border: `1px solid ${type === "noticia" ? "#378ADD" : t.cardBorder}`, flex: 1 }}>📢 Notícia / Comunicado</button>
+                <button onClick={()=>setType("midia")} style={{ ...S.btnSm(type === "midia" ? "#1D9E75" : "transparent", type === "midia" ? "#fff" : t.textSec), border: `1px solid ${type === "midia" ? "#1D9E75" : t.cardBorder}`, flex: 1 }}>🎬 Foto / Vídeo / Youtube</button>
+              </div>
+            </div>
+
+            <div>
+              <label style={S.label}>Título</label>
+              <input style={S.input} placeholder="Título do post" value={title} onChange={e=>setTitle(e.target.value)} />
+            </div>
+
+            <div>
+              <label style={S.label}>Conteúdo</label>
+              <textarea style={{ ...S.input, height: 100, resize: "vertical" }} placeholder="Conteúdo..." value={content} onChange={e=>setContent(e.target.value)} />
+            </div>
+
+            <div>
+              <label style={S.label}>
+                {type === "noticia" ? "Link da Imagem de Capa (Opcional)" : "Link da Mídia (YouTube, imagem, etc.)"}
+              </label>
+              <input style={S.input} placeholder="https://..." value={mediaUrl} onChange={e=>setMediaUrl(e.target.value)} />
+            </div>
+
+            <button onClick={handleSavePost} style={S.btn(type === "noticia" ? "#378ADD" : "#1D9E75")}>🚀 Publicar</button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Estilos CSS do Mural Editorial inseridos dinamicamente */}
+        <style>{`
+          .mural-card {
+            background: ${t.card};
+            border-radius: 20px;
+            border: 1px solid ${t.cardBorder};
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+            position: relative;
+          }
+          .mural-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.07);
+            border-color: #378ADD55;
+          }
+          .mural-layout {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            align-items: stretch;
+          }
+          @media (max-width: 600px) {
+            .mural-layout {
+              flex-direction: column;
+            }
+          }
+          .mural-img-container {
+            width: 260px;
+            height: 175px;
+            border-radius: 14px;
+            overflow: hidden;
+            position: relative;
+            flex-shrink: 0;
+            border: 1px solid ${t.cardBorder};
+            background: #00000008;
+          }
+          @media (max-width: 600px) {
+            .mural-img-container {
+              width: 100%;
+              height: 200px;
+            }
+          }
+          .mural-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            display: block;
+          }
+          .mural-card:hover .mural-img {
+            transform: scale(1.05);
+          }
+          .mural-video-container {
+            width: 260px;
+            height: 175px;
+            border-radius: 14px;
+            overflow: hidden;
+            position: relative;
+            flex-shrink: 0;
+            border: 1px solid ${t.cardBorder};
+          }
+          @media (max-width: 600px) {
+            .mural-video-container {
+              width: 100%;
+              height: 0;
+              padding-bottom: 56.25%;
+            }
+          }
+          .mural-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            flex-grow: 1;
+            gap: 8px;
+          }
+          .mural-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .mural-badge {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 8px;
+            letter-spacing: 0.5px;
+          }
+          .mural-title {
+            font-size: 18px;
+            font-weight: 850;
+            color: ${t.text};
+            margin: 0;
+            line-height: 1.3;
+            letter-spacing: -0.3px;
+          }
+          .mural-text {
+            font-size: 13.5px;
+            color: ${t.textSec};
+            line-height: 1.6;
+            white-space: pre-wrap;
+            margin: 0;
+          }
+          .mural-link {
+            font-size: 12px;
+            color: #378ADD;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            font-weight: 700;
+            margin-top: auto;
+            padding-top: 8px;
+          }
+          .mural-link:hover {
+            color: #1D9E75;
+          }
+        `}</style>
+
+        {mural.length === 0 ? (
+          <div style={{ ...S.card, textAlign: "center", padding: 24, color: t.textSec }}>
+            Nenhuma publicação no mural.
+          </div>
+        ) : (
+          [...mural].reverse().map((item, idx) => (
+            <MuralPostCard 
+              key={item.id || idx}
+              item={item}
+              isAdmin={true}
+              onStartEdit={handleStartEdit}
+              onDelete={handleDeletePost}
+              t={t}
+              editingPostId={editingPostId}
+              setEditingPostId={setEditingPostId}
+              editTitle={editTitle}
+              setEditTitle={setEditTitle}
+              editContent={editContent}
+              setEditContent={setEditContent}
+              editType={editType}
+              setEditType={setEditType}
+              editMediaUrl={editMediaUrl}
+              setEditMediaUrl={setEditMediaUrl}
+              onSaveEdit={handleSaveEdit}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────── CAMPEONATO ─────────────────────────── */
 function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,onUpdateAtleta,cloudLoading,publicarNaNuvem,t}){
   const S=makeStyles(t);
@@ -3327,7 +4660,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   if (c.allowOnlineReg) {
     tabs.push("solicitações");
   }
-  tabs.push("mural", "configurações", "nuvem");
+  tabs.push("mural", "galeria", "configurações", "nuvem");
 
   const getArtilheiro = () => {
     const evts = [];
@@ -3954,174 +5287,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     );
   }
 
-  function AbaMuralOrganizador() {
-    const mural = c.mural || [];
-    const [title, setTitle] = useState("");
-    const [content, setContent] = useState("");
-    const [type, setType] = useState("noticia");
-    const [mediaUrl, setMediaUrl] = useState("");
-    const [showAddPost, setShowAddPost] = useState(false);
 
-    const handleSavePost = () => {
-      if (!title.trim() || !content.trim()) {
-        alert("Por favor, preencha o título e o conteúdo.");
-        return;
-      }
-      const tc = deepClone(c);
-      tc.mural = tc.mural || [];
-      tc.mural.push({
-        id: Date.now(),
-        title: title.trim(),
-        content: content.trim(),
-        type,
-        mediaUrl: type === "midia" ? mediaUrl.trim() : "",
-        date: todayStr()
-      });
-      onUpdate(tc);
-      setTitle("");
-      setContent("");
-      setMediaUrl("");
-      setShowAddPost(false);
-      alert("Publicado no mural!");
-    };
-
-    const handleDeletePost = (id) => {
-      if (!window.confirm("Deseja excluir esta publicação?")) return;
-      const tc = deepClone(c);
-      tc.mural = (tc.mural || []).filter(item => item.id !== id);
-      onUpdate(tc);
-      alert("Publicação excluída.");
-    };
-
-    const getEmbedUrl = (url) => {
-      if (!url) return null;
-      let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-      let match = url.match(regExp);
-      if (match && match[2].length === 11) {
-        return `https://www.youtube.com/embed/${match[2]}`;
-      }
-      return null;
-    };
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ ...S.card, borderColor: "#378ADD55", background: t.inputBg }}>
-          <button 
-            onClick={() => setShowAddPost(!showAddPost)}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#378ADD",
-              fontWeight: 800,
-              fontSize: 14,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: 0,
-              width: "100%",
-              textAlign: "left"
-            }}
-          >
-            {showAddPost ? "▼ Fechar Novo Post" : "📣 Publicar no Mural (Notícias/Fotos/Vídeos)"}
-          </button>
-
-          {showAddPost && (
-            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-              <div>
-                <label style={S.label}>Tipo de Publicação</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={()=>setType("noticia")} style={{ ...S.btnSm(type === "noticia" ? "#378ADD" : "transparent", type === "noticia" ? "#fff" : t.textSec), border: `1px solid ${type === "noticia" ? "#378ADD" : t.cardBorder}`, flex: 1 }}>📢 Notícia / Comunicado</button>
-                  <button onClick={()=>setType("midia")} style={{ ...S.btnSm(type === "midia" ? "#1D9E75" : "transparent", type === "midia" ? "#fff" : t.textSec), border: `1px solid ${type === "midia" ? "#1D9E75" : t.cardBorder}`, flex: 1 }}>🎬 Foto / Vídeo / Youtube</button>
-                </div>
-              </div>
-
-              <div>
-                <label style={S.label}>Título</label>
-                <input style={S.input} placeholder="Título do post" value={title} onChange={e=>setTitle(e.target.value)} />
-              </div>
-
-              <div>
-                <label style={S.label}>Conteúdo</label>
-                <textarea style={{ ...S.input, height: 100, resize: "vertical" }} placeholder="Conteúdo..." value={content} onChange={e=>setContent(e.target.value)} />
-              </div>
-
-              {type === "midia" && (
-                <div>
-                  <label style={S.label}>Link da Mídia (YouTube, fotos, etc.)</label>
-                  <input style={S.input} placeholder="https://..." value={mediaUrl} onChange={e=>setMediaUrl(e.target.value)} />
-                </div>
-              )}
-
-              <button onClick={handleSavePost} style={S.btn(type === "noticia" ? "#378ADD" : "#1D9E75")}>🚀 Publicar</button>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {mural.length === 0 ? (
-            <div style={{ ...S.card, textAlign: "center", padding: 24, color: t.textSec }}>
-              Nenhuma publicação no mural.
-            </div>
-          ) : (
-            [...mural].reverse().map((item, idx) => {
-              const embed = getEmbedUrl(item.mediaUrl);
-              return (
-                <div key={idx} style={S.card}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-                    <span style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      color: item.type === "noticia" ? "#378ADD" : "#1D9E75",
-                      background: item.type === "noticia" ? "#378ADD18" : "#1D9E7518",
-                      padding: "2px 8px",
-                      borderRadius: 6
-                    }}>
-                      {item.type === "noticia" ? "Notícia / Comunicado" : "Mídia / Vídeo"}
-                    </span>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <span style={{ fontSize: 11, color: t.textSec }}>{fmtDate(item.date)}</span>
-                      <button onClick={()=>handleDeletePost(item.id)} style={{ background: "none", border: "none", color: "#E24B4A", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>🗑</button>
-                    </div>
-                  </div>
-                  <h4 style={{ fontSize: 15, fontWeight: 800, color: t.text, margin: "0 0 8px 0" }}>{item.title}</h4>
-                  <p style={{ fontSize: 13, color: t.textSec, lineHeight: 1.5, whiteSpace: "pre-wrap", margin: "0 0 12px 0" }}>{item.content}</p>
-                  
-                  {item.type === "midia" && item.mediaUrl && (
-                    <div>
-                      {embed ? (
-                        <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", height: 0, overflow: "hidden", borderRadius: 8, border: `1px solid ${t.cardBorder}` }}>
-                          <iframe 
-                            src={embed} 
-                            style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
-                            allowFullScreen
-                            title={item.title}
-                          />
-                        </div>
-                      ) : isImageUrl(item.mediaUrl) ? (
-                        <div style={{ borderRadius: 8, overflow: "hidden", border: `1px solid ${t.cardBorder}`, marginTop: 8 }}>
-                          <img src={item.mediaUrl} style={{ width: "100%", maxHeight: "350px", objectFit: "contain", background: "#0000000a", display: "block" }} alt={item.title} />
-                        </div>
-                      ) : (
-                        <a 
-                          href={item.mediaUrl} 
-                          onClick={(e) => { e.preventDefault(); handleOpenExternalLink(item.mediaUrl); }} 
-                          style={{ fontSize: 12, color: "#378ADD", textDecoration: "none", cursor: "pointer" }}
-                        >
-                          🔗 Link da mídia externa →
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-    );
-  }
 
   function AbaConfiguracoes() {
     const [editName, setEditName] = useState(c.name);
@@ -4468,7 +5634,8 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       {tab==="elencos" && <AbaElencos />}
       {tab==="estatísticas" && renderEstatisticas()}
       {tab==="solicitações" && c.allowOnlineReg && <AbaSolicitacoes />}
-      {tab==="mural" && <AbaMuralOrganizador />}
+      {tab==="mural" && <AbaMuralOrganizador c={c} onUpdate={onUpdate} t={t} />}
+      {tab==="galeria" && <AbaGaleriaOrganizador c={c} onUpdate={onUpdate} t={t} />}
       {tab==="configurações" && <AbaConfiguracoes />}
       
       {tab==="nuvem" && (
@@ -4975,10 +6142,98 @@ export default function App(){
   
   const [appState, setAppState, loading] = useLocalStorage(initialAppState);
 
+  // Getters com Fallback (Segurança extra contra tela branca)
+  const allCampeonatos = Array.isArray(appState?.campeonatos) ? appState.campeonatos : [];
+  const allPeladas = Array.isArray(appState?.peladas) ? appState.peladas : [];
+  const datasRealizacao = Array.isArray(appState?.datasRealizacao) ? appState.datasRealizacao : [];
+  const allAtletas = Array.isArray(appState?.atletas) ? appState.atletas : [];
+  const allAtletasRef = useRef(allAtletas);
+  useEffect(() => {
+    allAtletasRef.current = allAtletas;
+  }, [allAtletas]);
+  const participacoes = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
+  const financeiro = appState?.financeiro && typeof appState.financeiro === 'object' ? appState.financeiro : { entries: [] };
+  const managers = Array.isArray(appState?.managers) ? appState.managers : [];
+  const managersRef = useRef(managers);
+  useEffect(() => {
+    managersRef.current = managers;
+  }, [managers]);
+  const adminPassword = appState?.adminPassword || "1204110411";
+
   const [auth, setAuth] = useState({ role:"", name:"", manager_id: null, scope: "geral" });
+  const [authLoading, setAuthLoading] = useState(true);
+  const lastAuthUserEmail = useRef("");
   const [screen, setScreen] = useState("selection");
   const [cloudLoading, setCloudLoading] = useState(false);
   const [publicCloudChamp, setPublicCloudChamp] = useState(null);
+
+  // Monitora alterações de autenticação no Firebase Auth
+  useEffect(() => {
+    console.log("[DEBUG AUTH] useEffect onAuthStateChanged registrado! isFirebaseConfigured:", isFirebaseConfigured);
+    if (!isFirebaseConfigured || !firebaseAuth) {
+      setAuthLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+      console.log("[DEBUG AUTH] onAuthStateChanged disparado! Usuário:", user ? user.email : "null");
+      if (user) {
+        const trimmedEmail = String(user.email || "").toLowerCase().trim();
+        const isNewLogin = lastAuthUserEmail.current !== trimmedEmail;
+        console.log("[DEBUG AUTH] trimmedEmail:", trimmedEmail, "lastAuthUserEmail.current:", lastAuthUserEmail.current, "isNewLogin:", isNewLogin);
+        
+        // Verifica se é o Administrador padrão
+        if (trimmedEmail === "lucas7s7@gmail.com") {
+          setAuth({ role: "adm", name: "Lucas", manager_id: null, scope: "geral" });
+          setScreen(prev => (prev === "login" || prev === "selection") ? "home" : prev);
+          if (isNewLogin) {
+            console.log("[DEBUG AUTH] Novo login admin detectado! Chamando autoRestaurarDaNuvem");
+            lastAuthUserEmail.current = trimmedEmail;
+            autoRestaurarDaNuvem("adm", null);
+          }
+        } else {
+          // Verifica se é um Manager cadastrado localmente
+          const manager = (managersRef.current || []).find(m => String(m.email || "").toLowerCase().trim() === trimmedEmail);
+          console.log("[DEBUG AUTH] Buscando manager para email:", trimmedEmail, "Encontrado:", manager ? manager.name : "Não");
+          if (manager) {
+            setAuth({ role: "manager", name: manager.name || "Manager", manager_id: manager.id, scope: manager.scope || "campeonato" });
+            setScreen(prev => (prev === "login" || prev === "selection") ? "home" : prev);
+            if (isNewLogin) {
+              console.log("[DEBUG AUTH] Novo login manager detectado! Chamando autoRestaurarDaNuvem");
+              lastAuthUserEmail.current = trimmedEmail;
+              autoRestaurarDaNuvem("manager", manager.id);
+            }
+          } else {
+            // Se for outro usuário (por exemplo, um novo usuário básico)
+            console.log("[DEBUG AUTH] Usuário público logado");
+            setAuth({ role: "public", name: user.displayName || trimmedEmail.split("@")[0], manager_id: null, scope: "leitura" });
+          }
+        }
+      } else {
+        // Usuário deslogado
+        console.log("[DEBUG AUTH] Usuário deslogado. Limpando email em lastAuthUserEmail");
+        setAuth({ role: "", name: "", manager_id: null, scope: "geral" });
+        lastAuthUserEmail.current = "";
+      }
+      setAuthLoading(false);
+    });
+
+    return () => {
+      console.log("[DEBUG AUTH] Cancelando inscrição do onAuthStateChanged!");
+      unsubscribe();
+    };
+  }, [isFirebaseConfigured]);
+
+  // Proteção de Rotas Internas Reativa
+  const publicScreens = ["selection", "login", "public", "publicCloud"];
+  const isInternalScreen = !publicScreens.includes(screen);
+  const isAuthenticated = auth.role === "adm" || auth.role === "manager";
+
+  useEffect(() => {
+    if (!loading && !authLoading && isInternalScreen && !isAuthenticated) {
+      setScreen("selection");
+    }
+  }, [screen, auth, loading, authLoading, isInternalScreen, isAuthenticated]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -5042,19 +6297,7 @@ export default function App(){
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Getters com Fallback (Segurança extra contra tela branca)
-  const allCampeonatos = Array.isArray(appState?.campeonatos) ? appState.campeonatos : [];
-  const allPeladas = Array.isArray(appState?.peladas) ? appState.peladas : [];
-  const datasRealizacao = Array.isArray(appState?.datasRealizacao) ? appState.datasRealizacao : [];
-  const allAtletas = Array.isArray(appState?.atletas) ? appState.atletas : [];
-  const allAtletasRef = useRef(allAtletas);
-  useEffect(() => {
-    allAtletasRef.current = allAtletas;
-  }, [allAtletas]);
-  const participacoes = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
-  const financeiro = appState?.financeiro && typeof appState.financeiro === 'object' ? appState.financeiro : { entries: [] };
-  const managers = Array.isArray(appState?.managers) ? appState.managers : [];
-  const adminPassword = appState?.adminPassword || "1204110411";
+
 
   const autoRestaurarDaNuvem = async (role, managerId) => {
     if (!isFirebaseConfigured) return;
@@ -5097,28 +6340,109 @@ export default function App(){
     return () => clearTimeout(timer);
   }, [appState, auth, loading]);
 
-  const handleLogin = ({email,password}) => {
+  const handleLogin = async ({email, password}) => {
     const trimmed = String(email||"").trim().toLowerCase();
     if(!trimmed||!password) return "Informe e-mail e senha.";
 
-    if(trimmed === "lucas7s7@gmail.com" && password === adminPassword){
-      setAuth({ role:"adm", name:"Lucas", manager_id: null, scope: "geral" });
-      setCurrent(null);
-      setScreen("home");
-      autoRestaurarDaNuvem("adm", null);
-      return "";
-    }
+    try {
+      if (!isFirebaseConfigured || !firebaseAuth) {
+        throw new Error("O Firebase Auth não está configurado.");
+      }
 
-    const manager = managers.find(m => String(m.email||"").toLowerCase() === trimmed && m.password === password);
-    if(manager){
-      setAuth({ role:"manager", name: manager.name || "Manager", manager_id: manager.id, scope: manager.scope });
-      setCurrent(null);
-      setScreen("home");
-      autoRestaurarDaNuvem("manager", manager.id);
+      await signInWithEmailAndPassword(firebaseAuth, trimmed, password);
       return "";
-    }
+    } catch (error) {
+      console.error("Erro no login Firebase Auth:", error);
+      
+      // MIGRACAO AUTOMATICA se o usuário não for encontrado no Firebase mas for admin/manager local
+      if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential" || error.code === "auth/wrong-password") {
+        if (trimmed === "lucas7s7@gmail.com" && password === adminPassword) {
+          try {
+            await createUserWithEmailAndPassword(firebaseAuth, trimmed, password);
+            return "";
+          } catch (createErr) {
+            console.error("Erro ao migrar admin local:", createErr);
+            return "Erro ao migrar sua conta admin padrão: " + createErr.message;
+          }
+        }
+        
+        const manager = managers.find(m => String(m.email||"").toLowerCase() === trimmed && m.password === password);
+        if (manager) {
+          try {
+            await createUserWithEmailAndPassword(firebaseAuth, trimmed, password);
+            return "";
+          } catch (createErr) {
+            console.error("Erro ao migrar manager local:", createErr);
+            return "Erro ao migrar sua conta de manager: " + createErr.message;
+          }
+        }
+      }
 
-    return "Credenciais inválidas. Use um Admin ou Manager cadastrado.";
+      switch (error.code) {
+        case "auth/invalid-email":
+          return "O endereço de e-mail é inválido.";
+        case "auth/user-disabled":
+          return "Esta conta de usuário foi desativada.";
+        case "auth/user-not-found":
+        case "auth/invalid-credential":
+        case "auth/wrong-password":
+          return "Credenciais inválidas. Verifique seu e-mail e senha.";
+        case "auth/too-many-requests":
+          return "Muitas tentativas malsucedidas de login. Tente novamente mais tarde.";
+        default:
+          return error.message || "Erro ao fazer login.";
+      }
+    }
+  };
+
+  const handleRegister = async ({email, password, name}) => {
+    const trimmed = String(email||"").trim().toLowerCase();
+    if(!trimmed || !password || !name?.trim()) return "Preencha todos os campos.";
+    if(password.length < 6) return "A senha deve ter pelo menos 6 caracteres.";
+
+    try {
+      if (!isFirebaseConfigured || !firebaseAuth) {
+        throw new Error("O Firebase Auth não está configurado.");
+      }
+
+      await createUserWithEmailAndPassword(firebaseAuth, trimmed, password);
+      return "";
+    } catch (error) {
+      console.error("Erro ao registrar conta:", error);
+      switch (error.code) {
+        case "auth/email-already-in-use":
+          return "Este endereço de e-mail já está em uso.";
+        case "auth/invalid-email":
+          return "O endereço de e-mail é inválido.";
+        case "auth/weak-password":
+          return "A senha é muito fraca (mínimo 6 caracteres).";
+        default:
+          return error.message || "Erro ao registrar usuário.";
+      }
+    }
+  };
+
+  const handleForgotPassword = async (email) => {
+    const trimmed = String(email||"").trim().toLowerCase();
+    if(!trimmed) return "Por favor, informe seu e-mail.";
+
+    try {
+      if (!isFirebaseConfigured || !firebaseAuth) {
+        throw new Error("O Firebase Auth não está configurado.");
+      }
+      await sendPasswordResetEmail(firebaseAuth, trimmed);
+      return "";
+    } catch (error) {
+      console.error("Erro ao solicitar redefinição:", error);
+      switch (error.code) {
+        case "auth/invalid-email":
+          return "O endereço de e-mail é inválido.";
+        case "auth/user-not-found":
+          return "Não encontramos um usuário cadastrado com este e-mail.";
+        default:
+          return error.message || "Erro ao enviar e-mail de recuperação.";
+      }
+    }
   };
 
   const handlePublicAccess = () => {
@@ -5127,7 +6451,14 @@ export default function App(){
     setScreen("public");
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (isFirebaseConfigured && firebaseAuth) {
+      try {
+        await signOut(firebaseAuth);
+      } catch (e) {
+        console.error("Erro ao deslogar do Firebase Auth:", e);
+      }
+    }
     setAuth({ role:"", name:"", manager_id: null, scope: "geral" });
     setCurrent(null);
     setScreen("selection");
@@ -5647,7 +6978,7 @@ export default function App(){
 
   useEffect(()=>{document.body.style.background=t.bg;document.body.style.color=t.text;},[t]);
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div style={{...S.page, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16}}>
         <div style={{fontSize:40, animation: "bounce 2s infinite"}}>⚽</div>
@@ -5681,7 +7012,7 @@ export default function App(){
   }
 
   if(screen==="login"){
-    return <LoginScreen onLogin={handleLogin} t={t} />;
+    return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} onForgotPassword={handleForgotPassword} onBack={() => setScreen("selection")} t={t} />;
   }
 
   if(screen==="public"){
