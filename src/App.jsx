@@ -87,13 +87,30 @@ const getPlayerName = a => {
   if (!a) return "";
   return a.apelido || a.nome || a.name || `Atleta #${a.id || 'Sem ID'}`;
 };
+
 const getDirectImageUrl = (url) => {
   if (!url) return "";
   let cleanUrl = url.trim();
   
-  // Converte links do OneDrive Embed para Download direto para renderizar como imagem
+  // Extrai o link src caso o usuário tenha colado o iframe HTML completo
+  if (cleanUrl.startsWith("<") && cleanUrl.includes("src=")) {
+    const match = cleanUrl.match(/src=["']([^"']+)["']/i);
+    if (match && match[1]) {
+      cleanUrl = match[1].trim();
+    }
+  }
+  
+  // Converte links do OneDrive Embed para Download direto para renderizar como imagem/vídeo
   if (cleanUrl.toLowerCase().includes("onedrive.live.com") && cleanUrl.toLowerCase().includes("embed")) {
     return cleanUrl.replace(/\/embed/i, "/download");
+  }
+  
+  // Converte links curtos do OneDrive (1drv.ms) para Download direto
+  // Substitui /v/s!, /i/s! ou /s! por /download?s=
+  if (cleanUrl.toLowerCase().includes("1drv.ms")) {
+    cleanUrl = cleanUrl.replace(/\/[vi]\/s!/i, "/download?s=");
+    cleanUrl = cleanUrl.replace(/\/s!/i, "/download?s=");
+    return cleanUrl;
   }
   
   return cleanUrl;
@@ -101,31 +118,41 @@ const getDirectImageUrl = (url) => {
 
 const isImageUrl = url => {
   if (!url) return false;
-  const cleanUrl = url.toLowerCase().trim();
+  let cleanUrl = url.trim();
+  
+  // Extrai o link src caso o usuário tenha colado o iframe HTML completo
+  if (cleanUrl.startsWith("<") && cleanUrl.includes("src=")) {
+    const match = cleanUrl.match(/src=["']([^"']+)["']/i);
+    if (match && match[1]) {
+      cleanUrl = match[1].trim();
+    }
+  }
+  
+  const cleanUrlLower = cleanUrl.toLowerCase();
   
   if (
-    cleanUrl.startsWith("data:image/") || 
-    cleanUrl.includes("images.unsplash.com") || 
-    cleanUrl.includes("firebasestorage.googleapis.com") || 
-    cleanUrl.includes("imgbb.com") ||
-    cleanUrl.includes("imgur.com") ||
-    cleanUrl.includes("postimg.cc") ||
-    cleanUrl.includes("cloudinary.com") ||
-    cleanUrl.includes("media.discordapp.net") ||
-    cleanUrl.includes("onedrive.live.com") ||
-    cleanUrl.includes("1drv.ms") ||
-    cleanUrl.includes("sharepoint.com")
+    cleanUrlLower.startsWith("data:image/") || 
+    cleanUrlLower.includes("images.unsplash.com") || 
+    cleanUrlLower.includes("firebasestorage.googleapis.com") || 
+    cleanUrlLower.includes("imgbb.com") ||
+    cleanUrlLower.includes("imgur.com") ||
+    cleanUrlLower.includes("postimg.cc") ||
+    cleanUrlLower.includes("cloudinary.com") ||
+    cleanUrlLower.includes("media.discordapp.net") ||
+    cleanUrlLower.includes("onedrive.live.com") ||
+    cleanUrlLower.includes("1drv.ms") ||
+    cleanUrlLower.includes("sharepoint.com")
   ) {
     return true;
   }
   
   const extensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".tiff"];
-  if (extensions.some(ext => cleanUrl.includes(ext))) {
+  if (extensions.some(ext => cleanUrlLower.includes(ext))) {
     return true;
   }
-
+  
   // Detecta URLs com parâmetros que contêm extensões de imagens
-  if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp)\b/)) {
+  if (cleanUrlLower.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp)\b/)) {
     return true;
   }
 
@@ -134,8 +161,18 @@ const isImageUrl = url => {
 
 const getEmbedUrl = (url) => {
   if (!url) return null;
+  let cleanUrl = url.trim();
+  
+  // Extrai o link src caso o usuário tenha colado o iframe HTML completo
+  if (cleanUrl.startsWith("<") && cleanUrl.includes("src=")) {
+    const match = cleanUrl.match(/src=["']([^"']+)["']/i);
+    if (match && match[1]) {
+      cleanUrl = match[1].trim();
+    }
+  }
+  
   let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-  let match = url.match(regExp);
+  let match = cleanUrl.match(regExp);
   if (match && match[2].length === 11) {
     return `https://www.youtube.com/embed/${match[2]}`;
   }
