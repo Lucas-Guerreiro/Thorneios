@@ -35,4 +35,3 @@ if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "SUA_API_KEY_AQUI") {
 }
 
 export { db, auth, isFirebaseConfigured };
-
