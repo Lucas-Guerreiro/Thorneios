@@ -1142,7 +1142,11 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey }) {
   };
 
   const handleConfigSave = () => {
-    const totalSecs = Math.max(1, minutesInput) * 60;
+    if (minutesInput === "" || Number(minutesInput) < 1) {
+      alert("Você precisa digitar um valor acima de 1.");
+      return;
+    }
+    const totalSecs = Math.max(1, Number(minutesInput)) * 60;
     setSeconds(totalSecs);
     setInitialSeconds(totalSecs);
     setIsConfiguring(false);
@@ -1208,10 +1212,8 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey }) {
             <span style={{ fontSize: 11, fontWeight: 700, color: t.textSec, textTransform: "uppercase" }}>Tempo de Jogo:</span>
             <input 
               type="number" 
-              min={1} 
-              max={120} 
               value={minutesInput} 
-              onChange={e => setMinutesInput(Math.max(1, Number(e.target.value)))}
+              onChange={e => setMinutesInput(e.target.value)}
               style={{
                 width: 60,
                 padding: "6px 8px",
