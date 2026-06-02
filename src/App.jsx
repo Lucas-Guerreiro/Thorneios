@@ -3696,7 +3696,35 @@ function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,onExport,onImport,onDownlo
                 </div>
                 <div style={{flex:1,minWidth:140}}>
                   <label style={S.label}>Grupo</label>
-                  <input type="text" style={S.input} value={form.grupo || ""} onChange={e=>setForm(v=>({...v,grupo:e.target.value}))} placeholder="Ex: Sábado, Turma A"/>
+                  {(() => {
+                    const gruposDisponiveis = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
+                    if (form.grupo && !gruposDisponiveis.includes(form.grupo)) {
+                      gruposDisponiveis.push(form.grupo);
+                    }
+                    return (
+                      <select 
+                        style={S.select} 
+                        value={form.grupo || ""} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === "__novo__") {
+                            const novo = window.prompt("Digite o nome do novo grupo:");
+                            if (novo && novo.trim()) {
+                              setForm(v => ({ ...v, grupo: novo.trim() }));
+                            }
+                          } else {
+                            setForm(v => ({ ...v, grupo: val }));
+                          }
+                        }}
+                      >
+                        <option value="">Nenhum Grupo</option>
+                        {gruposDisponiveis.map(g => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                        <option value="__novo__">➕ Adicionar novo grupo...</option>
+                      </select>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -4076,7 +4104,35 @@ function AbaAtletasPelada({pelada,atletas,participacoes,onAddPart,onRemovePart,o
               </div>
               <div>
                 <label style={S.label}>Grupo</label>
-                <input type="text" style={S.input} value={formAtleta.grupo || ""} onChange={e=>setFormAtleta(v=>({...v,grupo:e.target.value}))} placeholder="Ex: Sábado, Turma A"/>
+                {(() => {
+                  const gruposDisponiveis = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
+                  if (formAtleta.grupo && !gruposDisponiveis.includes(formAtleta.grupo)) {
+                    gruposDisponiveis.push(formAtleta.grupo);
+                  }
+                  return (
+                    <select 
+                      style={S.select} 
+                      value={formAtleta.grupo || ""} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === "__novo__") {
+                          const novo = window.prompt("Digite o nome do novo grupo:");
+                          if (novo && novo.trim()) {
+                            setFormAtleta(v => ({ ...v, grupo: novo.trim() }));
+                          }
+                        } else {
+                          setFormAtleta(v => ({ ...v, grupo: val }));
+                        }
+                      }}
+                    >
+                      <option value="">Nenhum Grupo</option>
+                      {gruposDisponiveis.map(g => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                      <option value="__novo__">➕ Adicionar novo grupo...</option>
+                    </select>
+                  );
+                })()}
               </div>
             </div>
             <div style={{display:"flex",gap:8,marginTop:16}}>
@@ -6848,7 +6904,35 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                 </div>
                 <div style={{flex:1,minWidth:140}}>
                   <label style={S.label}>Grupo</label>
-                  <input type="text" style={S.input} value={formAtleta.grupo || ""} onChange={e=>setFormAtleta(v=>({...v,grupo:e.target.value}))} placeholder="Ex: Sábado, Turma A"/>
+                  {(() => {
+                    const gruposDisponiveis = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
+                    if (formAtleta.grupo && !gruposDisponiveis.includes(formAtleta.grupo)) {
+                      gruposDisponiveis.push(formAtleta.grupo);
+                    }
+                    return (
+                      <select 
+                        style={S.select} 
+                        value={formAtleta.grupo || ""} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === "__novo__") {
+                            const novo = window.prompt("Digite o nome do novo grupo:");
+                            if (novo && novo.trim()) {
+                              setFormAtleta(v => ({ ...v, grupo: novo.trim() }));
+                            }
+                          } else {
+                            setFormAtleta(v => ({ ...v, grupo: val }));
+                          }
+                        }}
+                      >
+                        <option value="">Nenhum Grupo</option>
+                        {gruposDisponiveis.map(g => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                        <option value="__novo__">➕ Adicionar novo grupo...</option>
+                      </select>
+                    );
+                  })()}
                 </div>
               </div>
 
