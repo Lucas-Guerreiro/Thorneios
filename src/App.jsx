@@ -3575,56 +3575,173 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
 }
 
 /* ─────────────────────────── CRUD ATLETAS ───────────────────────── */
-function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,onExport,onImport,onDownloadTemplate,t}){
+function CRUDAtletas({
+  atletas, onAdd, onUpdate, onRemove, onExport, onImport, onDownloadTemplate,
+  atletasCampeonato, onAddCamp, onUpdateCamp, onRemoveCamp, onExportCamp, onImportCamp, onDownloadTemplateCamp,
+  t
+}){
   const S=makeStyles(t);
+  const[abaAtletas,setAbaAtletas]=useState("pelada"); // "pelada" ou "campeonato"
   const[modal,setModal]=useState(false);
   const[editId,setEditId]=useState(null);
+  
+  // Form estendido para campeonato e simplificado para pelada
+  const defaultCampForm = {
+    nome: "",
+    apelido: "",
+    foto: "",
+    habilidade: 3,
+    goleiro: false,
+    ativo: true,
+    documento: "", // RG
+    dataNascimento: "",
+    numeroCamisa: "",
+    grupo: "", // Time
+    celular1: "",
+    celular2: "",
+    foneResidencial: "",
+    email: "",
+    tipoAtleta: "Adventista",
+    igrejaMembro: "",
+    logradouro: "Rua",
+    nomeVia: "",
+    cep: "",
+    complemento: "",
+    bairro: "",
+    nomeMae: "",
+    docFoto: "",
+    customFields: {}
+  };
+
   const[form,setForm]=useState({nome:"",apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true,documento:"",dataNascimento:"",numeroCamisa:"",grupo:"",customFields:{}});
   const[filtro,setFiltro]=useState("");
   const[expandMenu,setExpandMenu]=useState(false);
 
-  function abrirNovo(){setEditId(null);setForm({nome:filtro.trim(),apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true,documento:"",dataNascimento:"",numeroCamisa:"",grupo:"",customFields:{}});setModal(true);}
-  function abrirEdicao(a){setEditId(a.id);setForm({nome:a.nome,apelido:a.apelido||"",foto:a.foto||"",habilidade:a.habilidade,goleiro:a.goleiro,ativo:a.ativo !== false,documento:a.documento||"",dataNascimento:a.dataNascimento||"",numeroCamisa:a.numeroCamisa||"",grupo:a.grupo||"",customFields:a.customFields||{}});setModal(true);}
-  function salvar(){if(!form.nome.trim())return;if(editId)onUpdate(editId,form);else onAdd(form);setModal(false);}
+  // Mapeamento dinâmico com base na aba ativa
+  const atletasAtuais = abaAtletas === "pelada" ? atletas : atletasCampeonato;
+  const handleAdd = abaAtletas === "pelada" ? onAdd : onAddCamp;
+  const handleUpdate = abaAtletas === "pelada" ? onUpdate : onUpdateCamp;
+  const handleRemove = abaAtletas === "pelada" ? onRemove : onRemoveCamp;
+  const handleExport = abaAtletas === "pelada" ? onExport : onExportCamp;
+  const handleImport = abaAtletas === "pelada" ? onImport : onImportCamp;
+  const handleDownloadTemplate = abaAtletas === "pelada" ? onDownloadTemplate : onDownloadTemplateCamp;
+
+  function abrirNovo(){
+    setEditId(null);
+    if (abaAtletas === "pelada") {
+      setForm({nome:filtro.trim(),apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true,documento:"",dataNascimento:"",numeroCamisa:"",grupo:"",customFields:{}});
+    } else {
+      setForm({...defaultCampForm, nome:filtro.trim()});
+    }
+    setModal(true);
+  }
+
+  function abrirEdicao(a){
+    setEditId(a.id);
+    if (abaAtletas === "pelada") {
+      setForm({nome:a.nome,apelido:a.apelido||"",foto:a.foto||"",habilidade:a.habilidade,goleiro:a.goleiro,ativo:a.ativo !== false,documento:a.documento||"",dataNascimento:a.dataNascimento||"",numeroCamisa:a.numeroCamisa||"",grupo:a.grupo||"",customFields:a.customFields||{}});
+    } else {
+      setForm({
+        nome: a.nome,
+        apelido: a.apelido || "",
+        foto: a.foto || "",
+        habilidade: a.habilidade || 3,
+        goleiro: a.goleiro || false,
+        ativo: a.ativo !== false,
+        documento: a.documento || "",
+        dataNascimento: a.dataNascimento || "",
+        numeroCamisa: a.numeroCamisa || "",
+        grupo: a.grupo || "",
+        celular1: a.celular1 || "",
+        celular2: a.celular2 || "",
+        foneResidencial: a.foneResidencial || "",
+        email: a.email || "",
+        tipoAtleta: a.tipoAtleta || "Adventista",
+        igrejaMembro: a.igrejaMembro || "",
+        logradouro: a.logradouro || "Rua",
+        nomeVia: a.nomeVia || "",
+        cep: a.cep || "",
+        complemento: a.complemento || "",
+        bairro: a.bairro || "",
+        nomeMae: a.nomeMae || "",
+        docFoto: a.docFoto || "",
+        customFields: a.customFields || {}
+      });
+    }
+    setModal(true);
+  }
+
+  function salvar(){
+    if(!form.nome.trim())return;
+    if(editId) handleUpdate(editId, form);
+    else handleAdd(form);
+    setModal(false);
+  }
   
-  const lista=atletas.filter(a=>a.nome.toLowerCase().includes(filtro.toLowerCase()));
-  const ativos=atletas.filter(a=>a.ativo).length;
+  const lista = atletasAtuais.filter(a => a.nome.toLowerCase().includes(filtro.toLowerCase()) || (a.apelido && a.apelido.toLowerCase().includes(filtro.toLowerCase())));
+  const ativos = atletasAtuais.filter(a => a.ativo).length;
+
   return(
     <div>
+      {/* Abas Peladas / Campeonatos */}
+      <div style={{display:"flex",gap:8,marginBottom:16,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:8}}>
+        <button 
+          onClick={() => { setAbaAtletas("pelada"); setFiltro(""); }} 
+          style={{
+            ...S.btn(abaAtletas === "pelada" ? "#378ADD" : t.card, abaAtletas === "pelada" ? "#fff" : t.textSec),
+            flex: 1, justifyContent: "center", fontSize: 13, fontWeight: 700, borderRadius: 10
+          }}
+        >
+          👟 Peladas
+        </button>
+        <button 
+          onClick={() => { setAbaAtletas("campeonato"); setFiltro(""); }} 
+          style={{
+            ...S.btn(abaAtletas === "campeonato" ? "#1D9E75" : t.card, abaAtletas === "campeonato" ? "#fff" : t.textSec),
+            flex: 1, justifyContent: "center", fontSize: 13, fontWeight: 700, borderRadius: 10
+          }}
+        >
+          🏆 Campeonatos (Liga)
+        </button>
+      </div>
+
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
-        {[["Total",atletas.length,"#378ADD"],["Ativos",ativos,"#1D9E75"],["Inativos",atletas.length-ativos,"#E24B4A"]].map(([l,v,c])=>(
+        {[["Total",atletasAtuais.length,"#378ADD"],["Ativos",ativos,"#1D9E75"],["Inativos",atletasAtuais.length-ativos,"#E24B4A"]].map(([l,v,c])=>(
           <div key={l} style={{...S.card,textAlign:"center",padding:10}}><div style={{fontSize:9,fontWeight:700,color:t.textSec,marginBottom:3}}>{l}</div><div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div></div>
         ))}
       </div>
+
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
-        <input style={{...S.input,flex:1,minWidth:120}} placeholder="🔍 Buscar atleta..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
-        <button onClick={abrirNovo} style={S.btn("#378ADD")}>+ Novo Atleta</button>
-        <button onClick={()=>setExpandMenu(!expandMenu)} style={{...S.btn("#1D9E75"),display:"inline-flex",gap:6}}>
+        <input style={{...S.input,flex:1,minWidth:120}} placeholder="🔍 Buscar atleta por nome/apelido..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
+        <button onClick={abrirNovo} style={S.btn(abaAtletas === "pelada" ? "#378ADD" : "#1D9E75")}>+ Novo Atleta ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</button>
+        <button onClick={()=>setExpandMenu(!expandMenu)} style={{...S.btn("#a0a0a0"),display:"inline-flex",gap:6}}>
           <span>⚙️ Importar/Exportar</span>
           <span style={{transform:expandMenu?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.3s",display:"inline-block"}}>▼</span>
         </button>
       </div>
+
       {expandMenu&&(
         <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px solid ${t.inputBorder}`}}>
           <div style={{display:"flex",flexDirection:"column",gap:0}}>
-            <button onClick={()=>{onExport();setExpandMenu(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.target.style.background=t.card} onMouseLeave={e=>e.target.style.background="transparent"}>
+            <button onClick={()=>{handleExport();setExpandMenu(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.target.style.background=t.card} onMouseLeave={e=>e.target.style.background="transparent"}>
               <span>📤</span>
-              <div><div style={{fontWeight:600}}>Exportar Atletas</div><div style={{fontSize:11,color:t.textSec}}>Baixar lista em XLS</div></div>
+              <div><div style={{fontWeight:600}}>Exportar Atletas ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</div><div style={{fontSize:11,color:t.textSec}}>Baixar lista em XLS</div></div>
             </button>
-            <button onClick={()=>{onDownloadTemplate();setExpandMenu(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.target.style.background=t.card} onMouseLeave={e=>e.target.style.background="transparent"}>
+            <button onClick={()=>{handleDownloadTemplate();setExpandMenu(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.target.style.background=t.card} onMouseLeave={e=>e.target.style.background="transparent"}>
               <span>📄</span>
-              <div><div style={{fontWeight:600}}>Baixar Modelo</div><div style={{fontSize:11,color:t.textSec}}>Planilha em branco</div></div>
+              <div><div style={{fontWeight:600}}>Baixar Modelo ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</div><div style={{fontSize:11,color:t.textSec}}>Planilha em branco</div></div>
             </button>
             <label style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s",margin:0}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <span>📥</span>
-              <div><div style={{fontWeight:600}}>Importar Atletas</div><div style={{fontSize:11,color:t.textSec}}>Carregar arquivo XLS</div></div>
-              <input type="file" accept=".xls" style={{display:"none"}} onChange={(e)=>{onImport(e);setExpandMenu(false);}} />
+              <div><div style={{fontWeight:600}}>Importar Atletas ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</div><div style={{fontSize:11,color:t.textSec}}>Carregar arquivo XLS</div></div>
+              <input type="file" accept=".xls" style={{display:"none"}} onChange={(e)=>{handleImport(e);setExpandMenu(false);}} />
             </label>
           </div>
         </div>
       )}
+
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {lista.length===0&&<div style={{color:t.textSec,fontSize:13,textAlign:"center",padding:20}}>Nenhum atleta encontrado.</div>}
+        {lista.length===0&&<div style={{color:t.textSec,fontSize:13,textAlign:"center",padding:20}}>Nenhum atleta encontrado nesta categoria.</div>}
         {lista.map(a=>(
           <div key={a.id} style={{...S.card,padding:"12px 14px",border:`1px solid ${a.ativo?t.cardBorder:t.cardBorder+"88"}`,opacity:a.ativo?1:0.6}}>
             <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
@@ -3632,16 +3749,37 @@ function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,onExport,onImport,onDownlo
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:14,color:t.text}}>
                   {getPlayerName(a)}
-                  {a.apelido?<span style={{fontSize:11,color:t.textSec,marginLeft:6}}>({a.nome})</span>:null}
+                  {a.apelido?<span style={{fontSize:11,color:t.textSec,marginLeft:6}}>({a.apelido})</span>:null}
                   {a.numeroCamisa && <span style={{fontSize:11,fontWeight:800,color:"#378ADD",background:"#378ADD15",padding:"1px 5px",borderRadius:4,marginLeft:6}}>#{a.numeroCamisa}</span>}
                   {a.grupo && <span style={{fontSize:11,fontWeight:700,color:"#9C27B0",background:"#9C27B015",padding:"1px 5px",borderRadius:4,marginLeft:6}}>👥 {a.grupo}</span>}
                   {!a.ativo&&<span style={{marginLeft:8,fontSize:10,background:"#E24B4A22",color:"#E24B4A",padding:"1px 7px",borderRadius:8}}>Inativo</span>}
                 </div>
-                <div style={{fontSize:11,color:SKILL_COLORS[a.habilidade-1],fontWeight:600}}>
-                  {"⭐".repeat(a.habilidade)} · {SKILL_NAMES[a.habilidade-1]}
-                  {a.dataNascimento && ` · Nasc: ${a.dataNascimento.split("-").reverse().join("/")}`}
-                  {a.documento && ` · RG/CPF: ${a.documento}`}
-                </div>
+                
+                {abaAtletas === "pelada" ? (
+                  <div style={{fontSize:11,color:SKILL_COLORS[a.habilidade-1],fontWeight:600}}>
+                    {"⭐".repeat(a.habilidade)} · {SKILL_NAMES[a.habilidade-1]}
+                    {a.dataNascimento && ` · Nasc: ${a.dataNascimento.split("-").reverse().join("/")}`}
+                    {a.documento && ` · RG/CPF: ${a.documento}`}
+                  </div>
+                ) : (
+                  <div style={{fontSize:11,color:t.textSec,marginTop:4,display:"flex",flexDirection:"column",gap:2}}>
+                    <div>
+                      <span style={{fontWeight:700,color:a.tipoAtleta === "Adventista" ? "#1D9E75" : "#BA7517"}}>
+                        ⛪ {a.tipoAtleta || "Adventista"} {a.igrejaMembro ? `(${a.igrejaMembro})` : ""}
+                      </span>
+                      {a.celular1 && ` · 📞 ${a.celular1}`}
+                      {a.email && ` · ✉️ ${a.email}`}
+                    </div>
+                    <div>
+                      👤 Mãe: {a.nomeMae || "—"} · 📍 Endereço: {a.logradouro || ""} {a.nomeVia || ""}, {a.bairro || ""}
+                    </div>
+                    <div style={{display:"flex",gap:8,marginTop:4}}>
+                      {a.foto ? <span style={{color:"#1D9E75"}}>✓ Foto Perfil 👤</span> : <span style={{color:"#E24B4A"}}>✕ Sem Foto 👤</span>}
+                      {a.docFoto ? <span style={{color:"#1D9E75"}}>✓ Doc. Anexado 🪪</span> : <span style={{color:"#E24B4A"}}>✕ Sem Doc. 🪪</span>}
+                    </div>
+                  </div>
+                )}
+
                 {a.customFields && Object.keys(a.customFields).length > 0 && (
                   <div style={{fontSize:11,color:t.textSec,marginTop:3,display:"flex",gap:6,flexWrap:"wrap"}}>
                     {Object.entries(a.customFields).map(([k,v]) => v && (
@@ -3652,111 +3790,256 @@ function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,onExport,onImport,onDownlo
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
                 <button onClick={()=>abrirEdicao(a)} style={S.btnSm("#378ADD22","#378ADD")}>✏️</button>
-                <button onClick={()=>{if(window.confirm("Excluir atleta?"))onRemove(a.id);}} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
+                <button onClick={()=>{if(window.confirm("Excluir atleta?"))handleRemove(a.id);}} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
               </div>
             </div>
           </div>
         ))}
       </div>
+
       {modal&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
-          <div style={{...S.card,width:"100%",maxWidth:420,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editId?"✏️ Editar Atleta":"🆕 Novo Atleta"}</div>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome</label><input style={S.input} value={form.nome} onChange={e=>setForm(v=>({...v,nome:e.target.value}))} placeholder="Nome completo"/></div>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Apelido</label><input style={S.input} value={form.apelido} onChange={e=>setForm(v=>({...v,apelido:e.target.value}))} placeholder="Como é chamado"/></div>
-              </div>
-              <div>
-                <label style={S.label}>Foto</label>
-                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                  {form.foto&&<img src={form.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
-                  <input style={{...S.input,flex:1}} value={form.foto} onChange={e=>setForm(v=>({...v,foto:e.target.value}))} placeholder="Cole URL da foto..."/>
-                  <label style={{...S.btn("#378ADD22","#378ADD"),margin:0}}>
-                    📁 Arquivo
-                    <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setForm(v=>({...v,foto:b64})))}}/>
-                  </label>
+          <div style={{...S.card,width:"100%",maxWidth:abaAtletas === "campeonato" ? 480 : 420,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editId ? "✏️ Editar Atleta" : "🆕 Novo Atleta"} ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</div>
+            
+            {abaAtletas === "campeonato" ? (
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                {/* 1. Identificação Básica */}
+                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>1. Identificação do Atleta</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome Completo</label><input style={S.input} value={form.nome} onChange={e=>setForm(v=>({...v,nome:e.target.value}))} placeholder="Nome completo"/></div>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Apelido</label><input style={S.input} value={form.apelido} onChange={e=>setForm(v=>({...v,apelido:e.target.value}))} placeholder="Nome de camisa"/></div>
                 </div>
-              </div>
-              <div>
-                <label style={S.label}>Habilidade</label>
-                <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setForm(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${form.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:form.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:form.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:form.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
-              </div>
-              <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.goleiro} onChange={e=>setForm(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
-                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.ativo} onChange={e=>setForm(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
-              </div>
-
-              <div style={{display:"flex",gap:8,flexWrap:"wrap",borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG/CPF)</label><input style={S.input} value={form.documento || ""} onChange={e=>setForm(v=>({...v,documento:e.target.value}))} placeholder="RG ou CPF"/></div>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={form.dataNascimento || ""} onChange={e=>setForm(v=>({...v,dataNascimento:e.target.value}))}/></div>
-              </div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:140}}>
-                  <label style={S.label}>Número da Camisa</label>
-                  <input type="text" style={S.input} value={form.numeroCamisa || ""} onChange={e=>setForm(v=>({...v,numeroCamisa:e.target.value}))} placeholder="Ex: 10"/>
-                </div>
-                <div style={{flex:1,minWidth:140}}>
-                  <label style={S.label}>Grupo</label>
-                  {(() => {
-                    const gruposDisponiveis = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
-                    if (form.grupo && !gruposDisponiveis.includes(form.grupo)) {
-                      gruposDisponiveis.push(form.grupo);
-                    }
-                    return (
-                      <select 
-                        style={S.select} 
-                        value={form.grupo || ""} 
-                        onChange={e => {
-                          const val = e.target.value;
-                          if (val === "__novo__") {
-                            const novo = window.prompt("Digite o nome do novo grupo:");
-                            if (novo && novo.trim()) {
-                              setForm(v => ({ ...v, grupo: novo.trim() }));
+                
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:100}}>
+                    <label style={S.label}>Número da Camisa</label>
+                    <input type="text" style={S.input} value={form.numeroCamisa || ""} onChange={e=>setForm(v=>({...v,numeroCamisa:e.target.value}))} placeholder="Ex: 10"/>
+                  </div>
+                  <div style={{flex:1,minWidth:140}}>
+                    <label style={S.label}>Grupo / Time</label>
+                    {(() => {
+                      const gruposDisponiveis = Array.from(new Set(atletasCampeonato.map(a => a.grupo).filter(Boolean)));
+                      if (form.grupo && !gruposDisponiveis.includes(form.grupo)) {
+                        gruposDisponiveis.push(form.grupo);
+                      }
+                      return (
+                        <select 
+                          style={S.select} 
+                          value={form.grupo || ""} 
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === "__novo__") {
+                              const novo = window.prompt("Digite o nome do novo grupo/time:");
+                              if (novo && novo.trim()) {
+                                setForm(v => ({ ...v, grupo: novo.trim() }));
+                              }
+                            } else {
+                              setForm(v => ({ ...v, grupo: val }));
                             }
-                          } else {
-                            setForm(v => ({ ...v, grupo: val }));
-                          }
-                        }}
-                      >
-                        <option value="">Nenhum Grupo</option>
-                        {gruposDisponiveis.map(g => (
-                          <option key={g} value={g}>{g}</option>
-                        ))}
-                        <option value="__novo__">➕ Adicionar novo grupo...</option>
-                      </select>
-                    );
-                  })()}
+                          }}
+                        >
+                          <option value="">Nenhum Grupo</option>
+                          {gruposDisponiveis.map(g => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                          <option value="__novo__">➕ Adicionar novo time...</option>
+                        </select>
+                      );
+                    })()}
+                  </div>
                 </div>
-              </div>
 
-              {form.customFields && Object.keys(form.customFields).length > 0 && (
-                <div style={{display:"flex",flexDirection:"column",gap:10,borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
-                  <div style={{fontSize:11,fontWeight:700,color:t.textSec}}>Campos Customizados Existentes:</div>
-                  {Object.entries(form.customFields).map(([k,v]) => (
-                    <div key={k}>
-                      <label style={S.label}>{k}</label>
-                      <input 
-                        style={S.input} 
-                        value={v || ""} 
-                        onChange={e => {
-                          const val = e.target.value;
-                          setForm(prev => ({
-                            ...prev,
-                            customFields: {
-                              ...prev.customFields,
-                              [k]: val
-                            }
-                          }));
-                        }} 
-                      />
+                <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+                  <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.goleiro} onChange={e=>setForm(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
+                  <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.ativo} onChange={e=>setForm(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
+                </div>
+
+                <div>
+                  <label style={S.label}>Habilidade (Nível técnico)</label>
+                  <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setForm(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${form.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:form.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:form.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:form.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
+                </div>
+
+                {/* 2. Dados de Contato e Pessoais */}
+                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>2. Dados Pessoais e de Contato</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG)</label><input style={S.input} value={form.documento || ""} onChange={e=>setForm(v=>({...v,documento:e.target.value}))} placeholder="Apenas números do RG"/></div>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={form.dataNascimento || ""} onChange={e=>setForm(v=>({...v,dataNascimento:e.target.value}))}/></div>
+                </div>
+                
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome da Mãe</label><input style={S.input} value={form.nomeMae || ""} onChange={e=>setForm(v=>({...v,nomeMae:e.target.value}))} placeholder="Nome completo da mãe"/></div>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>E-mail</label><input type="email" style={S.input} value={form.email || ""} onChange={e=>setForm(v=>({...v,email:e.target.value}))} placeholder="exemplo@email.com"/></div>
+                </div>
+
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:100}}><label style={S.label}>Celular 1 (WhatsApp)</label><input style={S.input} value={form.celular1 || ""} onChange={e=>setForm(v=>({...v,celular1:e.target.value}))} placeholder="Ex: 11999999999"/></div>
+                  <div style={{flex:1,minWidth:100}}><label style={S.label}>Celular 2</label><input style={S.input} value={form.celular2 || ""} onChange={e=>setForm(v=>({...v,celular2:e.target.value}))} placeholder="Ex: 11999999998"/></div>
+                  <div style={{flex:1,minWidth:100}}><label style={S.label}>Fone Fixo</label><input style={S.input} value={form.foneResidencial || ""} onChange={e=>setForm(v=>({...v,foneResidencial:e.target.value}))} placeholder="Ex: 1136123456"/></div>
+                </div>
+
+                {/* 3. Vínculo Religioso */}
+                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>3. Vínculo Religioso</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:140}}>
+                    <label style={S.label}>Tipo de Atleta</label>
+                    <select style={S.select} value={form.tipoAtleta || "Adventista"} onChange={e=>setForm(v=>({...v,tipoAtleta:e.target.value}))}>
+                      <option value="Adventista">Atleta Adventista</option>
+                      <option value="Não Adventista">Atleta Não Adventista</option>
+                    </select>
+                  </div>
+                  {form.tipoAtleta === "Adventista" && (
+                    <div style={{flex:1,minWidth:140}}>
+                      <label style={S.label}>Igreja da Carta de Membro</label>
+                      <input style={S.input} value={form.igrejaMembro || ""} onChange={e=>setForm(v=>({...v,igrejaMembro:e.target.value}))} placeholder="IASD a qual é membro"/>
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
+
+                {/* 4. Endereço Residencial */}
+                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>4. Endereço Residencial</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:100}}><label style={S.label}>CEP</label><input style={S.input} value={form.cep || ""} onChange={e=>setForm(v=>({...v,cep:e.target.value}))} placeholder="Ex: 69000-000"/></div>
+                  <div style={{flex:1,minWidth:100}}>
+                    <label style={S.label}>Logradouro</label>
+                    <select style={S.select} value={form.logradouro || "Rua"} onChange={e=>setForm(v=>({...v,logradouro:e.target.value}))}>
+                      <option value="Rua">Rua</option>
+                      <option value="Avenida">Avenida</option>
+                      <option value="Travessa">Travessa</option>
+                      <option value="Beco">Beco</option>
+                    </select>
+                  </div>
+                  <div style={{flex:2,minWidth:140}}><label style={S.label}>Nome da Via</label><input style={S.input} value={form.nomeVia || ""} onChange={e=>setForm(v=>({...v,nomeVia:e.target.value}))} placeholder="Nome da rua/avenida"/></div>
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Bairro</label><input style={S.input} value={form.bairro || ""} onChange={e=>setForm(v=>({...v,bairro:e.target.value}))} placeholder="Bairro"/></div>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Complemento</label><input style={S.input} value={form.complemento || ""} onChange={e=>setForm(v=>({...v,complemento:e.target.value}))} placeholder="Ex: Casa, Apto, Fundos"/></div>
+                </div>
+
+                {/* 5. Documentos e Fotos */}
+                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>5. Uploads de Arquivos / Fotos</div>
+                <div>
+                  <label style={S.label}>Foto de Rosto (Perfil)</label>
+                  <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                    {form.foto&&<img src={form.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
+                    <input style={{...S.input,flex:1}} value={form.foto} onChange={e=>setForm(v=>({...v,foto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
+                    <label style={{...S.btn("#378ADD22","#378ADD"),margin:0}}>
+                      📁 Rosto
+                      <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setForm(v=>({...v,foto:b64})))}}/>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={S.label}>Documento Oficial com Foto (Frente e Verso)</label>
+                  <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                    {form.docFoto&&<img src={form.docFoto} style={{width:40,height:40,borderRadius:4,objectFit:"cover"}}/>}
+                    <input style={{...S.input,flex:1}} value={form.docFoto} onChange={e=>setForm(v=>({...v,docFoto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
+                    <label style={{...S.btn("#1D9E7522","#1D9E75"),margin:0}}>
+                      📁 Doc. Foto
+                      <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],600,(b64)=>setForm(v=>({...v,docFoto:b64})))}}/>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome</label><input style={S.input} value={form.nome} onChange={e=>setForm(v=>({...v,nome:e.target.value}))} placeholder="Nome completo"/></div>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Apelido</label><input style={S.input} value={form.apelido} onChange={e=>setForm(v=>({...v,apelido:e.target.value}))} placeholder="Como é chamado"/></div>
+                </div>
+                <div>
+                  <label style={S.label}>Foto</label>
+                  <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                    {form.foto&&<img src={form.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
+                    <input style={{...S.input,flex:1}} value={form.foto} onChange={e=>setForm(v=>({...v,foto:e.target.value}))} placeholder="Cole URL da foto..."/>
+                    <label style={{...S.btn("#378ADD22","#378ADD"),margin:0}}>
+                      📁 Arquivo
+                      <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setForm(v=>({...v,foto:b64})))}}/>
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <label style={S.label}>Habilidade</label>
+                  <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setForm(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${form.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:form.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:form.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:form.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
+                </div>
+                <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+                  <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.goleiro} onChange={e=>setForm(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
+                  <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.ativo} onChange={e=>setForm(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
+                </div>
+
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG/CPF)</label><input style={S.input} value={form.documento || ""} onChange={e=>setForm(v=>({...v,documento:e.target.value}))} placeholder="RG ou CPF"/></div>
+                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={form.dataNascimento || ""} onChange={e=>setForm(v=>({...v,dataNascimento:e.target.value}))}/></div>
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:140}}>
+                    <label style={S.label}>Número da Camisa</label>
+                    <input type="text" style={S.input} value={form.numeroCamisa || ""} onChange={e=>setForm(v=>({...v,numeroCamisa:e.target.value}))} placeholder="Ex: 10"/>
+                  </div>
+                  <div style={{flex:1,minWidth:140}}>
+                    <label style={S.label}>Grupo</label>
+                    {(() => {
+                      const gruposDisponiveis = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
+                      if (form.grupo && !gruposDisponiveis.includes(form.grupo)) {
+                        gruposDisponiveis.push(form.grupo);
+                      }
+                      return (
+                        <select 
+                          style={S.select} 
+                          value={form.grupo || ""} 
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === "__novo__") {
+                              const novo = window.prompt("Digite o nome do novo grupo:");
+                              if (novo && novo.trim()) {
+                                setForm(v => ({ ...v, grupo: novo.trim() }));
+                              }
+                            } else {
+                              setForm(v => ({ ...v, grupo: val }));
+                            }
+                          }}
+                        >
+                          <option value="">Nenhum Grupo</option>
+                          {gruposDisponiveis.map(g => (
+                            <option key={g} value={g}>{g}</option>
+                          ))}
+                          <option value="__novo__">➕ Adicionar novo grupo...</option>
+                        </select>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {form.customFields && Object.keys(form.customFields).length > 0 && (
+                  <div style={{display:"flex",flexDirection:"column",gap:10,borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
+                    <div style={{fontSize:11,fontWeight:700,color:t.textSec}}>Campos Customizados Existentes:</div>
+                    {Object.entries(form.customFields).map(([k,v]) => (
+                      <div key={k}>
+                        <label style={S.label}>{k}</label>
+                        <input 
+                          style={S.input} 
+                          value={v || ""} 
+                          onChange={e => {
+                            const val = e.target.value;
+                            setForm(prev => ({
+                              ...prev,
+                              customFields: {
+                                ...prev.customFields,
+                                [k]: val
+                              }
+                            }));
+                          }} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{display:"flex",gap:8,marginTop:16}}>
-              <button onClick={salvar} style={S.btn("#378ADD")}>Salvar</button>
+              <button onClick={salvar} style={S.btn(abaAtletas === "pelada" ? "#378ADD" : "#1D9E75")}>Salvar</button>
               <button onClick={()=>setModal(false)} style={S.btn(t.card,t.textSec)}>Cancelar</button>
             </div>
           </div>
@@ -3764,9 +4047,7 @@ function CRUDAtletas({atletas,onAdd,onUpdate,onRemove,onExport,onImport,onDownlo
       )}
     </div>
   );
-}
-
-/* ─────────────────────────── CRIAR PELADA ───────────────────────── */
+}/* ─────────────────────────── CRIAR PELADA ───────────────────────── */
 function CriarPelada({onSave,initial,t}){
   const S=makeStyles(t);
   const[nome,setNome]=useState(initial?.nome||"");
@@ -5595,7 +5876,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     );
   };
 
-  function abrirNovoAtletaCamp() {
+    function abrirNovoAtletaCamp() {
     setEditAtletaId(null);
     setFormAtleta({
       nome: filtroElenco.trim(),
@@ -5604,10 +5885,23 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       habilidade: 3,
       goleiro: false,
       ativo: true,
-      documento: "",
+      documento: "", // RG
       dataNascimento: "",
       numeroCamisa: "",
-      grupo: filtroGrupoElenco,
+      grupo: filtroGrupoElenco || "",
+      celular1: "",
+      celular2: "",
+      foneResidencial: "",
+      email: "",
+      tipoAtleta: "Adventista",
+      igrejaMembro: "",
+      logradouro: "Rua",
+      nomeVia: "",
+      cep: "",
+      complemento: "",
+      bairro: "",
+      nomeMae: "",
+      docFoto: "",
       customFields: {}
     });
     setModalNovoAtleta(true);
@@ -5619,13 +5913,26 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       nome: a.nome,
       apelido: a.apelido || "",
       foto: a.foto || "",
-      habilidade: a.habilidade,
+      habilidade: a.habilidade || 3,
       goleiro: a.goleiro || false,
       ativo: a.ativo !== false,
       documento: a.documento || "",
       dataNascimento: a.dataNascimento || "",
       numeroCamisa: a.numeroCamisa || "",
       grupo: a.grupo || "",
+      celular1: a.celular1 || "",
+      celular2: a.celular2 || "",
+      foneResidencial: a.foneResidencial || "",
+      email: a.email || "",
+      tipoAtleta: a.tipoAtleta || "Adventista",
+      igrejaMembro: a.igrejaMembro || "",
+      logradouro: a.logradouro || "Rua",
+      nomeVia: a.nomeVia || "",
+      cep: a.cep || "",
+      complemento: a.complemento || "",
+      bairro: a.bairro || "",
+      nomeMae: a.nomeMae || "",
+      docFoto: a.docFoto || "",
       customFields: a.customFields || {}
     });
     setModalNovoAtleta(true);
@@ -7270,46 +7577,25 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           </div>
         </div>
       )}
-      {modalNovoAtleta && (
+            {modalNovoAtleta && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001,padding:16}}>
-          <div style={{...S.card,width:"100%",maxWidth:420,maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{...S.card,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
             <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editAtletaId ? "✏️ Editar Cadastro do Atleta" : "🆕 Cadastrar Atleta e Escalá-lo"}</div>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {/* 1. Identificação Básica */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>1. Identificação do Atleta</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome</label><input style={S.input} value={formAtleta.nome} onChange={e=>setFormAtleta(v=>({...v,nome:e.target.value}))} placeholder="Nome completo"/></div>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Apelido</label><input style={S.input} value={formAtleta.apelido} onChange={e=>setFormAtleta(v=>({...v,apelido:e.target.value}))} placeholder="Como é chamado"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome Completo</label><input style={S.input} value={formAtleta.nome} onChange={e=>setFormAtleta(v=>({...v,nome:e.target.value}))} placeholder="Nome completo"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Apelido</label><input style={S.input} value={formAtleta.apelido} onChange={e=>setFormAtleta(v=>({...v,apelido:e.target.value}))} placeholder="Nome de camisa"/></div>
               </div>
-              <div>
-                <label style={S.label}>Foto</label>
-                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                  {formAtleta.foto&&<img src={formAtleta.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
-                  <input style={{...S.input,flex:1}} value={formAtleta.foto} onChange={e=>setFormAtleta(v=>({...v,foto:e.target.value}))} placeholder="Cole URL da foto..."/>
-                  <label style={{...S.btn("#378ADD22","#378ADD"),margin:0}}>
-                    📁 Arquivo
-                    <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setFormAtleta(v=>({...v,foto:b64})))}}/>
-                  </label>
-                </div>
-              </div>
-              <div>
-                <label style={S.label}>Habilidade</label>
-                <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setFormAtleta(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${formAtleta.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:formAtleta.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:formAtleta.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:formAtleta.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
-              </div>
-              <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.goleiro} onChange={e=>setFormAtleta(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
-                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.ativo} onChange={e=>setFormAtleta(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
-              </div>
-
-              <div style={{display:"flex",gap:8,flexWrap:"wrap",borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG/CPF)</label><input style={S.input} value={formAtleta.documento || ""} onChange={e=>setFormAtleta(v=>({...v,documento:e.target.value}))} placeholder="RG ou CPF"/></div>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={formAtleta.dataNascimento || ""} onChange={e=>setFormAtleta(v=>({...v,dataNascimento:e.target.value}))}/></div>
-              </div>
+              
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:140}}>
+                <div style={{flex:1,minWidth:100}}>
                   <label style={S.label}>Número da Camisa</label>
                   <input type="text" style={S.input} value={formAtleta.numeroCamisa || ""} onChange={e=>setFormAtleta(v=>({...v,numeroCamisa:e.target.value}))} placeholder="Ex: 10"/>
                 </div>
                 <div style={{flex:1,minWidth:140}}>
-                  <label style={S.label}>Grupo</label>
+                  <label style={S.label}>Grupo / Time</label>
                   {(() => {
                     const gruposDisponiveis = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
                     if (formAtleta.grupo && !gruposDisponiveis.includes(formAtleta.grupo)) {
@@ -7322,7 +7608,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                         onChange={e => {
                           const val = e.target.value;
                           if (val === "__novo__") {
-                            const novo = window.prompt("Digite o nome do novo grupo:");
+                            const novo = window.prompt("Digite o nome do novo grupo/time:");
                             if (novo && novo.trim()) {
                               setFormAtleta(v => ({ ...v, grupo: novo.trim() }));
                             }
@@ -7335,10 +7621,102 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                         {gruposDisponiveis.map(g => (
                           <option key={g} value={g}>{g}</option>
                         ))}
-                        <option value="__novo__">➕ Adicionar novo grupo...</option>
+                        <option value="__novo__">➕ Adicionar novo time...</option>
                       </select>
                     );
                   })()}
+                </div>
+              </div>
+
+              <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.goleiro} onChange={e=>setFormAtleta(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
+                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.ativo} onChange={e=>setFormAtleta(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
+              </div>
+
+              <div>
+                <label style={S.label}>Habilidade (Nível técnico)</label>
+                <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setFormAtleta(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${formAtleta.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:formAtleta.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:formAtleta.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:formAtleta.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
+              </div>
+
+              {/* 2. Dados de Contato e Pessoais */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>2. Dados Pessoais e de Contato</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG)</label><input style={S.input} value={formAtleta.documento || ""} onChange={e=>setFormAtleta(v=>({...v,documento:e.target.value}))} placeholder="Apenas números do RG"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={formAtleta.dataNascimento || ""} onChange={e=>setFormAtleta(v=>({...v,dataNascimento:e.target.value}))}/></div>
+              </div>
+              
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome da Mãe</label><input style={S.input} value={formAtleta.nomeMae || ""} onChange={e=>setFormAtleta(v=>({...v,nomeMae:e.target.value}))} placeholder="Nome completo da mãe"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>E-mail</label><input type="email" style={S.input} value={formAtleta.email || ""} onChange={e=>setFormAtleta(v=>({...v,email:e.target.value}))} placeholder="exemplo@email.com"/></div>
+              </div>
+
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:100}}><label style={S.label}>Celular 1 (WhatsApp)</label><input style={S.input} value={formAtleta.celular1 || ""} onChange={e=>setFormAtleta(v=>({...v,celular1:e.target.value}))} placeholder="Ex: 11999999999"/></div>
+                <div style={{flex:1,minWidth:100}}><label style={S.label}>Celular 2</label><input style={S.input} value={formAtleta.celular2 || ""} onChange={e=>setFormAtleta(v=>({...v,celular2:e.target.value}))} placeholder="Ex: 11999999998"/></div>
+                <div style={{flex:1,minWidth:100}}><label style={S.label}>Fone Fixo</label><input style={S.input} value={formAtleta.foneResidencial || ""} onChange={e=>setFormAtleta(v=>({...v,foneResidencial:e.target.value}))} placeholder="Ex: 1136123456"/></div>
+              </div>
+
+              {/* 3. Vínculo Religioso */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>3. Vínculo Religioso</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:140}}>
+                  <label style={S.label}>Tipo de Atleta</label>
+                  <select style={S.select} value={formAtleta.tipoAtleta || "Adventista"} onChange={e=>setFormAtleta(v=>({...v,tipoAtleta:e.target.value}))}>
+                    <option value="Adventista">Atleta Adventista</option>
+                    <option value="Não Adventista">Atleta Não Adventista</option>
+                  </select>
+                </div>
+                {formAtleta.tipoAtleta === "Adventista" && (
+                  <div style={{flex:1,minWidth:140}}>
+                    <label style={S.label}>Igreja da Carta de Membro</label>
+                    <input style={S.input} value={formAtleta.igrejaMembro || ""} onChange={e=>setFormAtleta(v=>({...v,igrejaMembro:e.target.value}))} placeholder="IASD a qual é membro"/>
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Endereço Residencial */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>4. Endereço Residencial</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:100}}><label style={S.label}>CEP</label><input style={S.input} value={formAtleta.cep || ""} onChange={e=>setFormAtleta(v=>({...v,cep:e.target.value}))} placeholder="Ex: 69000-000"/></div>
+                <div style={{flex:1,minWidth:100}}>
+                  <label style={S.label}>Logradouro</label>
+                  <select style={S.select} value={formAtleta.logradouro || "Rua"} onChange={e=>setFormAtleta(v=>({...v,logradouro:e.target.value}))}>
+                    <option value="Rua">Rua</option>
+                    <option value="Avenida">Avenida</option>
+                    <option value="Travessa">Travessa</option>
+                    <option value="Beco">Beco</option>
+                  </select>
+                </div>
+                <div style={{flex:2,minWidth:140}}><label style={S.label}>Nome da Via</label><input style={S.input} value={formAtleta.nomeVia || ""} onChange={e=>setFormAtleta(v=>({...v,nomeVia:e.target.value}))} placeholder="Nome da rua/avenida"/></div>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Bairro</label><input style={S.input} value={formAtleta.bairro || ""} onChange={e=>setFormAtleta(v=>({...v,bairro:e.target.value}))} placeholder="Bairro"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Complemento</label><input style={S.input} value={formAtleta.complemento || ""} onChange={e=>setFormAtleta(v=>({...v,complemento:e.target.value}))} placeholder="Ex: Casa, Apto, Fundos"/></div>
+              </div>
+
+              {/* 5. Documentos e Fotos */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>5. Uploads de Arquivos / Fotos</div>
+              <div>
+                <label style={S.label}>Foto de Rosto (Perfil)</label>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                  {formAtleta.foto&&<img src={formAtleta.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
+                  <input style={{...S.input,flex:1}} value={formAtleta.foto} onChange={e=>setFormAtleta(v=>({...v,foto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
+                  <label style={{...S.btn("#378ADD22","#378ADD"),margin:0}}>
+                    📁 Rosto
+                    <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setFormAtleta(v=>({...v,foto:b64})))}}/>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label style={S.label}>Documento Oficial com Foto (Frente e Verso)</label>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                  {formAtleta.docFoto&&<img src={formAtleta.docFoto} style={{width:40,height:40,borderRadius:4,objectFit:"cover"}}/>}
+                  <input style={{...S.input,flex:1}} value={formAtleta.docFoto} onChange={e=>setFormAtleta(v=>({...v,docFoto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
+                  <label style={{...S.btn("#1D9E7522","#1D9E75"),margin:0}}>
+                    📁 Doc. Foto
+                    <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],600,(b64)=>setFormAtleta(v=>({...v,docFoto:b64})))}}/>
+                  </label>
                 </div>
               </div>
 
@@ -7569,6 +7947,7 @@ export default function App(){
     peladas: [],
     datasRealizacao: [],
     atletas: [],
+    atletasCampeonato: [],
     participacoes: [],
     financeiro: { entries: [] },
     managers: [],
@@ -7586,6 +7965,11 @@ export default function App(){
   useEffect(() => {
     allAtletasRef.current = allAtletas;
   }, [allAtletas]);
+  const allAtletasCampeonato = Array.isArray(appState?.atletasCampeonato) ? appState.atletasCampeonato : [];
+  const allAtletasCampeonatoRef = useRef(allAtletasCampeonato);
+  useEffect(() => {
+    allAtletasCampeonatoRef.current = allAtletasCampeonato;
+  }, [allAtletasCampeonato]);
   const participacoes = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
   const financeiro = appState?.financeiro && typeof appState.financeiro === 'object' ? appState.financeiro : { entries: [] };
   const managers = Array.isArray(appState?.managers) ? appState.managers : [];
@@ -7955,6 +8339,7 @@ export default function App(){
   const campeonatos = filterByManager(allCampeonatos).filter(c => auth.role === "adm" || auth.scope === "geral" || auth.scope === "campeonato");
   const peladas = filterByManager(allPeladas).filter(p => auth.role === "adm" || auth.scope === "geral" || auth.scope === "pelada");
   const atletas = filterByManager(allAtletas);
+  const atletasCampeonato = filterByManager(allAtletasCampeonato);
 
   const escapeHtml = (value) => {
     return String(value ?? "")
@@ -8066,12 +8451,128 @@ export default function App(){
           customFields: item.customFields && typeof item.customFields === "object" ? item.customFields : {},
         };
       });
-      if (!window.confirm("Importar atletas substituirá a lista atual de atletas. Deseja continuar?")) return;
+            if (!window.confirm("Importar atletas substituirá a lista atual de atletas. Deseja continuar?")) return;
       setAtletas(normalized);
       alert(`Importação concluída com ${normalized.length} atletas.`);
     } catch (error) {
       console.error("Importar atletas falhou:", error);
       alert("Erro ao importar atletas: " + (error.message || error));
+    } finally {
+      if (event.target) event.target.value = "";
+    }
+  };
+
+  const downloadAtletasCampeonatoTemplate = () => {
+    const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","grupo","celular1","celular2","foneResidencial","email","tipoAtleta","igrejaMembro","logradouro","nomeVia","cep","complemento","bairro","nomeMae","docFoto","customFields"];
+    const sample = {
+      id: "",
+      nome: "João Silva",
+      apelido: "João",
+      foto: "",
+      habilidade: "3",
+      goleiro: "false",
+      ativo: "true",
+      documento: "1234567",
+      dataNascimento: "1990-01-01",
+      numeroCamisa: "10",
+      grupo: "Time A",
+      celular1: "11999999999",
+      celular2: "",
+      foneResidencial: "",
+      email: "joao@email.com",
+      tipoAtleta: "Adventista",
+      igrejaMembro: "Igreja Central",
+      logradouro: "Rua",
+      nomeVia: "Das Flores",
+      cep: "01001-000",
+      complemento: "Apto 12",
+      bairro: "Centro",
+      nomeMae: "Maria Silva",
+      docFoto: "",
+      customFields: "{}"
+    };
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody><tr>${headers.map(key => `<td>${escapeHtml(sample[key] ?? "")}</td>`).join("")}</tr></tbody></table></body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `modelo-atletas-campeonato.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  };
+
+  const exportAtletasCampeonato = () => {
+    const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","grupo","celular1","celular2","foneResidencial","email","tipoAtleta","igrejaMembro","logradouro","nomeVia","cep","complemento","bairro","nomeMae","docFoto","customFields"];
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${atletasCampeonato.map(a => `<tr>${headers.map(key => `<td>${escapeHtml(key === "customFields" ? JSON.stringify(a.customFields || {}) : a[key] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `atletas-campeonato-${todayStr()}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  };
+
+  const importAtletasCampeonato = async (event) => {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/html");
+      const table = doc.querySelector("table");
+      if (!table) throw new Error("O arquivo XLS não contém uma tabela válida.");
+      const rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
+      if (rows.length < 2) throw new Error("A tabela XLS não contém dados de atletas.");
+      const headers = rows[0].map(h => String(h).trim());
+      const dataRows = rows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
+      const normalized = dataRows.map(cells => {
+        const item = {};
+        cells.forEach((value, index) => {
+          const key = headers[index];
+          if (!key) return;
+          if (key === "customFields") {
+            try {
+              item.customFields = JSON.parse(value || "{}");
+            } catch {
+              item.customFields = {};
+            }
+            return;
+          }
+          if (key === "habilidade") {
+            item.habilidade = Number(value) || 3;
+            return;
+          }
+          if (key === "goleiro" || key === "ativo") {
+            item[key] = String(value).trim().toLowerCase() === "true";
+            return;
+          }
+          if (key === "id") {
+            item.id = value ? Number(value) : undefined;
+            return;
+          }
+          item[key] = value;
+        });
+        return {
+          ...item,
+          id: item.id || Date.now() + Math.floor(Math.random() * 100000),
+          habilidade: Number(item.habilidade) || 3,
+          ativo: item.ativo !== false,
+          goleiro: item.goleiro === true,
+          manager_id: auth.role === "manager" ? auth.manager_id : item.manager_id,
+          customFields: item.customFields && typeof item.customFields === "object" ? item.customFields : {},
+        };
+      });
+      if (!window.confirm("Importar atletas substituirá a lista atual de atletas de campeonatos. Deseja continuar?")) return;
+      setAtletasCampeonato(normalized);
+      alert(`Importação concluída com ${normalized.length} atletas de campeonato.`);
+    } catch (error) {
+      console.error("Importar atletas de campeonato falhou:", error);
+      alert("Erro ao importar atletas de campeonato: " + (error.message || error));
     } finally {
       if (event.target) event.target.value = "";
     }
@@ -8101,6 +8602,7 @@ export default function App(){
   const setPeladas = d => setAppState(s => ({ ...s, peladas: typeof d === 'function' ? d(Array.isArray(s.peladas) ? s.peladas : []) : d }));
   const setDatasRealizacao = d => setAppState(s => ({ ...s, datasRealizacao: typeof d === 'function' ? d(Array.isArray(s.datasRealizacao) ? s.datasRealizacao : []) : d }));
   const setAtletas = d => setAppState(s => ({ ...s, atletas: typeof d === 'function' ? d(Array.isArray(s.atletas) ? s.atletas : []) : d }));
+  const setAtletasCampeonato = d => setAppState(s => ({ ...s, atletasCampeonato: typeof d === 'function' ? d(Array.isArray(s.atletasCampeonato) ? s.atletasCampeonato : []) : d }));
   const setParticipacoes = d => setAppState(s => ({ ...s, participacoes: typeof d === 'function' ? d(Array.isArray(s.participacoes) ? s.participacoes : []) : d }));
   const setFinanceiro = d => setAppState(s => ({ ...s, financeiro: typeof d === 'function' ? d(s.financeiro && typeof s.financeiro === 'object' ? s.financeiro : { entries: [] }) : d }));
   const setManagers = d => setAppState(s => ({ ...s, managers: typeof d === 'function' ? d(Array.isArray(s.managers) ? s.managers : []) : d }));
@@ -8146,10 +8648,13 @@ export default function App(){
     }
   }, [screen]);
 
-  // ── CRUD Atletas ───────────────────────────────────────────────
+    // ── CRUD Atletas ───────────────────────────────────────────────
   const adicionarAtleta  =d=>setAtletas(p=>[...p,{...d,id:d.id || Date.now() + Math.floor(Math.random() * 100000), manager_id: auth.role === "manager" ? auth.manager_id : null}]);
   const atualizarAtleta  =(id,d)=>setAtletas(p=>p.map(a=>a.id===id?{...a,...d}:a));
   const removerAtleta    =id=>setAtletas(p=>p.filter(a=>a.id!==id));
+  const adicionarAtletaCampeonato  =d=>setAtletasCampeonato(p=>[...p,{...d,id:d.id || Date.now() + Math.floor(Math.random() * 100000), manager_id: auth.role === "manager" ? auth.manager_id : null}]);
+  const atualizarAtletaCampeonato  =(id,d)=>setAtletasCampeonato(p=>p.map(a=>a.id===id?{...a,...d}:a));
+  const removerAtletaCampeonato    =id=>setAtletasCampeonato(p=>p.filter(a=>a.id!==id));
 
   // ── CRUD Datas Realização ──────────────────────────────────────
   const adicionarData=(d)=>setDatasRealizacao(p=>[...p,{...d,id:Date.now()}]);
@@ -8174,7 +8679,7 @@ export default function App(){
           const payload = {
             ...u,
             lastPublished: new Date().toISOString(),
-            atletas: allAtletasRef.current.map(a => ({ 
+                        atletas: allAtletasCampeonatoRef.current.map(a => ({ 
               id: a.id, 
               nome: a.nome || "", 
               apelido: a.apelido || "", 
@@ -8213,7 +8718,7 @@ export default function App(){
         ...c,
         npointId: docId,
         lastPublished: new Date().toISOString(),
-        atletas: allAtletasRef.current.map(a => ({ 
+                atletas: allAtletasCampeonatoRef.current.map(a => ({ 
           id: a.id, 
           nome: a.nome || "", 
           apelido: a.apelido || "", 
@@ -8252,7 +8757,7 @@ export default function App(){
 
   // ── BACKUP / RESTAURAR ─────────────────────────────────────────
   async function exportJSON(){
-    const data = {campeonatos,peladas,datasRealizacao,atletas,participacoes,financeiro,managers};
+    const data = {campeonatos,peladas,datasRealizacao,atletas,atletasCampeonato,participacoes,financeiro,managers};
     const fileName = `futebol_manager_backup_${todayStr()}.json`;
     const jsonStr = JSON.stringify(data, null, 2);
     const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
@@ -8339,6 +8844,7 @@ export default function App(){
       try {
         const data = JSON.parse(evt.target.result);
         if(Array.isArray(data.atletas)) setAtletas(data.atletas);
+        if(Array.isArray(data.atletasCampeonato)) setAtletasCampeonato(data.atletasCampeonato);
         if(Array.isArray(data.peladas)) setPeladas(data.peladas);
         if(Array.isArray(data.datasRealizacao)) setDatasRealizacao(data.datasRealizacao);
         if(Array.isArray(data.participacoes)) setParticipacoes(data.participacoes);
@@ -8451,8 +8957,8 @@ export default function App(){
     return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} onForgotPassword={handleForgotPassword} onBack={() => setScreen("selection")} t={t} />;
   }
 
-  if(screen==="public"){
-    return <PublicScreen campeonatos={campeonatos} atletas={atletas} current={current} setCurrent={setCurrent} onBack={()=>{setCurrent(null);setScreen("selection");}} t={t} />;
+    if(screen==="public"){
+    return <PublicScreen campeonatos={campeonatos} atletas={atletasCampeonato} current={current} setCurrent={setCurrent} onBack={()=>{setCurrent(null);setScreen("selection");}} t={t} />;
   }
 
   if(screen==="publicCloud"){
@@ -8820,7 +9326,23 @@ export default function App(){
         <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setScreen("home")} style={S.btnSm()}>← Voltar</button><h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>👤 Atletas</h2></div>
         <DarkBtn/>
       </div>
-      <CRUDAtletas atletas={atletas} onAdd={adicionarAtleta} onUpdate={atualizarAtleta} onRemove={removerAtleta} onExport={exportAtletas} onImport={importAtletas} onDownloadTemplate={downloadAtletasTemplate} t={t}/>
+            <CRUDAtletas 
+        atletas={atletas} 
+        onAdd={adicionarAtleta} 
+        onUpdate={atualizarAtleta} 
+        onRemove={removerAtleta} 
+        onExport={exportAtletas} 
+        onImport={importAtletas} 
+        onDownloadTemplate={downloadAtletasTemplate} 
+        atletasCampeonato={atletasCampeonato} 
+        onAddCamp={adicionarAtletaCampeonato} 
+        onUpdateCamp={atualizarAtletaCampeonato} 
+        onRemoveCamp={removerAtletaCampeonato} 
+        onExportCamp={exportAtletasCampeonato} 
+        onImportCamp={importAtletasCampeonato} 
+        onDownloadTemplateCamp={downloadAtletasCampeonatoTemplate} 
+        t={t}
+      />
     </div>
   );
 
@@ -8842,15 +9364,15 @@ export default function App(){
 
   /* ── GERENCIAR CAMPEONATO ─────────────────────────────────────── */
   if(screen==="gerenciarChamp"&&current)return(
-    <CampeonatoScreen 
+        <CampeonatoScreen 
       champ={campeonatos.find(c=>c.id===current.id)||current} 
-      atletas={atletas} 
+      atletas={atletasCampeonato} 
       onUpdate={atualizarChamp} 
       onDelete={id=>{removerChamp(id); setFinanceiroWrapped(f=>({entries:(f.entries||[]).filter(e=>String(e.champ_id)!==String(id))})); setScreen("home");}} 
       onBack={()=>setScreen("home")} 
       setFinanceiro={setFinanceiroWrapped}
-      onAddAtleta={adicionarAtleta}
-      onUpdateAtleta={atualizarAtleta}
+      onAddAtleta={adicionarAtletaCampeonato}
+      onUpdateAtleta={atualizarAtletaCampeonato}
       cloudLoading={cloudLoading}
       publicarNaNuvem={publicarNaNuvem}
       t={t}
