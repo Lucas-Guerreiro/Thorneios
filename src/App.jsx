@@ -20,7 +20,13 @@ const COLORS = ["#1D9E75","#378ADD","#D85A30","#7F77DD","#BA7517","#D4537E","#63
 const deepClone = o => JSON.parse(JSON.stringify(o));
 const fmtDate = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
 const fmtCur  = v => `R$ ${Number(v||0).toFixed(2).replace(".",",")}`;
-const todayStr= () => new Date().toISOString().split("T")[0];
+const todayStr= () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 const SKILL_COLORS = ["#888","#BA7517","#378ADD","#1D9E75","#D85A30"];
 const SKILL_NAMES  = ["Iniciante","Básico","Intermediário","Avançado","Elite"];
 const LIGHT = { bg: "#ffffff", card: "#ffffff", cardBorder: "#efefef", inputBg: "#fafafa", inputBorder: "#dbdbdb", inputColor: "#262626", text: "#262626", textSec: "#737373", tabBorder: "#efefef" };
@@ -2797,6 +2803,11 @@ function StandingsTable({standings,teams,colorOf,accent,t}){
 function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepDataId, repSortBy, setRepSortBy, formatarData, t }) {
   const S = makeStyles(t);
   
+  const colorOfTeam = n => {
+    const i = (peladaState?.teams || []).findIndex(x => x.name === n);
+    return COLORS[i % COLORS.length] || "#888";
+  };
+
   const getFilteredMatches = () => {
     const log = peladaState?.matchLog || [];
     const dataObj = datas.find(x => String(x.id) === String(repDataId));
@@ -2804,7 +2815,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
       ? log.filter(m => m.played)
       : log.filter(m => m.played && (
           String(m.dataRealizacaoId) === String(repDataId) || 
-          (dataObj && m.date === dataObj.data)
+          (dataObj && (m.date === dataObj.data || formatarData(m.date) === formatarData(dataObj.data)))
         ));
   };
 
@@ -2866,6 +2877,33 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
     }
   };
 
+  const getFilteredStandings = () => {
+    if (!peladaState?.teams) return [];
+    const st = peladaState.teams.map(t => ({ name: t.name, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, pts: 0 }));
+    const filteredMatches = getFilteredMatches();
+    
+    filteredMatches.forEach(m => {
+      const h = st.find(x => x.name === m.teamA);
+      const a = st.find(x => x.name === m.teamB);
+      if (!h || !a) return;
+      const hs = parseInt(m.scoreA) || 0;
+      const as2 = parseInt(m.scoreB) || 0;
+      h.j++; a.j++;
+      h.gp += hs; h.gc += as2;
+      a.gp += as2; a.gc += hs;
+      h.sg = h.gp - h.gc;
+      a.sg = a.gp - a.gc;
+      if (hs > as2) {
+        h.v++; h.pts += 3; a.d++;
+      } else if (hs === as2) {
+        h.e++; h.pts++; a.e++; a.pts++;
+      } else {
+        a.v++; a.pts += 3; h.d++;
+      }
+    });
+    return st.sort((a, b) => b.pts - a.pts || b.sg - a.sg || b.gp - a.gp);
+  };
+
   const getMostWinningTeam = () => {
     const filteredMatches = getFilteredMatches();
     const winCounts = {};
@@ -2888,7 +2926,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
   return (
     <div>
       {/* Filtros */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }} className="no-print">
         <div style={{ flex: 1, minWidth: 200 }}>
           <label style={{ ...S.label, marginBottom: 4 }}>Filtrar por Data:</label>
           <select 
@@ -2903,7 +2941,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
           </select>
         </div>
         
-        <div style={{ display: "flex", gap: 8, flexShrink: 0, marginTop: 18 }}>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0, marginTop: 18, flexWrap: "wrap" }}>
           <button 
             onClick={() => setRepSortBy("pts")} 
             style={S.btnSm(repSortBy === "pts" ? "#0095F6" : "transparent", repSortBy === "pts" ? "#fff" : t.textSec)}
@@ -2915,6 +2953,12 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
             style={S.btnSm(repSortBy === "gols" ? "#0095F6" : "transparent", repSortBy === "gols" ? "#fff" : t.textSec)}
           >
             Classificar por Gols
+          </button>
+          <button 
+            onClick={() => window.print()} 
+            style={{...S.btnSm("#0095F6", "#fff"), fontWeight: 700}}
+          >
+            📄 Exportar PDF
           </button>
         </div>
       </div>
@@ -2929,6 +2973,12 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
           <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
           <div style={{ fontSize: 16, fontWeight: 800, color: "#1D9E75", marginTop: 8 }}>{getMostWinningTeam()}</div>
         </div>
+      </div>
+
+      {/* Classificação dos Times */}
+      <div style={{ ...S.card, marginBottom: 20 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>🏆 Classificação dos Times</div>
+        <StandingsTable standings={getFilteredStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent="#0095F6" t={t} />
       </div>
 
       {/* Tabela do Relatório */}
@@ -4249,7 +4299,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
       {/* Abas principais */}
       <div style={{display:"flex",gap:0,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:20}}>
-        {[...ABAS,"sorteio","jogos","placar","relatório"].map(tb=><button key={tb} onClick={()=>setAba(tb)} style={S.tab(aba===tb)}>{tb.charAt(0).toUpperCase()+tb.slice(1)}</button>)}
+        {[...ABAS,"sorteio","jogos","placar","relatório"].map(tb=><button key={tb} onClick={()=>setAba(tb)} style={S.tab(aba===tb)}>{tb === "placar" ? "Classificação" : tb.charAt(0).toUpperCase()+tb.slice(1)}</button>)}
       </div>
 
       {aba==="info"&&(
@@ -4378,21 +4428,21 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               {/* Cronômetro com Alarme da Pelada */}
               <MatchTimer t={t} defaultMinutes={10} timerKey={`pelada_${pelada.id}`} />
 
-              <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:8,alignItems:"center",marginBottom:12}}>
-                <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamA)}55`,padding:10,textAlign:"right"}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}><span style={{fontWeight:700,fontSize:13,color:t.text}}>{peladaState.currentMatch.teamA}</span><div style={{width:10,height:10,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamA),flexShrink:0}}/></div>
-                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:4}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>⚽<input type="number" min={0} max={99} placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>setSumulaGols(v=>({...v,[p.id]:parseInt(e.target.value)||0}))} style={{...S.input,width:32,padding:"2px 4px",fontSize:10,textAlign:"center",marginRight:6}}/>{getPlayerName(p)} <PlayerAvatar atleta={p} size={16}/></div>)}</div>
+              <div style={{display:"grid",gridTemplateColumns:"1.2fr auto 1.2fr",gap:4,alignItems:"start",width:"100%",overflow:"hidden",marginBottom:12}}>
+                <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamA)}55`,padding:6,textAlign:"right",minWidth:0,overflow:"hidden"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,minWidth:0,overflow:"hidden"}}><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamA}</span><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamA),flexShrink:0}}/></div>
+                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button><input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>setSumulaGols(v=>({...v,[p.id]:e.target.value.replace(/\D/g,"")}))} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/><span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}</span></div>)}</div>
                 </div>
-                <div style={{textAlign:"center"}}>
-                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                    <input type="number" min={0} max={99} value={scoreA} onChange={e=>setScoreA(e.target.value)} style={{...S.input,width:50,textAlign:"center",padding:"8px 4px",fontSize:18,fontWeight:800}}/>
-                    <span style={{fontWeight:700,color:t.textSec}}>×</span>
-                    <input type="number" min={0} max={99} value={scoreB} onChange={e=>setScoreB(e.target.value)} style={{...S.input,width:50,textAlign:"center",padding:"8px 4px",fontSize:18,fontWeight:800}}/>
+                <div style={{textAlign:"center",padding:"0 2px",flexShrink:0}}>
+                  <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                    <input type="number" min={0} max={99} value={scoreA} onChange={e=>setScoreA(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
+                    <span style={{fontWeight:700,color:t.textSec,fontSize:14}}>×</span>
+                    <input type="number" min={0} max={99} value={scoreB} onChange={e=>setScoreB(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
                   </div>
                 </div>
-                <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamB)}55`,padding:10}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:10,height:10,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamB),flexShrink:0}}/><span style={{fontWeight:700,fontSize:13,color:t.text}}>{peladaState.currentMatch.teamB}</span></div>
-                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:4}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:6}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)} <input type="number" min={0} max={99} placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>setSumulaGols(v=>({...v,[p.id]:parseInt(e.target.value)||0}))} style={{...S.input,width:32,padding:"2px 4px",fontSize:10,textAlign:"center",marginLeft:6}}/>⚽<button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button></div>)}</div>
+                <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamB)}55`,padding:6,minWidth:0,overflow:"hidden"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:4,minWidth:0,overflow:"hidden"}}><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamB),flexShrink:0}}/><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamB}</span></div>
+                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button><input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>setSumulaGols(v=>({...v,[p.id]:e.target.value.replace(/\D/g,"")}))} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/><span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}</span></div>)}</div>
                 </div>
               </div>
               <button onClick={saveMatchLocal} style={{...S.btn(),width:"100%",justifyContent:"center"}}>✓ Registrar</button>
