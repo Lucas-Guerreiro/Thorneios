@@ -2976,11 +2976,13 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
             top: 0;
             width: 100%;
             display: block !important;
-            background: #ffffff !important;
-            color: #000000 !important;
+            background: ${t.bg} !important;
+            color: ${t.text} !important;
             font-family: Arial, sans-serif;
-            padding: 10px;
+            padding: 20px;
             box-sizing: border-box;
+            print-color-adjust: exact !important;
+            -webkit-print-color-adjust: exact !important;
           }
         }
       `}</style>
@@ -3129,42 +3131,42 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
 
       {/* Visão de Impressão Exclusiva (PDF) */}
       <div id="printable-relatorio" style={{ display: "none" }}>
-        <h2 style={{ fontSize: 18, fontWeight: 800, textAlign: "center", marginBottom: 20, color: "#000000" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, textAlign: "center", marginBottom: 20, color: t.text }}>
           Relatório da Pelada do dia {getSelectedDateText()}
         </h2>
 
         {/* Resumo em Impressão */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-          <div style={{ border: "1px solid #dddddd", padding: 12, borderRadius: 8, textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: "#666666", fontWeight: 600 }}>PARTIDAS JOGADAS</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#000000", marginTop: 4 }}>{totalPartidas}</div>
+          <div style={{ border: `1px solid ${t.cardBorder}`, background: t.card, padding: 12, borderRadius: 8, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: t.textSec, fontWeight: 600 }}>PARTIDAS JOGADAS</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: t.accent || "#0095F6", marginTop: 4 }}>{totalPartidas}</div>
           </div>
-          <div style={{ border: "1px solid #dddddd", padding: 12, borderRadius: 8, textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: "#666666", fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#000000", marginTop: 8 }}>{getMostWinningTeam()}</div>
+          <div style={{ border: `1px solid ${t.cardBorder}`, background: t.card, padding: 12, borderRadius: 8, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: t.textSec, fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#1D9E75", marginTop: 8 }}>{getMostWinningTeam()}</div>
           </div>
         </div>
 
         {/* Classificação na Impressão */}
-        <div style={{ border: "1px solid #dddddd", padding: 14, borderRadius: 8, marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#000000", marginBottom: 12 }}>🏆 Classificação dos Times</div>
+        <div style={{ border: `1px solid ${t.cardBorder}`, background: t.card, padding: 14, borderRadius: 8, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: t.text, marginBottom: 12 }}>🏆 Classificação dos Times</div>
           <StandingsTable 
             standings={getFilteredStandings()} 
             teams={(peladaState?.teams||[]).map(x=>x.name)} 
             colorOf={colorOfTeam} 
             accent={t.accent || "#0095F6"} 
-            t={{ ...t, cardBorder: "#dddddd", text: "#000000", textSec: "#666666" }} 
+            t={t} 
           />
         </div>
 
         {/* Desempenho na Impressão */}
-        <div style={{ border: "1px solid #dddddd", padding: 14, borderRadius: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#000000", marginBottom: 12 }}>📈 Desempenho dos Jogadores (Top 10)</div>
+        <div style={{ border: `1px solid ${t.cardBorder}`, background: t.card, padding: 14, borderRadius: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: t.text, marginBottom: 12 }}>📈 Desempenho dos Jogadores (Top 10)</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #dddddd" }}>
+              <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
                 {["Rank", "Jogador", "J", "V", "E", "D", "GP (Gols)", "Pts"].map((h, hi) => (
-                  <th key={hi} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Jogador" ? "left" : "center", color: "#666666" }}>
+                  <th key={hi} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Jogador" ? "left" : "center", color: t.textSec }}>
                     {h}
                   </th>
                 ))}
@@ -3178,19 +3180,19 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
                 else if (idx === 2) badge = "🥉";
                 
                 return (
-                  <tr key={item.player.id} style={{ borderBottom: "1px solid #eeeeee" }}>
+                  <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? (t.accent ? t.accent + "11" : "#0095F611") : "transparent" }}>
                     <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, fontSize: 12 }}>{badge}</td>
                     <td style={{ padding: "9px 6px" }}>
-                      <span style={{ fontWeight: 600, color: "#000000" }}>{getPlayerName(item.player)}</span>
+                      <span style={{ fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</span>
                     </td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#000000" }}>{item.j}</td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#000000" }}>{item.v}</td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#000000" }}>{item.e}</td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#000000" }}>{item.d}</td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#000000", fontWeight: repSortBy === "gols" ? 700 : 400 }}>
+                    <td style={{ padding: "9px 6px", textAlign: "center", color: t.text }}>{item.j}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#1D9E75", fontWeight: 500 }}>{item.v}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", color: t.textSec }}>{item.e}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#E24B4A", fontWeight: 500 }}>{item.d}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", color: t.text, fontWeight: repSortBy === "gols" ? 700 : 400 }}>
                       {item.gp}
                     </td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: "#000000" }}>
+                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: t.accent || "#0095F6" }}>
                       {item.pts}
                     </td>
                   </tr>
