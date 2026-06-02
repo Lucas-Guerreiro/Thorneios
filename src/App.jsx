@@ -2920,7 +2920,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
     return `${entries[0][0]} (${entries[0][1]} ${entries[0][1] === 1 ? "Vitória" : "Vitórias"})`;
   };
 
-  const reportData = buildReportData();
+  const reportData = buildReportData().slice(0, 10);
   const totalPartidas = getFilteredMatches().length;
 
   return (
@@ -2983,7 +2983,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
 
       {/* Tabela do Relatório */}
       <div style={S.card}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>📈 Desempenho dos Jogadores</div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>📈 Desempenho dos Jogadores (Top 10)</div>
         {reportData.length === 0 ? (
           <div style={{ textAlign: "center", color: t.textSec, padding: 20, fontSize: 13 }}>Nenhuma partida jogada com o filtro selecionado.</div>
         ) : (
