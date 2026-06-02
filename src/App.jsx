@@ -2811,11 +2811,42 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
   const getFilteredMatches = () => {
     const log = peladaState?.matchLog || [];
     const dataObj = datas.find(x => String(x.id) === String(repDataId));
+    
+    const normalizeToDateObj = (dStr) => {
+      if (!dStr) return null;
+      try {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
+          return new Date(dStr + "T12:00:00");
+        }
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dStr)) {
+          const [day, month, year] = dStr.split("/");
+          return new Date(`${year}-${month}-${day}T12:00:00`);
+        }
+        const parsed = new Date(dStr);
+        if (!isNaN(parsed.getTime())) return parsed;
+      } catch (e) {}
+      return null;
+    };
+
+    const datesCloseOrEqual = (d1, d2) => {
+      if (!d1 || !d2) return false;
+      if (d1 === d2) return true;
+      const t1 = normalizeToDateObj(d1);
+      const t2 = normalizeToDateObj(d2);
+      if (!t1 || !t2) return false;
+      if (t1.getFullYear() === t2.getFullYear() &&
+          t1.getMonth() === t2.getMonth() &&
+          t1.getDate() === t2.getDate()) {
+        return true;
+      }
+      return Math.abs(t1.getTime() - t2.getTime()) <= 30 * 60 * 60 * 1000;
+    };
+
     return repDataId === "todas"
       ? log.filter(m => m.played)
       : log.filter(m => m.played && (
           String(m.dataRealizacaoId) === String(repDataId) || 
-          (dataObj && (m.date === dataObj.data || formatarData(m.date) === formatarData(dataObj.data)))
+          (dataObj && datesCloseOrEqual(m.date, dataObj.data))
         ));
   };
 
@@ -2923,114 +2954,220 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
   const reportData = buildReportData().slice(0, 10);
   const totalPartidas = getFilteredMatches().length;
 
+  const getSelectedDateText = () => {
+    if (repDataId === "todas") return "(Todas as Datas)";
+    const dataObj = datas.find(x => String(x.id) === String(repDataId));
+    return dataObj ? formatarData(dataObj.data) : "—";
+  };
+
   return (
     <div>
-      {/* Filtros */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }} className="no-print">
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <label style={{ ...S.label, marginBottom: 4 }}>Filtrar por Data:</label>
-          <select 
-            style={S.select} 
-            value={repDataId} 
-            onChange={e => setRepDataId(e.target.value)}
-          >
-            <option value="todas">🌟 Todas as Datas</option>
-            {datas.map(d => (
-              <option key={d.id} value={d.id}>📅 {formatarData(d.data)}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div style={{ display: "flex", gap: 8, flexShrink: 0, marginTop: 18, flexWrap: "wrap" }}>
-          <button 
-            onClick={() => setRepSortBy("pts")} 
-            style={S.btnSm(repSortBy === "pts" ? "#0095F6" : "transparent", repSortBy === "pts" ? "#fff" : t.textSec)}
-          >
-            Classificar por Pontos
-          </button>
-          <button 
-            onClick={() => setRepSortBy("gols")} 
-            style={S.btnSm(repSortBy === "gols" ? "#0095F6" : "transparent", repSortBy === "gols" ? "#fff" : t.textSec)}
-          >
-            Classificar por Gols
-          </button>
-          <button 
-            onClick={() => window.print()} 
-            style={{...S.btnSm("#0095F6", "#fff"), fontWeight: 700}}
-          >
-            📄 Exportar PDF
-          </button>
-        </div>
-      </div>
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-relatorio, #printable-relatorio * {
+            visibility: visible;
+          }
+          #printable-relatorio {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            display: block !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-family: Arial, sans-serif;
+            padding: 10px;
+            box-sizing: border-box;
+          }
+        }
+      `}</style>
 
-      {/* Cards de Resumo */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-        <div style={{ ...S.card, padding: 12, textAlign: "center", borderColor: "#0095F633" }}>
-          <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>PARTIDAS JOGADAS</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#0095F6", marginTop: 4 }}>{totalPartidas}</div>
-        </div>
-        <div style={{ ...S.card, padding: 12, textAlign: "center", borderColor: "#1D9E7533" }}>
-          <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#1D9E75", marginTop: 8 }}>{getMostWinningTeam()}</div>
-        </div>
-      </div>
-
-      {/* Classificação dos Times */}
-      <div style={{ ...S.card, marginBottom: 20 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>🏆 Classificação dos Times</div>
-        <StandingsTable standings={getFilteredStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent="#0095F6" t={t} />
-      </div>
-
-      {/* Tabela do Relatório */}
-      <div style={S.card}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>📈 Desempenho dos Jogadores (Top 10)</div>
-        {reportData.length === 0 ? (
-          <div style={{ textAlign: "center", color: t.textSec, padding: 20, fontSize: 13 }}>Nenhuma partida jogada com o filtro selecionado.</div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 320 }}>
-              <thead>
-                <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
-                  {["Rank", "Jogador", "J", "V", "E", "D", "GP (Gols)", "Pts"].map((h, hi) => (
-                    <th key={hi} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Jogador" ? "left" : "center", color: t.textSec }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {reportData.map((item, idx) => {
-                  let badge = idx + 1;
-                  if (idx === 0) badge = "🥇";
-                  else if (idx === 1) badge = "🥈";
-                  else if (idx === 2) badge = "🥉";
-                  
-                  return (
-                    <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? "#0095F611" : "transparent" }}>
-                      <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, fontSize: 13 }}>{badge}</td>
-                      <td style={{ padding: "9px 6px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <PlayerAvatar atleta={item.player} size={22} />
-                          <span style={{ fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: "9px 6px", textAlign: "center", color: t.text }}>{item.j}</td>
-                      <td style={{ padding: "9px 6px", textAlign: "center", color: "#1D9E75", fontWeight: 500 }}>{item.v}</td>
-                      <td style={{ padding: "9px 6px", textAlign: "center", color: t.textSec }}>{item.e}</td>
-                      <td style={{ padding: "9px 6px", textAlign: "center", color: "#E24B4A", fontWeight: 500 }}>{item.d}</td>
-                      <td style={{ padding: "9px 6px", textAlign: "center", color: t.text, fontWeight: repSortBy === "gols" ? 700 : 400, fontSize: repSortBy === "gols" ? 13 : 12 }}>
-                        {item.gp}
-                      </td>
-                      <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: "#0095F6", fontSize: repSortBy === "pts" ? 14 : 12 }}>
-                        {item.pts}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {/* Visão de Tela (Escondida no PDF) */}
+      <div className="no-print">
+        {/* Filtros */}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }} className="no-print">
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <label style={{ ...S.label, marginBottom: 4 }}>Filtrar por Data:</label>
+            <select 
+              style={S.select} 
+              value={repDataId} 
+              onChange={e => setRepDataId(e.target.value)}
+            >
+              <option value="todas">🌟 Todas as Datas</option>
+              {datas.map(d => (
+                <option key={d.id} value={d.id}>📅 {formatarData(d.data)}</option>
+              ))}
+            </select>
           </div>
-        )}
+          
+          <div style={{ display: "flex", gap: 8, flexShrink: 0, marginTop: 18, flexWrap: "wrap" }}>
+            <button 
+              onClick={() => setRepSortBy("pts")} 
+              style={S.btnSm(repSortBy === "pts" ? "#0095F6" : "transparent", repSortBy === "pts" ? "#fff" : t.textSec)}
+            >
+              Classificar por Pontos
+            </button>
+            <button 
+              onClick={() => setRepSortBy("gols")} 
+              style={S.btnSm(repSortBy === "gols" ? "#0095F6" : "transparent", repSortBy === "gols" ? "#fff" : t.textSec)}
+            >
+              Classificar por Gols
+            </button>
+            <button 
+              onClick={() => window.print()} 
+              style={{...S.btnSm("#0095F6", "#fff"), fontWeight: 700}}
+            >
+              📄 Exportar PDF
+            </button>
+          </div>
+        </div>
+
+        {/* Cards de Resumo */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+          <div style={{ ...S.card, padding: 12, textAlign: "center", borderColor: "#0095F633" }}>
+            <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>PARTIDAS JOGADAS</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: "#0095F6", marginTop: 4 }}>{totalPartidas}</div>
+          </div>
+          <div style={{ ...S.card, padding: 12, textAlign: "center", borderColor: "#1D9E7533" }}>
+            <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#1D9E75", marginTop: 8 }}>{getMostWinningTeam()}</div>
+          </div>
+        </div>
+
+        {/* Classificação dos Times */}
+        <div style={{ ...S.card, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>🏆 Classificação dos Times</div>
+          <StandingsTable standings={getFilteredStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent="#0095F6" t={t} />
+        </div>
+
+        {/* Tabela do Relatório */}
+        <div style={S.card}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>📈 Desempenho dos Jogadores (Top 10)</div>
+          {reportData.length === 0 ? (
+            <div style={{ textAlign: "center", color: t.textSec, padding: 20, fontSize: 13 }}>Nenhuma partida jogada com o filtro selecionado.</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 320 }}>
+                <thead>
+                  <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
+                    {["Rank", "Jogador", "J", "V", "E", "D", "GP (Gols)", "Pts"].map((h, hi) => (
+                      <th key={hi} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Jogador" ? "left" : "center", color: t.textSec }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportData.map((item, idx) => {
+                    let badge = idx + 1;
+                    if (idx === 0) badge = "🥇";
+                    else if (idx === 1) badge = "🥈";
+                    else if (idx === 2) badge = "🥉";
+                    
+                    return (
+                      <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? "#0095F611" : "transparent" }}>
+                        <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, fontSize: 13 }}>{badge}</td>
+                        <td style={{ padding: "9px 6px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <PlayerAvatar atleta={item.player} size={22} />
+                            <span style={{ fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: "9px 6px", textAlign: "center", color: t.text }}>{item.j}</td>
+                        <td style={{ padding: "9px 6px", textAlign: "center", color: "#1D9E75", fontWeight: 500 }}>{item.v}</td>
+                        <td style={{ padding: "9px 6px", textAlign: "center", color: t.textSec }}>{item.e}</td>
+                        <td style={{ padding: "9px 6px", textAlign: "center", color: "#E24B4A", fontWeight: 500 }}>{item.d}</td>
+                        <td style={{ padding: "9px 6px", textAlign: "center", color: t.text, fontWeight: repSortBy === "gols" ? 700 : 400, fontSize: repSortBy === "gols" ? 13 : 12 }}>
+                          {item.gp}
+                        </td>
+                        <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: "#0095F6", fontSize: repSortBy === "pts" ? 14 : 12 }}>
+                          {item.pts}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Visão de Impressão Exclusiva (PDF) */}
+      <div id="printable-relatorio" style={{ display: "none" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, textAlign: "center", marginBottom: 20, color: "#000000" }}>
+          Relatório da Pelada do dia {getSelectedDateText()}
+        </h2>
+
+        {/* Resumo em Impressão */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+          <div style={{ border: "1px solid #dddddd", padding: 12, borderRadius: 8, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: "#666666", fontWeight: 600 }}>PARTIDAS JOGADAS</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#000000", marginTop: 4 }}>{totalPartidas}</div>
+          </div>
+          <div style={{ border: "1px solid #dddddd", padding: 12, borderRadius: 8, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: "#666666", fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#000000", marginTop: 8 }}>{getMostWinningTeam()}</div>
+          </div>
+        </div>
+
+        {/* Classificação na Impressão */}
+        <div style={{ border: "1px solid #dddddd", padding: 14, borderRadius: 8, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#000000", marginBottom: 12 }}>🏆 Classificação dos Times</div>
+          <StandingsTable 
+            standings={getFilteredStandings()} 
+            teams={(peladaState?.teams||[]).map(x=>x.name)} 
+            colorOf={colorOfTeam} 
+            accent="#0095F6" 
+            t={{ ...t, cardBorder: "#dddddd", text: "#000000", textSec: "#666666" }} 
+          />
+        </div>
+
+        {/* Desempenho na Impressão */}
+        <div style={{ border: "1px solid #dddddd", padding: 14, borderRadius: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#000000", marginBottom: 12 }}>📈 Desempenho dos Jogadores (Top 10)</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #dddddd" }}>
+                {["Rank", "Jogador", "J", "V", "E", "D", "GP (Gols)", "Pts"].map((h, hi) => (
+                  <th key={hi} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Jogador" ? "left" : "center", color: "#666666" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {reportData.map((item, idx) => {
+                let badge = idx + 1;
+                if (idx === 0) badge = "🥇";
+                else if (idx === 1) badge = "🥈";
+                else if (idx === 2) badge = "🥉";
+                
+                return (
+                  <tr key={item.player.id} style={{ borderBottom: "1px solid #eeeeee" }}>
+                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, fontSize: 12 }}>{badge}</td>
+                    <td style={{ padding: "9px 6px" }}>
+                      <span style={{ fontWeight: 600, color: "#000000" }}>{getPlayerName(item.player)}</span>
+                    </td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#000000" }}>{item.j}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#000000" }}>{item.v}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#000000" }}>{item.e}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#000000" }}>{item.d}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#000000", fontWeight: repSortBy === "gols" ? 700 : 400 }}>
+                      {item.gp}
+                    </td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: "#000000" }}>
+                      {item.pts}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
