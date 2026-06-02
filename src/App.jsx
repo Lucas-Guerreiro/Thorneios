@@ -5246,6 +5246,95 @@ function AbaMuralOrganizador({ c, onUpdate, t }) {
   );
 }
 
+const getCampeonatoMatchesLinear = (c) => {
+  const list = [];
+  if (c.groups) {
+    c.groups.forEach((g, gi) => {
+      if (g.rounds) {
+        g.rounds.forEach((r, ri) => {
+          if (r.matches) {
+            r.matches.forEach((m, mi) => {
+              list.push({ ...m, key: `gr-${gi}-${ri}-${mi}`, originalMatch: m });
+            });
+          }
+        });
+      }
+    });
+  }
+  if (c.rounds) {
+    c.rounds.forEach((r, ri) => {
+      if (r.matches) {
+        r.matches.forEach((m, mi) => {
+          list.push({ ...m, key: `rr-${ri}-${mi}`, originalMatch: m });
+        });
+      }
+    });
+  }
+  if (c.knockout) {
+    c.knockout.forEach((ph, pi) => {
+      if (ph.matches) {
+        ph.matches.forEach((m, mi) => {
+          list.push({ ...m, key: `ko-${pi}-${mi}`, originalMatch: m });
+        });
+      }
+    });
+  }
+  return list;
+};
+
+const getSuspendedPlayersForMatch = (c, targetKey) => {
+  const matches = getCampeonatoMatchesLinear(c);
+  const targetIndex = matches.findIndex(m => m.key === targetKey);
+  if (targetIndex === -1) return {};
+  const playerStats = {};
+  const prevMatches = matches.slice(0, targetIndex);
+  prevMatches.forEach(m => {
+    Object.keys(playerStats).forEach(aid => {
+      const stats = playerStats[aid];
+      if (stats.suspensoProximoJogo) {
+        if (stats.motivoSuspensao === "amarelos") {
+          stats.amarelosAcumulados = 0;
+        }
+        stats.suspensoProximoJogo = false;
+        stats.motivoSuspensao = "";
+      }
+    });
+    const events = m.events || [];
+    const athleteEvents = {};
+    events.forEach(e => {
+      if (!athleteEvents[e.atletaId]) athleteEvents[e.atletaId] = [];
+      athleteEvents[e.atletaId].push(e.type);
+    });
+    Object.keys(athleteEvents).forEach(aid => {
+      const types = athleteEvents[aid];
+      const yellows = types.filter(t => t === "amarelo").length;
+      const reds = types.filter(t => t === "vermelho").length;
+      if (!playerStats[aid]) {
+        playerStats[aid] = { amarelosAcumulados: 0, suspensoProximoJogo: false, motivoSuspensao: "" };
+      }
+      const stats = playerStats[aid];
+      if (reds > 0 || yellows >= 2) {
+        stats.suspensoProximoJogo = true;
+        stats.motivoSuspensao = "vermelho";
+      } else if (yellows === 1) {
+        stats.amarelosAcumulados++;
+        if (stats.amarelosAcumulados >= 3) {
+          stats.suspensoProximoJogo = true;
+          stats.motivoSuspensao = "amarelos";
+        }
+      }
+    });
+  });
+  const suspended = {};
+  Object.keys(playerStats).forEach(aid => {
+    const stats = playerStats[aid];
+    if (stats.suspensoProximoJogo) {
+      suspended[aid] = stats.motivoSuspensao === "vermelho" ? "Vermelho 🟥" : "3 Amarelos 🟨";
+    }
+  });
+  return suspended;
+};
+
 /* ─────────────────────────── CAMPEONATO ─────────────────────────── */
 function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,onUpdateAtleta,cloudLoading,publicarNaNuvem,t}){
   const S=makeStyles(t);
@@ -6535,6 +6624,39 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
              <button onClick={()=>setEditing({key:eKey})} style={{...S.btnSm(),padding:"6px 12px"}}>{m.played?"✏️":"▶"}</button>
           </div>
         </div>
+        {(() => {
+          const suspended = getSuspendedPlayersForMatch(c, eKey);
+          const suspendedKeys = Object.keys(suspended);
+          if (suspendedKeys.length === 0) return null;
+          return (
+            <div style={{
+              fontSize: 11,
+              color: "#E24B4A",
+              background: "#E24B4A0d",
+              border: "1px dashed #E24B4A44",
+              padding: "6px 10px",
+              borderRadius: 8,
+              marginTop: -4,
+              display: "flex",
+              flexDirection: "column",
+              gap: 2
+            }}>
+              <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                <span>⚠️ Atletas suspensos para este jogo:</span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
+                {suspendedKeys.map(aid => {
+                  const at = atletas.find(x => String(x.id) === String(aid));
+                  return (
+                    <span key={aid} style={{ background: "#E24B4A15", padding: "2px 6px", borderRadius: 4, fontWeight: 550 }}>
+                      {at ? getPlayerName(at) : `Atleta #${aid}`} ({suspended[aid]})
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           {renderSideEvents(leftEvents, m.home)}
           {renderSideEvents(rightEvents, m.away)}
@@ -6803,62 +6925,71 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
               <div style={{textAlign:"center",fontWeight:700,color:t.text}}>{sumulaModal.m.away}<br/><span style={{fontSize:20,color:"#1D9E75"}}>{sumulaModal.m.awayScore}</span></div>
             </div>
 
-            <div style={{flex:1,overflowY:"auto",paddingRight:4,display:"flex",flexDirection:"column",gap:16}}>
-              {["home","away"].map(side=>{
-                 const tm = sumulaModal.m[side];
-                 const rst = getRosterByTeamName(tm);
-                 const tmRoster = (rst && rst.length > 0) ? rst : atletas.map(a=>a.id);
-                 const evts = (sumulaModal.m.events||[]).filter(e=>e.teamName===tm);
-                 return (
-                   <div key={side} style={{border:`1px solid ${t.cardBorder}`,padding:10,borderRadius:12}}>
-                     <div style={{fontWeight:800,color:colorOf(tm,c.teams),marginBottom:10,fontSize:13}}>{tm}</div>
-                     <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                       {evts.map((e,i)=>{
-                         const at = atletas.find(x=>String(x.id)===String(e.atletaId));
-                         return (
-                           <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:t.text,background:t.inputBg,padding:"6px 10px",borderRadius:8}}>
-                             <span>{e.type==="gol"?"⚽":e.type==="amarelo"?"🟨":"🟥"}</span>
-                             <PlayerAvatar atleta={at} size={18}/>
-                             <span style={{flex:1}}>{getPlayerName(at) || `Atleta #${e.atletaId}`}</span>
-                             <button onClick={()=>{
-                                const newEvts = [...(sumulaModal.m.events||[])];
-                                newEvts.splice(newEvts.indexOf(e),1);
-                                setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                             }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800}}>✕</button>
-                           </div>
-                         );
-                       })}
-                     </div>
-                     <div style={{marginTop:10,display:"flex",gap:6}}>
-                       <select id={`sel-${side}`} value={sumulaSelection[side]} onChange={e=>setSumulaSelection(prev=>({...prev,[side]:e.target.value}))} style={{...S.select,padding:"6px",fontSize:12,flex:1}}>
-                         <option value="">Selecione o jogador...</option>
-                         {tmRoster.map(id=>{
-                           const at = atletas.find(x=>String(x.id)===String(id));
-                           return <option key={id} value={id}>{getPlayerName(at) || `Atleta #${id}`}</option>;
+                        <div style={{flex:1,overflowY:"auto",paddingRight:4,display:"flex",flexDirection:"column",gap:16}}>
+              {(() => {
+                const suspended = getSuspendedPlayersForMatch(c, sumulaModal.eKey);
+                return ["home","away"].map(side=>{
+                   const tm = sumulaModal.m[side];
+                   const rst = getRosterByTeamName(tm);
+                   const tmRoster = (rst && rst.length > 0) ? rst : atletas.map(a=>a.id);
+                   const evts = (sumulaModal.m.events||[]).filter(e=>e.teamName===tm);
+                   return (
+                     <div key={side} style={{border:`1px solid ${t.cardBorder}`,padding:10,borderRadius:12}}>
+                       <div style={{fontWeight:800,color:colorOf(tm,c.teams),marginBottom:10,fontSize:13}}>{tm}</div>
+                       <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                         {evts.map((e,i)=>{
+                           const at = atletas.find(x=>String(x.id)===String(e.atletaId));
+                           return (
+                             <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:t.text,background:t.inputBg,padding:"6px 10px",borderRadius:8}}>
+                               <span>{e.type==="gol"?"⚽":e.type==="amarelo"?"🟨":"🟥"}</span>
+                               <PlayerAvatar atleta={at} size={18}/>
+                               <span style={{flex:1}}>{getPlayerName(at) || `Atleta #${e.atletaId}`}</span>
+                               <button onClick={()=>{
+                                  const newEvts = [...(sumulaModal.m.events||[])];
+                                  newEvts.splice(newEvts.indexOf(e),1);
+                                  setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
+                               }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800}}>✕</button>
+                             </div>
+                           );
                          })}
-                       </select>
-                       <div style={{display:"flex",gap:4}}>
-                         <button onClick={()=>{
-                            const val = sumulaSelection[side]; if(!val)return;
-                            const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"gol", atletaId:val, teamName:tm}];
-                            setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                         }} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}}>⚽</button>
-                         <button onClick={()=>{
-                            const val = sumulaSelection[side]; if(!val)return;
-                            const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"amarelo", atletaId:val, teamName:tm}];
-                            setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                         }} style={{...S.btnSm("#BA751722","#BA7517"),padding:"6px"}}>🟨</button>
-                         <button onClick={()=>{
-                            const val = sumulaSelection[side]; if(!val)return;
-                            const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"vermelho", atletaId:val, teamName:tm}];
-                            setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                         }} style={{...S.btnSm("#E24B4A22","#E24B4A"),padding:"6px"}}>🟥</button>
+                       </div>
+                       <div style={{marginTop:10,display:"flex",gap:6}}>
+                         <select id={`sel-${side}`} value={sumulaSelection[side]} onChange={e=>setSumulaSelection(prev=>({...prev,[side]:e.target.value}))} style={{...S.select,padding:"6px",fontSize:12,flex:1}}>
+                           <option value="">Selecione o jogador...</option>
+                           {tmRoster.map(id=>{
+                             const at = atletas.find(x=>String(x.id)===String(id));
+                             const isSuspended = suspended && suspended[id];
+                             return (
+                               <option key={id} value={id} disabled={!!isSuspended}>
+                                 {getPlayerName(at) || `Atleta #${id}`} {isSuspended ? `(Suspenso - ${isSuspended}) ❌` : ""}
+                               </option>
+                             );
+                           })}
+                         </select>
+                         <div style={{display:"flex",gap:4}}>
+                           <button onClick={()=>{
+                              const val = sumulaSelection[side]; if(!val)return;
+                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"gol", atletaId:val, teamName:tm}];
+                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
+                           }} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}}>⚽</button>
+                           <button onClick={()=>{
+                              const val = sumulaSelection[side]; if(!val)return;
+                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"amarelo", atletaId:val, teamName:tm}];
+                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
+                           }} style={{...S.btnSm("#BA751722","#BA7517"),padding:"6px"}}>🟨</button>
+                           <button onClick={()=>{
+                              const val = sumulaSelection[side]; if(!val)return;
+                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"vermelho", atletaId:val, teamName:tm}];
+                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
+                           }} style={{...S.btnSm("#E24B4A22","#E24B4A"),padding:"6px"}}>🟥</button>
+                         </div>
                        </div>
                      </div>
-                   </div>
-                 )
-              })}
+                   );
+                });
+              })()}
             </div>
+
             
             <div style={{marginTop:16}}>
               <button onClick={()=>handleSaveSumula(sumulaModal.m, sumulaModal.m.events||[])} style={{...S.btn(),width:"100%",justifyContent:"center"}}>Salvar Súmula</button>
