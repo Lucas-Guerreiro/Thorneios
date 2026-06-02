@@ -5544,7 +5544,36 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
         {/* Rodapé e Observações */}
         <div style={{ marginTop: "15px", border: "1px solid #000", padding: "8px", borderRadius: "6px" }}>
           <div style={{ fontSize: "10px", fontWeight: "bold", marginBottom: "4px" }}>✍️ OCORRÊNCIAS / OBSERVAÇÕES DA PARTIDA:</div>
-          <div style={{ height: "55px", border: "1px dashed #ccc" }}></div>
+          {m.observations && m.observations.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "10px" }}>
+              {m.observations.map((obs, oIdx) => {
+                const homeNames = (obs.homeAthletes || []).map(id => {
+                  const at = atletas.find(x => String(x.id) === String(id));
+                  return at ? (at.apelido || at.nome) : `Atleta #${id}`;
+                });
+                const awayNames = (obs.awayAthletes || []).map(id => {
+                  const at = atletas.find(x => String(x.id) === String(id));
+                  return at ? (at.apelido || at.nome) : `Atleta #${id}`;
+                });
+                const athletesStr = [];
+                if (homeNames.length > 0) athletesStr.push(`${tmHome}: ${homeNames.join(", ")}`);
+                if (awayNames.length > 0) athletesStr.push(`${tmAway}: ${awayNames.join(", ")}`);
+
+                return (
+                  <div key={obs.id} style={{ borderBottom: oIdx < m.observations.length - 1 ? "1px dashed #ccc" : "none", paddingBottom: "4px", marginBottom: "4px" }}>
+                    <strong>[{obs.type.toUpperCase()}]</strong> {obs.text}
+                    {athletesStr.length > 0 && (
+                      <span style={{ fontSize: "9px", color: "#444", marginLeft: "6px" }}>
+                        ({athletesStr.join(" | ")})
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ height: "55px", border: "1px dashed #ccc" }}></div>
+          )}
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: "30px", fontSize: "10px" }}>
@@ -5552,10 +5581,14 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
             <div style={{ borderTop: "1px solid #000", paddingTop: "5px" }}>ASSINATURA DO ÁRBITRO</div>
           </div>
           <div style={{ textAlign: "center", width: "30%" }}>
-            <div style={{ borderTop: "1px solid #000", paddingTop: "5px" }}>CAPITÃO MANDANTE</div>
+            <div style={{ borderTop: "1px solid #000", paddingTop: "5px", textTransform: "uppercase" }}>
+              {m.homeRepresentative ? `REP.: ${m.homeRepresentative}` : "REPRESENTANTE MANDANTE"}
+            </div>
           </div>
           <div style={{ textAlign: "center", width: "30%" }}>
-            <div style={{ borderTop: "1px solid #000", paddingTop: "5px" }}>CAPITÃO VISITANTE</div>
+            <div style={{ borderTop: "1px solid #000", paddingTop: "5px", textTransform: "uppercase" }}>
+              {m.awayRepresentative ? `REP.: ${m.awayRepresentative}` : "REPRESENTANTE VISITANTE"}
+            </div>
           </div>
         </div>
       </div>
@@ -5771,6 +5804,9 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
            mr.awayScore = as2;
            mr.played = true;
            if (!mr.date) mr.date = todayStr();
+           mr.homeRepresentative = m.homeRepresentative || "";
+           mr.awayRepresentative = m.awayRepresentative || "";
+           mr.observations = m.observations || [];
            tc.standings = recalcStandings(tc.teams, tc.rounds);
            found = true; 
            break; 
@@ -5792,6 +5828,9 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
              mr.awayScore = as2;
              mr.played = true;
              if (!mr.date) mr.date = todayStr();
+             mr.homeRepresentative = m.homeRepresentative || "";
+             mr.awayRepresentative = m.awayRepresentative || "";
+             mr.observations = m.observations || [];
              g.standings = recalcStandings(g.teams, g.rounds);
              found = true; 
              break; 
@@ -5818,6 +5857,9 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
            mr.played = true;
            mr.winner = parseInt(hs) > parseInt(as2) ? mr.home : mr.away;
            if (!mr.date) mr.date = todayStr();
+           mr.homeRepresentative = m.homeRepresentative || "";
+           mr.awayRepresentative = m.awayRepresentative || "";
+           mr.observations = m.observations || [];
 
            if (ph.matches.every(x => x.played)) {
              ph.advancers = ph.matches.map(x => x.winner);
@@ -6986,8 +7028,239 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                        </div>
                      </div>
                    );
-                });
+                 });
               })()}
+
+              {/* Representantes das Equipes */}
+              <div style={{border:`1px solid ${t.cardBorder}`,padding:12,borderRadius:12,display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{fontWeight:800,color:t.text,fontSize:13,display:"flex",alignItems:"center",gap:6}}>
+                  <span>🤝</span> Representantes das Equipes
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <div>
+                    <label style={{...S.label,fontSize:11,marginBottom:4}}>Representante Mandante ({sumulaModal.m.home})</label>
+                    <input 
+                      type="text" 
+                      style={S.input} 
+                      value={sumulaModal.m.homeRepresentative || ""} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        setSumulaModal(prev => ({
+                          ...prev,
+                          m: { ...prev.m, homeRepresentative: val }
+                        }));
+                      }} 
+                      placeholder="Nome do representante"
+                    />
+                  </div>
+                  <div>
+                    <label style={{...S.label,fontSize:11,marginBottom:4}}>Representante Visitante ({sumulaModal.m.away})</label>
+                    <input 
+                      type="text" 
+                      style={S.input} 
+                      value={sumulaModal.m.awayRepresentative || ""} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        setSumulaModal(prev => ({
+                          ...prev,
+                          m: { ...prev.m, awayRepresentative: val }
+                        }));
+                      }} 
+                      placeholder="Nome do representante"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Registrar Nova Ocorrência */}
+              <div style={{border:`1px solid ${t.cardBorder}`,padding:12,borderRadius:12,display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{fontWeight:800,color:t.text,fontSize:13,display:"flex",alignItems:"center",gap:6}}>
+                  <span>⚠️</span> Registrar Ocorrência / Observação
+                </div>
+                
+                {/* Tipo de Ocorrência */}
+                <div>
+                  <label style={{...S.label,fontSize:11,marginBottom:4}}>Tipo de Ocorrência</label>
+                  <select 
+                    style={S.select} 
+                    value={sumulaModal.newObs?.type || "Indisciplina"}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSumulaModal(prev => ({
+                        ...prev,
+                        newObs: { ...(prev.newObs || { text: "", homeAthletes: [], awayAthletes: [] }), type: val }
+                      }));
+                    }}
+                  >
+                    <option value="Indisciplina">Indisciplina</option>
+                    <option value="Irregularidade">Irregularidade</option>
+                    <option value="Reclamação">Reclamação</option>
+                  </select>
+                </div>
+
+                {/* Duas listas de atletas (uma por time) com checkboxes */}
+                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                  {["home", "away"].map(side => {
+                    const teamName = sumulaModal.m[side];
+                    const rst = getRosterByTeamName(teamName);
+                    const rosterIds = (rst && rst.length > 0) ? rst : atletas.map(a => a.id);
+                    const selectedList = side === "home" 
+                      ? (sumulaModal.newObs?.homeAthletes || [])
+                      : (sumulaModal.newObs?.awayAthletes || []);
+
+                    return (
+                      <div key={side} style={{flex:1,minWidth:140,border:`1px solid ${t.cardBorder}`,borderRadius:8,padding:6,background:t.card}}>
+                        <div style={{fontSize:11,fontWeight:700,color:colorOf(teamName, c.teams),marginBottom:6,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4}}>
+                          {side === "home" ? "Atletas Mandante" : "Atletas Visitante"}
+                        </div>
+                        <div style={{maxHeight:120,overflowY:"auto",display:"flex",flexDirection:"column",gap:4,paddingRight:2}}>
+                          {rosterIds.map(id => {
+                            const at = atletas.find(x => String(x.id) === String(id));
+                            if (!at) return null;
+                            const isChecked = selectedList.includes(id);
+                            return (
+                              <label key={id} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:t.text,cursor:"pointer",padding:"2px 4px",borderRadius:4,background:isChecked?t.inputBg:"transparent"}}>
+                                <input 
+                                  type="checkbox" 
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    setSumulaModal(prev => {
+                                      const currentObs = prev.newObs || { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] };
+                                      const oldList = side === "home" ? (currentObs.homeAthletes || []) : (currentObs.awayAthletes || []);
+                                      const newList = oldList.includes(id)
+                                        ? oldList.filter(x => x !== id)
+                                        : [...oldList, id];
+                                      
+                                      return {
+                                        ...prev,
+                                        newObs: {
+                                          ...currentObs,
+                                          [side === "home" ? "homeAthletes" : "awayAthletes"]: newList
+                                        }
+                                      };
+                                    });
+                                  }}
+                                />
+                                <span style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(at)}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Texto da Ocorrência */}
+                <div>
+                  <label style={{...S.label,fontSize:11,marginBottom:4}}>Descrição da Ocorrência</label>
+                  <textarea 
+                    style={{...S.input,height:60,fontFamily:"inherit",fontSize:12,resize:"none"}}
+                    value={sumulaModal.newObs?.text || ""}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSumulaModal(prev => ({
+                        ...prev,
+                        newObs: { ...(prev.newObs || { type: "Indisciplina", homeAthletes: [], awayAthletes: [] }), text: val }
+                      }));
+                    }}
+                    placeholder="Ex: Ofendeu o árbitro aos 10 minutos de jogo..."
+                  />
+                </div>
+
+                {/* Botão de Adicionar */}
+                <button 
+                  onClick={() => {
+                    const currentObs = sumulaModal.newObs || { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] };
+                    if (!currentObs.text || !currentObs.text.trim()) {
+                      alert("Por favor, digite uma descrição para a ocorrência.");
+                      return;
+                    }
+                    const newObsItem = {
+                      id: Date.now() + Math.random(),
+                      type: currentObs.type || "Indisciplina",
+                      text: currentObs.text.trim(),
+                      homeAthletes: currentObs.homeAthletes || [],
+                      awayAthletes: currentObs.awayAthletes || []
+                    };
+                    setSumulaModal(prev => ({
+                      ...prev,
+                      m: {
+                        ...prev.m,
+                        observations: [...(prev.m.observations || []), newObsItem]
+                      },
+                      newObs: { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] }
+                    }));
+                  }}
+                  style={{...S.btn("#378ADD18","#378ADD"),justifyContent:"center",fontSize:11,padding:6}}
+                >
+                  ＋ Adicionar Ocorrência
+                </button>
+              </div>
+
+              {/* Lista de Ocorrências Cadastradas */}
+              {sumulaModal.m.observations && sumulaModal.m.observations.length > 0 && (
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <div style={{fontWeight:700,fontSize:12,color:t.textSec}}>Ocorrências Registradas:</div>
+                  {sumulaModal.m.observations.map(obs => {
+                    // Mapeia nomes dos atletas
+                    const homeNames = (obs.homeAthletes || []).map(id => {
+                      const at = atletas.find(x => String(x.id) === String(id));
+                      return at ? (at.apelido || at.nome) : `Atleta #${id}`;
+                    });
+                    const awayNames = (obs.awayAthletes || []).map(id => {
+                      const at = atletas.find(x => String(x.id) === String(id));
+                      return at ? (at.apelido || at.nome) : `Atleta #${id}`;
+                    });
+
+                    // Cores por tipo
+                    let badgeBg = "#BA751722";
+                    let badgeColor = "#BA7517";
+                    if (obs.type === "Irregularidade") {
+                      badgeBg = "#E24B4A22";
+                      badgeColor = "#E24B4A";
+                    } else if (obs.type === "Reclamação") {
+                      badgeBg = "#378ADD22";
+                      badgeColor = "#378ADD";
+                    }
+
+                    return (
+                      <div key={obs.id} style={{border:`1px solid ${t.cardBorder}`,padding:10,borderRadius:10,background:t.inputBg,display:"flex",flexDirection:"column",gap:6}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span style={{fontSize:10,fontWeight:800,background:badgeBg,color:badgeColor,padding:"2px 8px",borderRadius:6,textTransform:"uppercase"}}>
+                            {obs.type}
+                          </span>
+                          <button 
+                            onClick={() => {
+                              const updatedObs = sumulaModal.m.observations.filter(x => x.id !== obs.id);
+                              setSumulaModal(prev => ({
+                                ...prev,
+                                m: { ...prev.m, observations: updatedObs }
+                              }));
+                            }}
+                            style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800,fontSize:12}}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <div style={{fontSize:12,color:t.text,lineHeight:"1.4",whiteSpace:"pre-wrap"}}>
+                          {obs.text}
+                        </div>
+                        {(homeNames.length > 0 || awayNames.length > 0) && (
+                          <div style={{borderTop:`1px dashed ${t.cardBorder}`,paddingTop:4,marginTop:2,fontSize:10,color:t.textSec,display:"flex",flexDirection:"column",gap:2}}>
+                            {homeNames.length > 0 && (
+                              <div><strong>{sumulaModal.m.home}:</strong> {homeNames.join(", ")}</div>
+                            )}
+                            {awayNames.length > 0 && (
+                              <div><strong>{sumulaModal.m.away}:</strong> {awayNames.join(", ")}</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             
