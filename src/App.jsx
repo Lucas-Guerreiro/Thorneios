@@ -917,8 +917,8 @@ function generateRR(teams,turno){
   return result;
 }
 function phaseName(n){if(n===2)return"Final";if(n===4)return"Semifinal";if(n===8)return"Quartas";if(n===16)return"Oitavas";return`Fase de ${n}`;}
-function generateKO(teams){
-  const s=cryptoShuffle([...teams]);const phases=[];let cur=s,ph=1;
+function generateKO(teams, noShuffle = false){
+  const s=noShuffle ? [...teams] : cryptoShuffle([...teams]);const phases=[];let cur=s,ph=1;
   while(cur.length>1){
     const pairs=[];for(let i=0;i<cur.length;i+=2)if(cur[i+1])pairs.push({home:cur[i],away:cur[i+1],homeScore:"",awayScore:"",played:false,winner:null,date:""});
     phases.push({phase:ph,name:phaseName(cur.length),matches:pairs,advancers:[]});
@@ -2080,11 +2080,11 @@ function PublicScreen({campeonatos,atletas,current,setCurrent,onBack,t}){
         {renderStats()}
       </>
     );
-    if(publicChamp.type==="misto") return (
+    if(publicChamp.type==="misto" || publicChamp.type==="liga") return (
       <>
         {publicChamp.groups.map((g,gi)=>(
           <div key={gi} style={{marginBottom:18}}>
-            <h3 style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:10}}>{g.name}</h3>
+            <h3 style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:10}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3>
             <StandingsTable standings={g.standings} teams={publicChamp.teams} colorOf={colorOf} t={t}/>
           </div>
         ))}
@@ -2104,7 +2104,7 @@ function PublicScreen({campeonatos,atletas,current,setCurrent,onBack,t}){
       <div key={`title-${r.round}`} style={{fontSize:13,fontWeight:700,color:t.textSec,marginBottom:6}}>Rodada {r.round}</div>,
       ...r.matches.map(renderMatch)
     ]);
-    if(publicChamp.type==="misto") return publicChamp.groups.flatMap((g,gi)=>[
+    if(publicChamp.type==="misto" || publicChamp.type==="liga") return publicChamp.groups.flatMap((g,gi)=>[
       <div key={`group-${gi}`} style={{marginTop:gi===0?0:24}}><h3 style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:10}}>{g.name}</h3></div>,
       ...g.rounds.flatMap(r=>[
         <div key={`grp-title-${gi}-${r.round}`} style={{fontSize:13,fontWeight:700,color:t.textSec,marginBottom:6}}>Rodada {r.round}</div>,
@@ -2650,7 +2650,7 @@ function CloudPublicChampScreen({champ,onBack,t}){
       {tab==="tabela"&&c.type==="pontos"&&(
          <StandingsTable standings={c.standings || []} teams={c.teams || []} colorOf={colorOf} t={t}/>
       )}
-      {tab==="tabela"&&c.type==="misto"&&(
+            {tab==="tabela"&&(c.type==="misto"||c.type==="liga")&&(
          <div>
            {(c.groups || []).map((g,gi)=><div key={gi} style={{marginBottom:20}}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}</h3><StandingsTable standings={g.standings || []} teams={c.teams || []} colorOf={colorOf} t={t}/></div>)}
          </div>
@@ -4047,7 +4047,146 @@ function CRUDAtletas({
       )}
     </div>
   );
-}/* ─────────────────────────── CRIAR PELADA ───────────────────────── */
+}
+
+/* ─────────────────────────── CRUD QUADRAS ───────────────────────── */
+function CRUDQuadras({
+  quadras, onAdd, onUpdate, onRemove, onExport, onImport, onDownloadTemplate, t
+}) {
+  const S = makeStyles(t);
+  const [modal, setModal] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [form, setForm] = useState({ nome: "", endereco: "", ativa: true });
+  const [filtro, setFiltro] = useState("");
+  const [expandMenu, setExpandMenu] = useState(false);
+
+  function abrirNovo() {
+    setEditId(null);
+    setForm({ nome: filtro.trim(), endereco: "", ativa: true });
+    setModal(true);
+  }
+
+  function abrirEdicao(q) {
+    setEditId(q.id);
+    setForm({
+      nome: q.nome || "",
+      endereco: q.endereco || "",
+      ativa: q.ativa !== false
+    });
+    setModal(true);
+  }
+
+  function salvar() {
+    if (!form.nome.trim()) return;
+    if (editId) onUpdate(editId, form);
+    else onAdd(form);
+    setModal(false);
+  }
+
+  const lista = quadras.filter(q => 
+    q.nome.toLowerCase().includes(filtro.toLowerCase()) || 
+    (q.endereco && q.endereco.toLowerCase().includes(filtro.toLowerCase()))
+  );
+  const ativas = quadras.filter(q => q.ativa).length;
+
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
+        {[["Total", quadras.length, "#378ADD"], ["Ativas", ativas, "#1D9E75"], ["Inativas", quadras.length - ativas, "#E24B4A"]].map(([l,v,c])=>(
+          <div key={l} style={{...S.card,textAlign:"center",padding:10}}>
+            <div style={{fontSize:9,fontWeight:700,color:t.textSec,marginBottom:3}}>{l}</div>
+            <div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <input style={{...S.input,flex:1,minWidth:120}} placeholder="🔍 Buscar quadra por nome ou endereço..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
+        <button onClick={abrirNovo} style={S.btn("#378ADD")}>+ Nova Quadra</button>
+        <button onClick={()=>setExpandMenu(!expandMenu)} style={{...S.btn("#a0a0a0"),display:"inline-flex",gap:6}}>
+          <span>⚙️ Importar/Exportar</span>
+          <span style={{transform:expandMenu?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.3s",display:"inline-block"}}>▼</span>
+        </button>
+      </div>
+
+      {expandMenu&&(
+        <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px solid ${t.cardBorder}`}}>
+          <div style={{display:"flex",flexDirection:"column",gap:0}}>
+            <button onClick={()=>{onExport();setExpandMenu(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span>📤</span>
+              <div><div style={{fontWeight:600}}>Exportar Quadras</div><div style={{fontSize:11,color:t.textSec}}>Baixar lista em XLS</div></div>
+            </button>
+            <button onClick={()=>{onDownloadTemplate();setExpandMenu(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span>📄</span>
+              <div><div style={{fontWeight:600}}>Baixar Modelo</div><div style={{fontSize:11,color:t.textSec}}>Planilha em branco</div></div>
+            </button>
+            <label style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s",margin:0}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span>📥</span>
+              <div><div style={{fontWeight:600}}>Importar Quadras</div><div style={{fontSize:11,color:t.textSec}}>Carregar arquivo XLS</div></div>
+              <input type="file" accept=".xls" style={{display:"none"}} onChange={(e)=>{onImport(e);setExpandMenu(false);}} />
+            </label>
+          </div>
+        </div>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {lista.length===0&&<div style={{color:t.textSec,fontSize:13,textAlign:"center",padding:20}}>Nenhuma quadra cadastrada.</div>}
+        {lista.map(q=>(
+          <div key={q.id} style={{...S.card,padding:"12px 14px",border:`1px solid ${q.ativa?t.cardBorder:t.cardBorder+"88"}`,opacity:q.ativa?1:0.6}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+              <span style={{fontSize:24}}>🏟️</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:14,color:t.text}}>
+                  {q.nome}
+                  {!q.ativa&&<span style={{marginLeft:8,fontSize:10,background:"#E24B4A22",color:"#E24B4A",padding:"1px 7px",borderRadius:8}}>Inativa</span>}
+                </div>
+                <div style={{fontSize:11,color:t.textSec,marginTop:2}}>
+                  📍 {q.endereco || "Sem endereço cadastrado"}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <button onClick={()=>abrirEdicao(q)} style={S.btnSm("#378ADD22","#378ADD")}>✏️</button>
+                <button onClick={()=>{if(window.confirm("Excluir quadra?"))onRemove(q.id);}} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {modal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
+          <div style={{...S.card,width:"100%",maxWidth:420,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editId ? "✏️ Editar Quadra" : "🆕 Nova Quadra"}</div>
+            
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <div>
+                <label style={S.label}>Nome da Quadra / Campo</label>
+                <input style={S.input} value={form.nome} onChange={e=>setForm(v=>({...v,nome:e.target.value}))} placeholder="Ex: Quadra Society 1"/>
+              </div>
+              <div>
+                <label style={S.label}>Endereço ou Descrição</label>
+                <input style={S.input} value={form.endereco} onChange={e=>setForm(v=>({...v,endereco:e.target.value}))} placeholder="Ex: Av. das Flores, 123"/>
+              </div>
+              <div>
+                <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer",color:t.text,marginTop:6}}>
+                  <input type="checkbox" checked={form.ativa} onChange={e=>setForm(v=>({...v,ativa:e.target.checked}))}/>
+                  Quadra Ativa (disponível para campeonatos)
+                </label>
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:8,marginTop:16}}>
+              <button onClick={salvar} style={S.btn("#378ADD")}>Salvar</button>
+              <button onClick={()=>setModal(false)} style={S.btn(t.card,t.textSec)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────── CRIAR PELADA ───────────────────────── */
 function CriarPelada({onSave,initial,t}){
   const S=makeStyles(t);
   const[nome,setNome]=useState(initial?.nome||"");
@@ -6046,9 +6185,30 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     onUpdate(tc);
     setEditing(null);
   }
-  function advanceMixed(){const tc=deepClone(c);const q=[];tc.groups.forEach(g=>{if(g.standings[0])q.push(g.standings[0].name);if(g.standings[1])q.push(g.standings[1].name);});tc.knockout=generateKO(q);tc.mixedPhase="knockout";onUpdate(tc);}
+    function advanceMixed(){
+    const tc=deepClone(c);
+    const q=[];
+    if (tc.type === "liga") {
+      const numGroups = tc.groups.length;
+      for (let i = 0; i < numGroups; i++) {
+        const firstTeam = tc.groups[i].standings[0]?.name || null;
+        const secondTeam = tc.groups[numGroups - 1 - i].standings[1]?.name || null;
+        q.push(firstTeam);
+        q.push(secondTeam);
+      }
+      tc.knockout=generateKO(q, true);
+    } else {
+      tc.groups.forEach(g=>{
+        if(g.standings[0])q.push(g.standings[0].name);
+        if(g.standings[1])q.push(g.standings[1].name);
+      });
+      tc.knockout=generateKO(q);
+    }
+    tc.mixedPhase="knockout";
+    onUpdate(tc);
+  }
   const lastPhase=c.knockout?.length>0?c.knockout[c.knockout.length-1]:null;
-  const champion=(c.type==="mata"||(c.type==="misto"&&c.mixedPhase==="knockout"))&&lastPhase?.matches?.[0]?.winner||(c.type==="pontos"&&c.rounds?.every(r=>r.matches.every(m=>m.played))&&c.standings?.[0]?.name)||null;
+  const champion=(c.type==="mata"||((c.type==="misto"||c.type==="liga")&&c.mixedPhase==="knockout"))&&lastPhase?.matches?.[0]?.winner||(c.type==="pontos"&&c.rounds?.every(r=>r.matches.every(m=>m.played))&&c.standings?.[0]?.name)||null;
   const tabs = [
     "elencos",
     ...(c.type==="pontos"?["tabela","jogos"]:c.type==="mata"?["chave","jogos"]:["tabela","chave","jogos"]),
@@ -7085,7 +7245,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       )}
       {tab==="tabela"&&c.type==="misto"&&(
          <div>
-           {c.groups.map((g,gi)=><div key={gi} style={{marginBottom:20}}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}</h3><StandingsTable standings={g.standings} teams={c.teams} colorOf={colorOf} t={t}/></div>)}
+           {c.groups.map((g,gi)=><div key={gi} style={{marginBottom:20}}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3><StandingsTable standings={g.standings} teams={c.teams} colorOf={colorOf} t={t}/></div>)}
            {c.mixedPhase==="groups"&&<button onClick={advanceMixed} style={S.btn("#378ADD")}>Avançar para Mata-Mata →</button>}
            <ResumoArtilharia />
          </div>
@@ -7243,7 +7403,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       )}
       {tab==="jogos"&&c.type==="pontos"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{c.rounds.map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{rd.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"rr-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveRR(ri,mi,hs,as2,dt,nh,na,nr)} roundsList={c.rounds.map(r=>r.round)} currentRound={rd.round} teamsList={c.teams}/>)}</div></Sec>)}</div>}
       {tab==="jogos"&&c.type==="mata"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{c.knockout.map((phase,pi)=><Sec key={pi} title={phase.name} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{phase.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"ko-"+pi+"-"+mi} onSave={(hs,as2,dt,nh,na)=>saveKO(pi,mi,hs,as2,dt,nh,na)} teamsList={c.teams}/>)}</div></Sec>)}</div>}
-      {tab==="jogos"&&c.type==="misto"&&<div style={{display:"flex",flexDirection:"column",gap:24}}>{c.groups.map((g,gi)=><div key={gi}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}</h3>{g.rounds.map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{rd.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"gr-"+gi+"-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveGroup(gi,ri,mi,hs,as2,dt,nh,na,nr)} roundsList={g.rounds.map(r=>r.round)} currentRound={rd.round} teamsList={g.teams}/>)}</div></Sec>)}</div>)}</div>}
+            {tab==="jogos"&&(c.type==="misto"||c.type==="liga")&&<div style={{display:"flex",flexDirection:"column",gap:24}}>{c.groups.map((g,gi)=><div key={gi}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3>{g.rounds.map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{rd.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"gr-"+gi+"-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveGroup(gi,ri,mi,hs,as2,dt,nh,na,nr)} roundsList={g.rounds.map(r=>r.round)} currentRound={rd.round} teamsList={g.teams}/>)}</div></Sec>)}</div>)}</div>}
       
       {sumulaModal && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
@@ -7883,43 +8043,212 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
 }
 
 /* ─────────────────────────── NOVO CAMPEONATO ────────────────────── */
-function NovoCampeonato({onSave,onCancel,t}){
+function NovoCampeonato({quadras,onSave,onCancel,t}){
   const S=makeStyles(t);
-  const[cf,setCf]=useState({name:"",type:"pontos",turno:true,date:"",teams:["",""],groupCount:2,fee:0});
+  const[cf,setCf]=useState({
+    name:"",
+    type:"pontos",
+    turno:true,
+    date:"",
+    teams:["",""],
+    groupCount:2,
+    teamsPerGroup:4,
+    groupsData:[],
+    fee:0
+  });
+
+  useEffect(() => {
+    if (cf.type === "liga") {
+      const gc = cf.groupCount || 2;
+      const tpg = cf.teamsPerGroup || 4;
+      const newGroups = [];
+      for (let i = 0; i < gc; i++) {
+        const name = "Grupo " + String.fromCharCode(65 + i);
+        const existing = cf.groupsData?.[i];
+        const teams = [];
+        for (let j = 0; j < tpg; j++) {
+          teams.push(existing?.teams?.[j] || "");
+        }
+        newGroups.push({
+          name: name,
+          teams: teams,
+          quadra: existing?.quadra || ""
+        });
+      }
+      
+      const same = cf.groupsData && cf.groupsData.length === newGroups.length &&
+        cf.groupsData.every((g, gi) => g.teams.length === newGroups[gi].teams.length);
+      if (!same) {
+        setCf(prev => ({ ...prev, groupsData: newGroups }));
+      }
+    }
+  }, [cf.type, cf.groupCount, cf.teamsPerGroup]);
+
   function criar(){
-    const teams=cf.teams.map(x=>x.trim()).filter(Boolean);
-    if(teams.length<2){alert("Mínimo 2 times!");return;}
-    if(new Set(teams).size!==teams.length){alert("Times duplicados!");return;}
-    let data={id:Date.now(),name:cf.name||"Campeonato",type:cf.type,teams,date:cf.date,fee:Number(cf.fee||0)};
-    if(cf.type==="pontos"){data.rounds=generateRR(teams,cf.turno);data.standings=initStandings(teams);}
-    else if(cf.type==="mata"){data.knockout=generateKO(teams);}
-    else{const gc=Math.min(cf.groupCount,Math.floor(teams.length/2));const groups=Array.from({length:gc},(_,i)=>({name:"Grupo "+String.fromCharCode(65+i),teams:[]}));teams.forEach((tm,i)=>groups[i%gc].teams.push(tm));data.groups=groups.map(g=>({...g,rounds:generateRR(g.teams,false),standings:initStandings(g.teams)}));data.knockout=null;data.mixedPhase="groups";}
-    onSave(data);
+    if (cf.type === "liga") {
+      const groups = cf.groupsData.map(g => {
+        const trimmedTeams = g.teams.map(t => t.trim()).filter(Boolean);
+        return {
+          name: g.name,
+          teams: trimmedTeams,
+          quadra: g.quadra,
+          rounds: generateRR(trimmedTeams, false),
+          standings: initStandings(trimmedTeams)
+        };
+      });
+      
+      const allTeamsList = groups.flatMap(g => g.teams);
+      if (allTeamsList.length < (cf.groupCount * cf.teamsPerGroup)) {
+        alert("Preencha todos os nomes dos times nos grupos!");
+        return;
+      }
+      if (new Set(allTeamsList).size !== allTeamsList.length) {
+        alert("Não é permitido times duplicados no campeonato!");
+        return;
+      }
+      
+      let data = {
+        id: Date.now(),
+        name: cf.name || "Campeonato",
+        type: "liga",
+        teams: allTeamsList,
+        date: cf.date,
+        fee: Number(cf.fee || 0),
+        groups: groups,
+        knockout: null,
+        mixedPhase: "groups"
+      };
+      onSave(data);
+    } else {
+      const teams=cf.teams.map(x=>x.trim()).filter(Boolean);
+      if(teams.length<2){alert("Mínimo 2 times!");return;}
+      if(new Set(teams).size!==teams.length){alert("Times duplicados!");return;}
+      let data={id:Date.now(),name:cf.name||"Campeonato",type:cf.type,teams,date:cf.date,fee:Number(cf.fee||0)};
+      if(cf.type==="pontos"){data.rounds=generateRR(teams,cf.turno);data.standings=initStandings(teams);}
+      else if(cf.type==="mata"){data.knockout=generateKO(teams);}
+      else {
+        const gc=Math.min(cf.groupCount,Math.floor(teams.length/2));
+        const groups=Array.from({length:gc},(_,i)=>({name:"Grupo "+String.fromCharCode(65+i),teams:[]}));
+        teams.forEach((tm,i)=>groups[i%gc].teams.push(tm));
+        data.groups=groups.map(g=>({...g,rounds:generateRR(g.teams,false),standings:initStandings(g.teams)}));
+        data.knockout=null;
+        data.mixedPhase="groups";
+      }
+      onSave(data);
+    }
   }
+
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <div><label style={S.label}>Nome</label><input style={S.input} value={cf.name} onChange={e=>setCf(v=>({...v,name:e.target.value}))} placeholder="Ex: Copa da Várzea"/></div>
         <div><label style={S.label}>Data</label><input style={S.input} type="date" value={cf.date} onChange={e=>setCf(v=>({...v,date:e.target.value}))}/></div>
       </div>
-      <div><label style={S.label}>Modalidade</label><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>{[["pontos","Pontos Corridos"],["mata","Mata-Mata"],["misto","Misto"]].map(([v,l])=><button key={v} onClick={()=>setCf(f=>({...f,type:v}))} style={{padding:"10px 4px",borderRadius:10,border:`2px solid ${cf.type===v?"#1D9E75":t.inputBorder}`,background:cf.type===v?"#1D9E7522":t.inputBg,color:cf.type===v?"#1D9E75":t.text,cursor:"pointer",fontWeight:cf.type===v?700:400,fontSize:12}}>{l}</button>)}</div></div>
-      {cf.type==="pontos"&&<label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer",color:t.text}}><input type="checkbox" checked={cf.turno} onChange={e=>setCf(v=>({...v,turno:e.target.checked}))}/>Turno e returno</label>}
-      {cf.type==="misto"&&<div style={{display:"flex",gap:10,alignItems:"center"}}><label style={{fontSize:13,color:t.textSec}}>Grupos:</label><input type="number" min={2} max={8} value={cf.groupCount} onChange={e=>setCf(v=>({...v,groupCount:Number(e.target.value)}))} style={{...S.input,width:60}}/></div>}
       <div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><label style={S.label}>Taxa de inscrição por atleta (R$)</label><input type="number" min={0} value={cf.fee} onChange={e=>setCf(v=>({...v,fee:Number(e.target.value)}))} style={{...S.input,width:180}}/></div>
-      </div>
-      <div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><label style={S.label}>Times ({cf.teams.filter(Boolean).length})</label><button onClick={()=>setCf(f=>({...f,teams:[...f.teams,""]}))} style={S.btnSm("#1D9E7522","#1D9E75")}>+ Time</button></div>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {cf.teams.map((tm,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
-              <Avatar name={tm||String(i+1)} color={COLORS[i%COLORS.length]} size={32}/>
-              <input value={tm} onChange={e=>{const ts=[...cf.teams];ts[i]=e.target.value;setCf(f=>({...f,teams:ts}));}} placeholder={`Time ${i+1}`} style={{...S.input,flex:1}}/>
-              {cf.teams.length>2&&<button onClick={()=>setCf(f=>({...f,teams:f.teams.filter((_,j)=>j!==i)}))} style={{fontSize:18,border:"none",background:"none",color:t.textSec,cursor:"pointer",padding:"0 4px"}}>×</button>}
-            </div>
+        <label style={S.label}>Modalidade</label>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(80px, 1fr))",gap:8}}>
+          {[["pontos","Pontos Corridos"],["mata","Mata-Mata"],["misto","Misto"],["liga","Liga (Grupos + Mata)"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setCf(f=>({...f,type:v}))} style={{padding:"10px 4px",borderRadius:10,border:`2px solid ${cf.type===v?"#1D9E75":t.inputBorder}`,background:cf.type===v?"#1D9E7522":t.inputBg,color:cf.type===v?"#1D9E75":t.text,cursor:"pointer",fontWeight:cf.type===v?700:400,fontSize:12}}>{l}</button>
           ))}
         </div>
       </div>
+      
+      {cf.type==="pontos"&&<label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer",color:t.text}}><input type="checkbox" checked={cf.turno} onChange={e=>setCf(v=>({...v,turno:e.target.checked}))}/>Turno e returno</label>}
+      
+      {cf.type==="misto"&&<div style={{display:"flex",gap:10,alignItems:"center"}}><label style={{fontSize:13,color:t.textSec}}>Grupos:</label><input type="number" min={2} max={8} value={cf.groupCount} onChange={e=>setCf(v=>({...v,groupCount:Number(e.target.value)}))} style={{...S.input,width:60}}/></div>}
+      
+      {cf.type==="liga"&& (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div>
+            <label style={S.label}>Quantidade de Chaves/Grupos</label>
+            <input type="number" min={2} max={16} value={cf.groupCount} onChange={e=>setCf(v=>({...v,groupCount:Math.max(2, Number(e.target.value))}))} style={S.input}/>
+          </div>
+          <div>
+            <label style={S.label}>Times por Chave/Grupo</label>
+            <input type="number" min={2} max={20} value={cf.teamsPerGroup} onChange={e=>setCf(v=>({...v,teamsPerGroup:Math.max(2, Number(e.target.value))}))} style={S.input}/>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><label style={S.label}>Taxa de inscrição por atleta (R$)</label><input type="number" min={0} value={cf.fee} onChange={e=>setCf(v=>({...v,fee:Number(e.target.value)}))} style={{...S.input,width:180}}/></div>
+      </div>
+
+      <div>
+        {cf.type==="liga" ? (
+          <div>
+            <label style={{...S.label, marginBottom:10, display:"block"}}>Grupos e Quadras</label>
+            <div style={{display:"flex",flexDirection:"column",gap:16,marginTop:8}}>
+              {cf.groupsData && cf.groupsData.map((g, gi) => (
+                <div key={gi} style={{...S.card,padding:14,border:`1px solid ${t.cardBorder}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
+                    <h4 style={{margin:0,fontSize:14,fontWeight:700,color:t.text}}>{g.name}</h4>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <label style={{fontSize:12,color:t.textSec,margin:0}}>Quadra:</label>
+                      <select 
+                        value={g.quadra || ""} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          setCf(prev => {
+                            const newGData = [...prev.groupsData];
+                            newGData[gi] = { ...newGData[gi], quadra: val };
+                            return { ...prev, groupsData: newGData };
+                          });
+                        }}
+                        style={{...S.input,width:160,padding:"4px 8px",fontSize:12,height:"auto"}}
+                      >
+                        <option value="">Sem Quadra</option>
+                        {quadras.filter(q => q.ativa).map(q => (
+                          <option key={q.id} value={q.nome}>{q.nome}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {g.teams && g.teams.map((tm, ti) => {
+                      const absoluteIndex = gi * (cf.teamsPerGroup || 4) + ti;
+                      return (
+                        <div key={ti} style={{display:"flex",alignItems:"center",gap:8}}>
+                          <Avatar name={tm || String(ti+1)} color={COLORS[absoluteIndex % COLORS.length]} size={28}/>
+                          <input 
+                            value={tm} 
+                            onChange={e => {
+                              const val = e.target.value;
+                              setCf(prev => {
+                                const newGData = [...prev.groupsData];
+                                const newTeams = [...newGData[gi].teams];
+                                newTeams[ti] = val;
+                                newGData[gi] = { ...newGData[gi], teams: newTeams };
+                                return { ...prev, groupsData: newGData };
+                              });
+                            }} 
+                            placeholder={`Time ${ti+1}`} 
+                            style={{...S.input,flex:1,padding:"6px 10px",fontSize:12}}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><label style={S.label}>Times ({cf.teams.filter(Boolean).length})</label><button onClick={()=>setCf(f=>({...f,teams:[...f.teams,""]}))} style={S.btnSm("#1D9E7522","#1D9E75")}>+ Time</button></div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {cf.teams.map((tm,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+                  <Avatar name={tm||String(i+1)} color={COLORS[i%COLORS.length]} size={32}/>
+                  <input value={tm} onChange={e=>{const ts=[...cf.teams];ts[i]=e.target.value;setCf(f=>({...f,teams:ts}));}} placeholder={`Time ${i+1}`} style={{...S.input,flex:1}}/>
+                  {cf.teams.length>2&&<button onClick={()=>setCf(f=>({...f,teams:f.teams.filter((_,j)=>j!==i)}))} style={{fontSize:18,border:"none",background:"none",color:t.textSec,cursor:"pointer",padding:"0 4px"}}>×</button>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       <div style={{display:"flex",gap:8}}>
         <button onClick={criar} style={{...S.btn(),flex:1,justifyContent:"center"}}>Criar Campeonato 🏆</button>
         <button onClick={onCancel} style={S.btn(t.card,t.textSec)}>Cancelar</button>
@@ -7948,6 +8277,7 @@ export default function App(){
     datasRealizacao: [],
     atletas: [],
     atletasCampeonato: [],
+    quadras: [],
     participacoes: [],
     financeiro: { entries: [] },
     managers: [],
@@ -7970,6 +8300,11 @@ export default function App(){
   useEffect(() => {
     allAtletasCampeonatoRef.current = allAtletasCampeonato;
   }, [allAtletasCampeonato]);
+  const allQuadras = Array.isArray(appState?.quadras) ? appState.quadras : [];
+  const allQuadrasRef = useRef(allQuadras);
+  useEffect(() => {
+    allQuadrasRef.current = allQuadras;
+  }, [allQuadras]);
   const participacoes = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
   const financeiro = appState?.financeiro && typeof appState.financeiro === 'object' ? appState.financeiro : { entries: [] };
   const managers = Array.isArray(appState?.managers) ? appState.managers : [];
@@ -8338,8 +8673,9 @@ export default function App(){
   };
   const campeonatos = filterByManager(allCampeonatos).filter(c => auth.role === "adm" || auth.scope === "geral" || auth.scope === "campeonato");
   const peladas = filterByManager(allPeladas).filter(p => auth.role === "adm" || auth.scope === "geral" || auth.scope === "pelada");
-  const atletas = filterByManager(allAtletas);
+    const atletas = filterByManager(allAtletas);
   const atletasCampeonato = filterByManager(allAtletasCampeonato);
+  const quadras = filterByManager(allQuadras);
 
   const escapeHtml = (value) => {
     return String(value ?? "")
@@ -8567,12 +8903,92 @@ export default function App(){
           customFields: item.customFields && typeof item.customFields === "object" ? item.customFields : {},
         };
       });
-      if (!window.confirm("Importar atletas substituirá a lista atual de atletas de campeonatos. Deseja continuar?")) return;
+            if (!window.confirm("Importar atletas substituirá a lista atual de atletas de campeonatos. Deseja continuar?")) return;
       setAtletasCampeonato(normalized);
       alert(`Importação concluída com ${normalized.length} atletas de campeonato.`);
     } catch (error) {
       console.error("Importar atletas de campeonato falhou:", error);
       alert("Erro ao importar atletas de campeonato: " + (error.message || error));
+    } finally {
+      if (event.target) event.target.value = "";
+    }
+  };
+
+  const downloadQuadrasTemplate = () => {
+    const headers = ["id", "nome", "endereco", "ativa"];
+    const sample = {
+      id: "",
+      nome: "Quadra Central Coberta",
+      endereco: "Av. Principal, 500",
+      ativa: "true"
+    };
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody><tr>${headers.map(key => `<td>${escapeHtml(sample[key] ?? "")}</td>`).join("")}</tr></tbody></table></body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `modelo-quadras.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  };
+
+  const exportQuadras = () => {
+    const headers = ["id", "nome", "endereco", "ativa"];
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${quadras.map(q => `<tr>${headers.map(key => `<td>${escapeHtml(q[key] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
+    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `quadras-${todayStr()}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  };
+
+  const importQuadras = async (event) => {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(text, "text/html");
+      const table = doc.querySelector("table");
+      if (!table) throw new Error("O arquivo XLS não contém uma tabela válida.");
+      const rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
+      if (rows.length < 2) throw new Error("A tabela XLS não contém dados de quadras.");
+      const headers = rows[0].map(h => String(h).trim());
+      const dataRows = rows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
+      const normalized = dataRows.map(cells => {
+        const item = {};
+        cells.forEach((value, index) => {
+          const key = headers[index];
+          if (!key) return;
+          if (key === "ativa") {
+            item.ativa = String(value).trim().toLowerCase() === "true";
+            return;
+          }
+          if (key === "id") {
+            item.id = value ? Number(value) : undefined;
+            return;
+          }
+          item[key] = value;
+        });
+        return {
+          ...item,
+          id: item.id || Date.now() + Math.floor(Math.random() * 1000),
+          ativa: item.ativa !== false,
+          manager_id: auth.role === "manager" ? auth.manager_id : item.manager_id,
+        };
+      });
+      if (!window.confirm("Importar quadras substituirá a lista atual de quadras. Deseja continuar?")) return;
+      setQuadras(normalized);
+      alert(`Importação concluída com ${normalized.length} quadras.`);
+    } catch (error) {
+      console.error("Importar quadras falhou:", error);
+      alert("Erro ao importar quadras: " + (error.message || error));
     } finally {
       if (event.target) event.target.value = "";
     }
@@ -8601,8 +9017,9 @@ export default function App(){
   const setCampeonatos = d => setAppState(s => ({ ...s, campeonatos: typeof d === 'function' ? d(Array.isArray(s.campeonatos) ? s.campeonatos : []) : d }));
   const setPeladas = d => setAppState(s => ({ ...s, peladas: typeof d === 'function' ? d(Array.isArray(s.peladas) ? s.peladas : []) : d }));
   const setDatasRealizacao = d => setAppState(s => ({ ...s, datasRealizacao: typeof d === 'function' ? d(Array.isArray(s.datasRealizacao) ? s.datasRealizacao : []) : d }));
-  const setAtletas = d => setAppState(s => ({ ...s, atletas: typeof d === 'function' ? d(Array.isArray(s.atletas) ? s.atletas : []) : d }));
+    const setAtletas = d => setAppState(s => ({ ...s, atletas: typeof d === 'function' ? d(Array.isArray(s.atletas) ? s.atletas : []) : d }));
   const setAtletasCampeonato = d => setAppState(s => ({ ...s, atletasCampeonato: typeof d === 'function' ? d(Array.isArray(s.atletasCampeonato) ? s.atletasCampeonato : []) : d }));
+  const setQuadras = d => setAppState(s => ({ ...s, quadras: typeof d === 'function' ? d(Array.isArray(s.quadras) ? s.quadras : []) : d }));
   const setParticipacoes = d => setAppState(s => ({ ...s, participacoes: typeof d === 'function' ? d(Array.isArray(s.participacoes) ? s.participacoes : []) : d }));
   const setFinanceiro = d => setAppState(s => ({ ...s, financeiro: typeof d === 'function' ? d(s.financeiro && typeof s.financeiro === 'object' ? s.financeiro : { entries: [] }) : d }));
   const setManagers = d => setAppState(s => ({ ...s, managers: typeof d === 'function' ? d(Array.isArray(s.managers) ? s.managers : []) : d }));
@@ -8648,13 +9065,18 @@ export default function App(){
     }
   }, [screen]);
 
-    // ── CRUD Atletas ───────────────────────────────────────────────
+      // ── CRUD Atletas ───────────────────────────────────────────────
   const adicionarAtleta  =d=>setAtletas(p=>[...p,{...d,id:d.id || Date.now() + Math.floor(Math.random() * 100000), manager_id: auth.role === "manager" ? auth.manager_id : null}]);
   const atualizarAtleta  =(id,d)=>setAtletas(p=>p.map(a=>a.id===id?{...a,...d}:a));
   const removerAtleta    =id=>setAtletas(p=>p.filter(a=>a.id!==id));
   const adicionarAtletaCampeonato  =d=>setAtletasCampeonato(p=>[...p,{...d,id:d.id || Date.now() + Math.floor(Math.random() * 100000), manager_id: auth.role === "manager" ? auth.manager_id : null}]);
   const atualizarAtletaCampeonato  =(id,d)=>setAtletasCampeonato(p=>p.map(a=>a.id===id?{...a,...d}:a));
   const removerAtletaCampeonato    =id=>setAtletasCampeonato(p=>p.filter(a=>a.id!==id));
+
+  // ── CRUD Quadras ───────────────────────────────────────────────
+  const adicionarQuadra = d => setQuadras(p => [...p, { ...d, id: d.id || Date.now(), manager_id: auth.role === "manager" ? auth.manager_id : null }]);
+  const atualizarQuadra = (id, d) => setQuadras(p => p.map(q => q.id === id ? { ...q, ...d } : q));
+  const removerQuadra = id => setQuadras(p => p.filter(q => q.id !== id));
 
   // ── CRUD Datas Realização ──────────────────────────────────────
   const adicionarData=(d)=>setDatasRealizacao(p=>[...p,{...d,id:Date.now()}]);
@@ -8757,7 +9179,7 @@ export default function App(){
 
   // ── BACKUP / RESTAURAR ─────────────────────────────────────────
   async function exportJSON(){
-    const data = {campeonatos,peladas,datasRealizacao,atletas,atletasCampeonato,participacoes,financeiro,managers};
+    const data = {campeonatos,peladas,datasRealizacao,atletas,atletasCampeonato,quadras,participacoes,financeiro,managers};
     const fileName = `futebol_manager_backup_${todayStr()}.json`;
     const jsonStr = JSON.stringify(data, null, 2);
     const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
@@ -8845,6 +9267,7 @@ export default function App(){
         const data = JSON.parse(evt.target.result);
         if(Array.isArray(data.atletas)) setAtletas(data.atletas);
         if(Array.isArray(data.atletasCampeonato)) setAtletasCampeonato(data.atletasCampeonato);
+        if(Array.isArray(data.quadras)) setQuadras(data.quadras);
         if(Array.isArray(data.peladas)) setPeladas(data.peladas);
         if(Array.isArray(data.datasRealizacao)) setDatasRealizacao(data.datasRealizacao);
         if(Array.isArray(data.participacoes)) setParticipacoes(data.participacoes);
@@ -8986,9 +9409,13 @@ export default function App(){
       {expandMenuHome&&(
         <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px solid ${t.inputBorder}`}}>
           <div style={{display:"flex",flexDirection:"column",gap:0}}>
-            <button onClick={()=>{setScreen("atletas");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        <button onClick={()=>{setScreen("atletas");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <span>👤</span>
               <div><div style={{fontWeight:600}}>Atletas</div><div style={{fontSize:11,color:t.textSec}}>Gerenciar lista de atletas</div></div>
+            </button>
+            <button onClick={()=>{setScreen("quadras");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span>🏟️</span>
+              <div><div style={{fontWeight:600}}>Quadras</div><div style={{fontSize:11,color:t.textSec}}>Gerenciar quadras/campos</div></div>
             </button>
             <button onClick={()=>{setScreen("financeiro");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <span>💰</span>
@@ -9319,6 +9746,26 @@ export default function App(){
     </div>
   );
 
+    /* ── QUADRAS ──────────────────────────────────────────────────── */
+  if(screen==="quadras")return(
+    <div style={S.page}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setScreen("home")} style={S.btnSm()}>← Voltar</button><h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>🏟️ Quadras</h2></div>
+        <DarkBtn/>
+      </div>
+      <CRUDQuadras 
+        quadras={quadras} 
+        onAdd={adicionarQuadra} 
+        onUpdate={atualizarQuadra} 
+        onRemove={removerQuadra} 
+        onExport={exportQuadras} 
+        onImport={importQuadras} 
+        onDownloadTemplate={downloadQuadrasTemplate} 
+        t={t}
+      />
+    </div>
+  );
+
   /* ── ATLETAS ──────────────────────────────────────────────────── */
   if(screen==="atletas")return(
     <div style={S.page}>
@@ -9353,7 +9800,7 @@ export default function App(){
         <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setScreen("home")} style={S.btnSm()}>← Voltar</button><h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>🏆 Novo Campeonato</h2></div>
         <DarkBtn/>
       </div>
-      <NovoCampeonato onSave={d=>{
+      <NovoCampeonato quadras={quadras} onSave={d=>{
         const newD = {...d, manager_id: auth.role === "manager" ? auth.manager_id : null};
         setCampeonatos(p=>[...p,newD]);
         setCurrent(newD);
