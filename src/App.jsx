@@ -52,10 +52,10 @@ function makeStyles(t){
     card:  {background:t.card,borderRadius:12,padding:"16px",border:`1px solid ${t.cardBorder}`,boxShadow:"none"},
     input: {padding:"9px 13px",borderRadius:8,border:`1px solid ${t.inputBorder}`,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"border-color 0.2s"},
     select:{padding:"9px 13px",borderRadius:8,border:`1px solid ${t.inputBorder}`,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"border-color 0.2s"},
-    btn:   (bg,c)=>({padding:"9px 16px",borderRadius:8,border:"none",background:bg||"#0095F6",color:c||"#fff",cursor:"pointer",fontWeight:600,fontSize:14,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6,transition:"background 0.2s, opacity 0.2s"}),
+    btn:   (bg,c)=>({padding:"9px 16px",borderRadius:8,border:"none",background:bg||t.accent||"#0095F6",color:c||"#fff",cursor:"pointer",fontWeight:600,fontSize:14,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6,transition:"background 0.2s, opacity 0.2s"}),
     btnSm: (bg,c)=>({padding:"6px 12px",borderRadius:6,border:`1px solid ${t.inputBorder}`,background:bg||t.inputBg,color:c||t.text,cursor:"pointer",fontWeight:600,fontSize:12,transition:"background 0.2s"}),
     label: {fontSize:11,color:t.textSec,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,marginBottom:5,display:"block"},
-    tab:   a=>({padding:"10px 14px",border:"none",borderBottom:a?"2.5px solid #0095F6":"2.5px solid transparent",background:"none",color:a?t.text:t.textSec,cursor:"pointer",fontSize:13,fontWeight:a?800:500,letterSpacing:"0.5px",textTransform:"uppercase",whiteSpace:"nowrap"}),
+    tab:   a=>({padding:"10px 14px",border:"none",borderBottom:a?("2.5px solid " + (t.accent||"#0095F6")):"2.5px solid transparent",background:"none",color:a?t.text:t.textSec,cursor:"pointer",fontSize:13,fontWeight:a?800:500,letterSpacing:"0.5px",textTransform:"uppercase",whiteSpace:"nowrap"}),
   };
 }
 
@@ -2987,6 +2987,37 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
 
       {/* Visão de Tela (Escondida no PDF) */}
       <div className="no-print">
+        {/* Seletor de Cores do Relatório & Sistema */}
+        <div style={{ ...S.card, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, borderColor: (t.accent || "#0095F6") + "55" }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: t.text }}>🎨 Tema de Cor (Relatório & Sistema):</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {[
+              { name: "Azul Instagram", color: "#0095F6" },
+              { name: "Verde Esmeralda", color: "#1D9E75" },
+              { name: "Roxo Classic", color: "#7F77DD" },
+              { name: "Laranja Sol", color: "#BA7517" },
+              { name: "Vermelho Sunset", color: "#E24B4A" },
+              { name: "Preto Minimal", color: "#262626" }
+            ].map(c => (
+              <button
+                key={c.color}
+                onClick={() => t.changeAccentColor(c.color)}
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: c.color,
+                  border: `2.5px solid ${t.accent === c.color ? (t.dark ? "#ffffff" : "#000000") : "transparent"}`,
+                  cursor: "pointer",
+                  boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
+                  transition: "transform 0.1s",
+                }}
+                title={c.name}
+              />
+            ))}
+          </div>
+        </div>
+
         {/* Filtros */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }} className="no-print">
           <div style={{ flex: 1, minWidth: 200 }}>
@@ -3006,19 +3037,19 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
           <div style={{ display: "flex", gap: 8, flexShrink: 0, marginTop: 18, flexWrap: "wrap" }}>
             <button 
               onClick={() => setRepSortBy("pts")} 
-              style={S.btnSm(repSortBy === "pts" ? "#0095F6" : "transparent", repSortBy === "pts" ? "#fff" : t.textSec)}
+              style={S.btnSm(repSortBy === "pts" ? (t.accent || "#0095F6") : "transparent", repSortBy === "pts" ? "#fff" : t.textSec)}
             >
               Classificar por Pontos
             </button>
             <button 
               onClick={() => setRepSortBy("gols")} 
-              style={S.btnSm(repSortBy === "gols" ? "#0095F6" : "transparent", repSortBy === "gols" ? "#fff" : t.textSec)}
+              style={S.btnSm(repSortBy === "gols" ? (t.accent || "#0095F6") : "transparent", repSortBy === "gols" ? "#fff" : t.textSec)}
             >
               Classificar por Gols
             </button>
             <button 
               onClick={() => window.print()} 
-              style={{...S.btnSm("#0095F6", "#fff"), fontWeight: 700}}
+              style={{...S.btnSm(t.accent || "#0095F6", "#fff"), fontWeight: 700}}
             >
               📄 Exportar PDF
             </button>
@@ -3027,9 +3058,9 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
 
         {/* Cards de Resumo */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-          <div style={{ ...S.card, padding: 12, textAlign: "center", borderColor: "#0095F633" }}>
+          <div style={{ ...S.card, padding: 12, textAlign: "center", borderColor: (t.accent || "#0095F6") + "33" }}>
             <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>PARTIDAS JOGADAS</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#0095F6", marginTop: 4 }}>{totalPartidas}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: t.accent || "#0095F6", marginTop: 4 }}>{totalPartidas}</div>
           </div>
           <div style={{ ...S.card, padding: 12, textAlign: "center", borderColor: "#1D9E7533" }}>
             <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
@@ -3040,7 +3071,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
         {/* Classificação dos Times */}
         <div style={{ ...S.card, marginBottom: 20 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>🏆 Classificação dos Times</div>
-          <StandingsTable standings={getFilteredStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent="#0095F6" t={t} />
+          <StandingsTable standings={getFilteredStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent={t.accent || "#0095F6"} t={t} />
         </div>
 
         {/* Tabela do Relatório */}
@@ -3068,7 +3099,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
                     else if (idx === 2) badge = "🥉";
                     
                     return (
-                      <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? "#0095F611" : "transparent" }}>
+                      <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? (t.accent ? t.accent + "11" : "#0095F611") : "transparent" }}>
                         <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, fontSize: 13 }}>{badge}</td>
                         <td style={{ padding: "9px 6px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -3083,7 +3114,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
                         <td style={{ padding: "9px 6px", textAlign: "center", color: t.text, fontWeight: repSortBy === "gols" ? 700 : 400, fontSize: repSortBy === "gols" ? 13 : 12 }}>
                           {item.gp}
                         </td>
-                        <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: "#0095F6", fontSize: repSortBy === "pts" ? 14 : 12 }}>
+                        <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: t.accent || "#0095F6", fontSize: repSortBy === "pts" ? 14 : 12 }}>
                           {item.pts}
                         </td>
                       </tr>
@@ -3121,7 +3152,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
             standings={getFilteredStandings()} 
             teams={(peladaState?.teams||[]).map(x=>x.name)} 
             colorOf={colorOfTeam} 
-            accent="#0095F6" 
+            accent={t.accent || "#0095F6"} 
             t={{ ...t, cardBorder: "#dddddd", text: "#000000", textSec: "#666666" }} 
           />
         </div>
@@ -6960,7 +6991,15 @@ function NovoCampeonato({onSave,onCancel,t}){
 
 /* ─────────────────────────── APP ROOT ───────────────────────────── */
 export default function App(){
-  const{dark,setDark,t}=useTheme();
+  const{dark,setDark,t:themeBase}=useTheme();
+  const [accentColor, setAccentColor] = useState(() => {
+    return localStorage.getItem("system_accent") || "#0095F6";
+  });
+  const changeAccentColor = (color) => {
+    setAccentColor(color);
+    localStorage.setItem("system_accent", color);
+  };
+  const t = { ...themeBase, accent: accentColor, changeAccentColor };
   const S=makeStyles(t);
 
   // ── Estado Global (Salvo em localStorage) ─────────────────────
