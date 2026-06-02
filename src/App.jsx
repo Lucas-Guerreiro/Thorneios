@@ -1168,11 +1168,11 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey }) {
 
   const progressPercent = initialSeconds > 0 ? (seconds / initialSeconds) * 100 : 0;
   const isUrgent = seconds > 0 && seconds <= 30;
-  const isDark = t.bg === "#0f1117";
+  const isDark = t.bg === "#0f1117" || t.bg === "#000000";
 
   return (
     <div style={{
-      background: isDark ? "#1f2335" : "#f1f5f9",
+      background: t.bg === "#000000" ? "#121212" : t.bg === "#0f1117" ? "#1f2335" : "#f1f5f9",
       border: `1.5px solid ${isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : t.cardBorder}`,
       borderRadius: 14,
       padding: 12,
@@ -2797,17 +2797,25 @@ function StandingsTable({standings,teams,colorOf,accent,t}){
 function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepDataId, repSortBy, setRepSortBy, formatarData, t }) {
   const S = makeStyles(t);
   
-  const buildReportData = () => {
+  const getFilteredMatches = () => {
     const log = peladaState?.matchLog || [];
-    const filteredMatches = repDataId === "todas"
+    const dataObj = datas.find(x => String(x.id) === String(repDataId));
+    return repDataId === "todas"
       ? log.filter(m => m.played)
-      : log.filter(m => m.played && String(m.dataRealizacaoId) === String(repDataId));
+      : log.filter(m => m.played && (
+          String(m.dataRealizacaoId) === String(repDataId) || 
+          (dataObj && m.date === dataObj.data)
+        ));
+  };
 
+  const buildReportData = () => {
+    const filteredMatches = getFilteredMatches();
     const stats = {};
 
     filteredMatches.forEach(m => {
       const scoreA = parseInt(m.scoreA) || 0;
       const scoreB = parseInt(m.scoreB) || 0;
+      const sumula = m.sumula || {};
 
       // Players do time A
       (m.playersA || []).forEach(p => {
@@ -2816,7 +2824,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
         }
         const s = stats[p.id];
         s.j++;
-        s.gp += scoreA;
+        s.gp += parseInt(sumula[p.id]) || 0;
         s.gc += scoreB;
         if (scoreA > scoreB) {
           s.v++;
@@ -2836,7 +2844,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
         }
         const s = stats[p.id];
         s.j++;
-        s.gp += scoreB;
+        s.gp += parseInt(sumula[p.id]) || 0;
         s.gc += scoreA;
         if (scoreB > scoreA) {
           s.v++;
@@ -2858,12 +2866,24 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
     }
   };
 
-  const reportData = buildReportData();
-  const totalPartidas = repDataId === "todas"
-    ? (peladaState?.matchLog || []).filter(m => m.played).length
-    : (peladaState?.matchLog || []).filter(m => m.played && String(m.dataRealizacaoId) === String(repDataId)).length;
+  const getMostWinningTeam = () => {
+    const filteredMatches = getFilteredMatches();
+    const winCounts = {};
+    filteredMatches.forEach(m => {
+      if (m.winner) {
+        winCounts[m.winner] = (winCounts[m.winner] || 0) + 1;
+      }
+    });
 
-  const totalGols = reportData.reduce((acc, curr) => acc + curr.gp, 0) / 2;
+    const entries = Object.entries(winCounts);
+    if (entries.length === 0) return "Nenhum";
+    
+    entries.sort((a, b) => b[1] - a[1]);
+    return `${entries[0][0]} (${entries[0][1]} ${entries[0][1] === 1 ? "Vitória" : "Vitórias"})`;
+  };
+
+  const reportData = buildReportData();
+  const totalPartidas = getFilteredMatches().length;
 
   return (
     <div>
@@ -2906,8 +2926,8 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
           <div style={{ fontSize: 22, fontWeight: 800, color: "#0095F6", marginTop: 4 }}>{totalPartidas}</div>
         </div>
         <div style={{ ...S.card, padding: 12, textAlign: "center", borderColor: "#1D9E7533" }}>
-          <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>TOTAL DE GOLS PRÓ</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#1D9E75", marginTop: 4 }}>{Math.round(totalGols)}</div>
+          <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#1D9E75", marginTop: 8 }}>{getMostWinningTeam()}</div>
         </div>
       </div>
 
@@ -3959,6 +3979,11 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[subModal,setSubModal]=useState(null);
   const[repDataId,setRepDataId]=useState("todas");
   const[repSortBy,setRepSortBy]=useState("pts");
+  const[sumulaGols,setSumulaGols]=useState({});
+  const[editMatchId,setEditMatchId]=useState(null);
+  const[editScoreA,setEditScoreA]=useState("");
+  const[editScoreB,setEditScoreB]=useState("");
+  const[editSumula,setEditSumula]=useState({});
 
   const[selDataSorteio,setSelDataSorteio]=useState(datas[0]?.id||"");
   useEffect(()=>{if(!selDataSorteio&&datas.length>0)setSelDataSorteio(datas[0].id);},[datas]);
@@ -4153,11 +4178,47 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   }
   function saveMatchLocal(){
     if(scoreA===""||scoreB==="")return;
-    const ps2=resolveMatch({...peladaState,currentMatch:{...peladaState.currentMatch,scoreA,scoreB,played:true}},scoreA,scoreB);
-    const ps3=startNextMatch(ps2);
+    const ps2=resolveMatch({
+      ...peladaState,
+      currentMatch:{
+        ...peladaState.currentMatch,
+        scoreA,
+        scoreB,
+        played:true,
+        sumula:sumulaGols
+      }
+    },scoreA,scoreB);
+    const ps3=startNextMatch(ps2, selDataSorteio);
     setPeladaStateLocal(ps3);
     onUpdatePelada(pelada.id,{peladaState:ps3});
     setScoreA("");setScoreB("");
+    setSumulaGols({});
+  }
+  function saveEditedMatch() {
+    if (editMatchId === null) return;
+    let ps = peladaState ? deepClone(peladaState) : null;
+    if (ps && ps.matchLog[editMatchId]) {
+      const match = ps.matchLog[editMatchId];
+      
+      const sA = parseInt(editScoreA) || 0;
+      const sB = parseInt(editScoreB) || 0;
+      
+      const winner = sA > sB ? match.teamA : sA < sB ? match.teamB : match.teamA;
+      const loser = winner === match.teamA ? match.teamB : match.teamA;
+
+      ps.matchLog[editMatchId] = {
+        ...match,
+        scoreA: editScoreA,
+        scoreB: editScoreB,
+        winner,
+        loser,
+        sumula: editSumula
+      };
+
+      setPeladaStateLocal(ps);
+      onUpdatePelada(pelada.id, { peladaState: ps });
+    }
+    setEditMatchId(null);
   }
   function peladaStandings(){
     if(!peladaState?.teams)return[];
@@ -4320,7 +4381,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:8,alignItems:"center",marginBottom:12}}>
                 <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamA)}55`,padding:10,textAlign:"right"}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}><span style={{fontWeight:700,fontSize:13,color:t.text}}>{peladaState.currentMatch.teamA}</span><div style={{width:10,height:10,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamA),flexShrink:0}}/></div>
-                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:4}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>{getPlayerName(p)} <PlayerAvatar atleta={p} size={16}/></div>)}</div>
+                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:4}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>⚽<input type="number" min={0} max={99} placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>setSumulaGols(v=>({...v,[p.id]:parseInt(e.target.value)||0}))} style={{...S.input,width:32,padding:"2px 4px",fontSize:10,textAlign:"center",marginRight:6}}/>{getPlayerName(p)} <PlayerAvatar atleta={p} size={16}/></div>)}</div>
                 </div>
                 <div style={{textAlign:"center"}}>
                   <div style={{display:"flex",gap:6,alignItems:"center"}}>
@@ -4331,7 +4392,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 </div>
                 <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamB)}55`,padding:10}}>
                   <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:10,height:10,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamB),flexShrink:0}}/><span style={{fontWeight:700,fontSize:13,color:t.text}}>{peladaState.currentMatch.teamB}</span></div>
-                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:4}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:6}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)} <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button></div>)}</div>
+                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:4}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:6}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)} <input type="number" min={0} max={99} placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>setSumulaGols(v=>({...v,[p.id]:parseInt(e.target.value)||0}))} style={{...S.input,width:32,padding:"2px 4px",fontSize:10,textAlign:"center",marginLeft:6}}/>⚽<button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button></div>)}</div>
                 </div>
               </div>
               <button onClick={saveMatchLocal} style={{...S.btn(),width:"100%",justifyContent:"center"}}>✓ Registrar</button>
@@ -4369,19 +4430,57 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           {(peladaState?.matchLog||[]).length>0&&(
             <div>
               <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>📜 Histórico</h3>
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {[...(peladaState.matchLog||[])].reverse().map((m,i)=>(
-                  <div key={i} style={{...S.card,padding:"10px 12px"}}>
+               <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {(peladaState?.matchLog||[]).map((m, originalIndex) => ({m, originalIndex})).reverse().map(({m, originalIndex})=>(
+                  <div key={originalIndex} style={{...S.card,padding:"10px 12px",position:"relative"}}>
+                    <button 
+                      onClick={() => {
+                        setEditMatchId(originalIndex);
+                        setEditScoreA(m.scoreA);
+                        setEditScoreB(m.scoreB);
+                        setEditSumula(m.sumula || {});
+                      }}
+                      style={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        padding: 2
+                      }}
+                      title="Editar Partida e Súmula"
+                    >
+                      ✏️
+                    </button>
                     <div style={{display:"flex",justifyContent:"center",marginBottom:4}}><span style={{fontWeight:800,fontSize:15,color:"#378ADD"}}>{m.scoreA} × {m.scoreB}</span></div>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:4}}>
                       <div style={{flex:1,textAlign:"left"}}>
                         <div style={{fontSize:13,fontWeight:m.winner===m.teamA?700:500,color:m.winner===m.teamA?"#1D9E75":t.text}}>{m.teamA}</div>
-                        <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>{(m.playersA||peladaState.teams?.find(tm=>tm.name===m.teamA)?.players||[]).map((p,pi)=><div key={pi}>{getPlayerName(p)}</div>)}</div>
+                        <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>
+                          {(m.playersA||[]).map((p,pi)=>{
+                            const gols = m.sumula?.[p.id] ? ` ⚽(${m.sumula[p.id]})` : "";
+                            return <div key={pi}>{getPlayerName(p)}{gols}</div>;
+                          })}
+                        </div>
                       </div>
-                      <div style={{padding:"0 6px",marginTop:2}}><span style={{fontSize:10,color:"#1D9E75",fontWeight:600}}>🏆 {m.winner}</span></div>
+                      <div style={{padding:"0 6px",marginTop:2,textAlign:"center"}}>
+                        <span style={{fontSize:10,color:"#1D9E75",fontWeight:600,display:"block"}}>🏆 {m.winner}</span>
+                        {m.dataRealizacaoId && datas.find(d=>String(d.id)===String(m.dataRealizacaoId)) && (
+                          <span style={{fontSize:9,color:t.textSec,display:"block",marginTop:4}}>
+                            📅 {formatarData(datas.find(d=>String(d.id)===String(m.dataRealizacaoId)).data)}
+                          </span>
+                        )}
+                      </div>
                       <div style={{flex:1,textAlign:"right"}}>
                         <div style={{fontSize:13,fontWeight:m.winner===m.teamB?700:500,color:m.winner===m.teamB?"#1D9E75":t.text}}>{m.teamB}</div>
-                        <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>{(m.playersB||peladaState.teams?.find(tm=>tm.name===m.teamB)?.players||[]).map((p,pi)=><div key={pi}>{getPlayerName(p)}</div>)}</div>
+                        <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>
+                          {(m.playersB||[]).map((p,pi)=>{
+                            const gols = m.sumula?.[p.id] ? ` (${m.sumula[p.id]})⚽` : "";
+                            return <div key={pi}>{getPlayerName(p)}{gols}</div>;
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -4404,6 +4503,93 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               ))}
               <button onClick={()=>movePlayerInRotation(subModal, "bench")} style={{...S.btn("#BA751722","#BA7517"),justifyContent:"center",fontWeight:700}}>Banco (Espera)</button>
               <button onClick={()=>setSubModal(null)} style={{...S.btn(t.card,t.textSec),justifyContent:"center",marginTop:8,border:`1px solid ${t.cardBorder}`}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editMatchId !== null && peladaState?.matchLog[editMatchId] && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
+          <div style={{...S.card,width:"100%",maxWidth:350,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:15,color:t.text,marginBottom:12,textAlign:"center"}}>Editar Partida & Súmula</div>
+            
+            {/* Placar */}
+            <div style={{display:"flex",gap:8,alignItems:"center",justifyContent:"center",marginBottom:16}}>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:11,fontWeight:650,color:t.textSec,marginBottom:4}}>{peladaState.matchLog[editMatchId].teamA}</div>
+                <input 
+                  type="number" 
+                  min={0} 
+                  value={editScoreA} 
+                  onChange={e=>setEditScoreA(e.target.value)} 
+                  style={{...S.input,width:60,textAlign:"center",fontSize:18,fontWeight:800}}
+                />
+              </div>
+              <span style={{fontWeight:700,color:t.textSec,fontSize:20,marginTop:16}}>×</span>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:11,fontWeight:650,color:t.textSec,marginBottom:4}}>{peladaState.matchLog[editMatchId].teamB}</div>
+                <input 
+                  type="number" 
+                  min={0} 
+                  value={editScoreB} 
+                  onChange={e=>setEditScoreB(e.target.value)} 
+                  style={{...S.input,width:60,textAlign:"center",fontSize:18,fontWeight:800}}
+                />
+              </div>
+            </div>
+
+            {/* Marcadores de Gols */}
+            <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
+              {/* Marcadores Time A */}
+              <div style={{borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:10}}>
+                <div style={{fontWeight:700,color:colorOfTeam(peladaState.matchLog[editMatchId].teamA),fontSize:12,marginBottom:6}}>{peladaState.matchLog[editMatchId].teamA} (Marcadores)</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {(peladaState.matchLog[editMatchId].playersA || []).map(p => (
+                    <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:12}}>
+                      <span style={{color:t.text}}>{getPlayerName(p)}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}>
+                        <input 
+                          type="number" 
+                          min={0} 
+                          placeholder="0"
+                          value={editSumula[p.id] || ""} 
+                          onChange={e => setEditSumula(v => ({...v, [p.id]: parseInt(e.target.value) || 0}))} 
+                          style={{...S.input,width:40,padding:"3px 6px",fontSize:11,textAlign:"center"}}
+                        />
+                        <span>⚽</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Marcadores Time B */}
+              <div>
+                <div style={{fontWeight:700,color:colorOfTeam(peladaState.matchLog[editMatchId].teamB),fontSize:12,marginBottom:6}}>{peladaState.matchLog[editMatchId].teamB} (Marcadores)</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {(peladaState.matchLog[editMatchId].playersB || []).map(p => (
+                    <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:12}}>
+                      <span style={{color:t.text}}>{getPlayerName(p)}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}>
+                        <input 
+                          type="number" 
+                          min={0} 
+                          placeholder="0"
+                          value={editSumula[p.id] || ""} 
+                          onChange={e => setEditSumula(v => ({...v, [p.id]: parseInt(e.target.value) || 0}))} 
+                          style={{...S.input,width:40,padding:"3px 6px",fontSize:11,textAlign:"center"}}
+                        />
+                        <span>⚽</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{display:"flex",gap:8,marginTop:12}}>
+              <button onClick={saveEditedMatch} style={{...S.btn("#1D9E75"),flex:1,justifyContent:"center"}}>✓ Salvar</button>
+              <button onClick={()=>setEditMatchId(null)} style={{...S.btn(t.card,t.textSec),flex:1,justifyContent:"center",border:`1px solid ${t.cardBorder}`}}>Cancelar</button>
             </div>
           </div>
         </div>
