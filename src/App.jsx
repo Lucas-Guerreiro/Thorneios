@@ -8329,7 +8329,7 @@ export default function App(){
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
       console.log("[DEBUG AUTH] onAuthStateChanged disparado! Usuário:", user ? user.email : "null");
       if (user) {
         const trimmedEmail = String(user.email || "").toLowerCase().trim();
@@ -8343,24 +8343,45 @@ export default function App(){
           if (isNewLogin) {
             console.log("[DEBUG AUTH] Novo login admin detectado! Chamando autoRestaurarDaNuvem");
             lastAuthUserEmail.current = trimmedEmail;
-            autoRestaurarDaNuvem("adm", null);
+            await autoRestaurarDaNuvem("adm", null);
           }
         } else {
           // Verifica se é um Manager cadastrado localmente
-          const manager = (managersRef.current || []).find(m => String(m.email || "").toLowerCase().trim() === trimmedEmail);
-          console.log("[DEBUG AUTH] Buscando manager para email:", trimmedEmail, "Encontrado:", manager ? manager.name : "Não");
+          let manager = (managersRef.current || []).find(m => String(m.email || "").toLowerCase().trim() === trimmedEmail);
+          console.log("[DEBUG AUTH] Buscando manager local para email:", trimmedEmail, "Encontrado:", manager ? manager.name : "Não");
+          
+          // Se não encontrou na lista local (por exemplo, primeiro login num dispositivo novo com localStorage limpo),
+          // busca no documento global "admin_data" no Firestore que contém o appState de administrador com a lista de todos os managers.
+          if (!manager) {
+            try {
+              console.log("[DEBUG AUTH] Manager não encontrado localmente. Buscando lista global no Firestore (admin_data)...");
+              const adminSnap = await getDoc(doc(db, "sistema", "admin_data"));
+              if (adminSnap.exists()) {
+                const adminData = adminSnap.data();
+                const cloudManagers = adminData?.appState?.managers || [];
+                manager = cloudManagers.find(m => String(m.email || "").toLowerCase().trim() === trimmedEmail);
+                if (manager) {
+                  console.log("[DEBUG AUTH] Manager encontrado no Firestore:", manager.name);
+                }
+              }
+            } catch (err) {
+              console.error("[DEBUG AUTH] Erro ao buscar managers de admin_data:", err);
+            }
+          }
+
           if (manager) {
             setAuth({ role: "manager", name: manager.name || "Manager", manager_id: manager.id, scope: manager.scope || "campeonato" });
             setScreen(prev => (prev === "login" || prev === "selection") ? "home" : prev);
             if (isNewLogin) {
               console.log("[DEBUG AUTH] Novo login manager detectado! Chamando autoRestaurarDaNuvem");
               lastAuthUserEmail.current = trimmedEmail;
-              autoRestaurarDaNuvem("manager", manager.id);
+              await autoRestaurarDaNuvem("manager", manager.id);
             }
           } else {
             // Se for outro usuário (por exemplo, um novo usuário básico)
             console.log("[DEBUG AUTH] Usuário público logado");
             setAuth({ role: "public", name: user.displayName || trimmedEmail.split("@")[0], manager_id: null, scope: "leitura" });
+            setScreen(prev => (prev === "login" || prev === "selection") ? "public" : prev);
           }
         }
       } else {
