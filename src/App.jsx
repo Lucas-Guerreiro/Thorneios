@@ -17,6 +17,14 @@ import {
 
 /* ─────────────────────────── CONSTANTES ─────────────────────────── */
 const COLORS = ["#1D9E75","#378ADD","#D85A30","#7F77DD","#BA7517","#D4537E","#639922","#E24B4A","#5F5E5A","#0F6E56"];
+const MODALIDADES_ESPORTIVAS = [
+  { id: "Futsal",   label: "Futsal",   icon: "⚽", color: "#378ADD" },
+  { id: "Vôlei",   label: "Vôlei",    icon: "🏐", color: "#D85A30" },
+  { id: "Society",  label: "Society",  icon: "🥅", color: "#1D9E75" },
+  { id: "Basquete", label: "Basquete", icon: "🏀", color: "#BA7517" },
+  { id: "Handebol", label: "Handebol", icon: "🤾", color: "#7F77DD" },
+];
+
 const deepClone = o => JSON.parse(JSON.stringify(o));
 const fmtDate = d => d ? new Date(d+"T12:00:00").toLocaleDateString("pt-BR") : "—";
 const fmtCur  = v => `R$ ${Number(v||0).toFixed(2).replace(".",",")}`;
@@ -3627,8 +3635,10 @@ function CRUDAtletas({
     bairro: "",
     nomeMae: "",
     docFoto: "",
+    modalidades: [],
     customFields: {}
   };
+
 
   const[form,setForm]=useState({nome:"",apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true,documento:"",dataNascimento:"",numeroCamisa:"",grupo:"",customFields:{}});
   const[filtro,setFiltro]=useState("");
@@ -3682,6 +3692,7 @@ function CRUDAtletas({
         bairro: a.bairro || "",
         nomeMae: a.nomeMae || "",
         docFoto: a.docFoto || "",
+        modalidades: Array.isArray(a.modalidades) ? a.modalidades : [],
         customFields: a.customFields || {}
       });
     }
@@ -3790,6 +3801,19 @@ function CRUDAtletas({
                     <div>
                       👤 Mãe: {a.nomeMae || "—"} · 📍 Endereço: {a.logradouro || ""} {a.nomeVia || ""}, {a.bairro || ""}
                     </div>
+                    {Array.isArray(a.modalidades) && a.modalidades.length > 0 && (
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:3}}>
+                        {a.modalidades.map(mid => {
+                          const mod = MODALIDADES_ESPORTIVAS.find(x => x.id === mid);
+                          if (!mod) return null;
+                          return (
+                            <span key={mid} style={{fontSize:10,fontWeight:700,color:mod.color,background:mod.color+"22",padding:"1px 7px",borderRadius:10,border:`1px solid ${mod.color}44`}}>
+                              {mod.icon} {mod.label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div style={{display:"flex",gap:8,marginTop:4}}>
                       {a.foto ? <span style={{color:"#1D9E75"}}>✓ Foto Perfil 👤</span> : <span style={{color:"#E24B4A"}}>✕ Sem Foto 👤</span>}
                       {a.docFoto ? <span style={{color:"#1D9E75"}}>✓ Doc. Anexado 🪪</span> : <span style={{color:"#E24B4A"}}>✕ Sem Doc. 🪪</span>}
@@ -3895,8 +3919,37 @@ function CRUDAtletas({
                   <div style={{flex:1,minWidth:100}}><label style={S.label}>Fone Fixo</label><input style={S.input} value={form.foneResidencial || ""} onChange={e=>setForm(v=>({...v,foneResidencial:e.target.value}))} placeholder="Ex: 1136123456"/></div>
                 </div>
 
-                {/* 3. Vínculo Religioso */}
-                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>3. Vínculo Religioso</div>
+                {/* 3. Modalidades de Inscrição */}
+                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>3. Modalidades de Inscrição</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>
+                  {MODALIDADES_ESPORTIVAS.map(m => {
+                    const mods = Array.isArray(form.modalidades) ? form.modalidades : [];
+                    const selected = mods.includes(m.id);
+                    return (
+                      <label key={m.id} style={{
+                        display:"flex",alignItems:"center",gap:6,cursor:"pointer",
+                        padding:"6px 12px",borderRadius:20,border:`2px solid ${selected ? m.color : t.cardBorder}`,
+                        background:selected ? m.color + "22" : t.inputBg,
+                        color:selected ? m.color : t.textSec,fontWeight:selected ? 700 : 500,fontSize:13,
+                        transition:"all 0.15s",userSelect:"none"
+                      }}>
+                        <input type="checkbox" style={{display:"none"}} checked={selected}
+                          onChange={() => setForm(v => {
+                            const cur = Array.isArray(v.modalidades) ? v.modalidades : [];
+                            return {...v, modalidades: selected ? cur.filter(x => x !== m.id) : [...cur, m.id]};
+                          })}
+                        />
+                        {m.icon} {m.label}
+                      </label>
+                    );
+                  })}
+                </div>
+                {Array.isArray(form.modalidades) && form.modalidades.length === 0 && (
+                  <div style={{fontSize:11,color:"#E24B4A",marginTop:4}}>⚠️ Selecione ao menos uma modalidade.</div>
+                )}
+
+                {/* 4. Vínculo Religioso */}
+                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>4. Vínculo Religioso</div>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   <div style={{flex:1,minWidth:140}}>
                     <label style={S.label}>Tipo de Atleta</label>
@@ -5813,6 +5866,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     dataNascimento: "",
     numeroCamisa: "",
     grupo: "",
+    modalidades: [],
     customFields: {}
   });
 
@@ -5822,13 +5876,14 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   const [showXlsMenuElenco, setShowXlsMenuElenco] = useState(false);
 
   // --- XLS Elenco: Modelo, Import, Export ---
-  const ELENCO_HEADERS = ["nome","apelido","numeroCamisa","documento","dataNascimento","celular1","email","tipoAtleta","igrejaMembro","grupo","logradouro","nomeVia","bairro","cep","nomeMae","ativo","goleiro"];
+  const ELENCO_HEADERS = ["nome","apelido","numeroCamisa","documento","dataNascimento","celular1","email","tipoAtleta","igrejaMembro","modalidades","grupo","logradouro","nomeVia","bairro","cep","nomeMae","ativo","goleiro"];
 
   const downloadModeloElenco = () => {
     const sample = {
       nome: "João da Silva", apelido: "Joãozinho", numeroCamisa: "10",
       documento: "12.345.678-9", dataNascimento: "1995-06-15", celular1: "(11) 91234-5678",
       email: "joao@email.com", tipoAtleta: "Adventista", igrejaMembro: "Igreja Central",
+      modalidades: "Futsal,Vôlei",
       grupo: "Time A", logradouro: "Rua", nomeVia: "das Flores", bairro: "Centro",
       cep: "01234-567", nomeMae: "Maria da Silva", ativo: "true", goleiro: "false"
     };
@@ -5841,7 +5896,13 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     if (atletasCamp.length === 0) { alert("Nenhum atleta escalado para exportar."); return; }
     const rows = atletasCamp.map(a => {
       const obj = {};
-      ELENCO_HEADERS.forEach(h => { obj[h] = a[h] ?? ""; });
+      ELENCO_HEADERS.forEach(h => {
+        if (h === "modalidades" && Array.isArray(a[h])) {
+          obj[h] = a[h].join(",");
+        } else {
+          obj[h] = a[h] ?? "";
+        }
+      });
       return obj;
     });
     downloadXls(`elencos-${(c.name||"campeonato").replace(/\s+/g,"-")}-${todayStr()}.xls`, ELENCO_HEADERS, rows);
@@ -5874,6 +5935,8 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
 
         if (!item.nome) return;
 
+        const modsArray = item.modalidades ? item.modalidades.split(",").map(m => m.trim()).filter(Boolean) : [];
+
         const existingIdx = atletas.findIndex(a =>
           a.nome.toLowerCase() === item.nome.toLowerCase() ||
           (item.apelido && a.apelido && a.apelido.toLowerCase() === item.apelido.toLowerCase())
@@ -5884,6 +5947,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           atletaId = atletas[existingIdx].id;
           onUpdateAtleta(atletaId, {
             ...item,
+            modalidades: modsArray,
             ativo: item.ativo !== "false",
             goleiro: item.goleiro === "true",
           });
@@ -5893,6 +5957,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           onAddAtleta({
             id: atletaId,
             ...item,
+            modalidades: modsArray,
             ativo: item.ativo !== "false",
             goleiro: item.goleiro === "true",
             habilidade: 3,
@@ -6153,6 +6218,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       email: "",
       tipoAtleta: "Adventista",
       igrejaMembro: "",
+      modalidades: c.modalidade ? [c.modalidade] : [],
       logradouro: "Rua",
       nomeVia: "",
       cep: "",
@@ -6184,6 +6250,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       email: a.email || "",
       tipoAtleta: a.tipoAtleta || "Adventista",
       igrejaMembro: a.igrejaMembro || "",
+      modalidades: a.modalidades || [],
       logradouro: a.logradouro || "Rua",
       nomeVia: a.nomeVia || "",
       cep: a.cep || "",
@@ -6868,19 +6935,35 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
               )}
             </div>
             <div style={{maxHeight:200,overflowY:"auto",display:"flex",flexDirection:"column",gap:4}}>
-              {dispFiltrados.map(a=>(
-                 <div key={a.id} onClick={()=>{
-                   const tc=deepClone(c); tc.rosters = tc.rosters||{}; tc.rosters[selTeamElenco]=[...(tc.rosters[selTeamElenco]||[]), a.id]; onUpdate(tc);
-                   setFiltroElenco("");
-                 }} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:8,background:t.inputBg,cursor:"pointer",border:`1px solid transparent`}}>
-                   <PlayerAvatar atleta={a} size={20}/>
-                   <span style={{fontSize:12,color:t.text}}>
-                     {getPlayerName(a)}
-                     {a.grupo && <span style={{fontSize:10,fontWeight:700,color:"#9C27B0",background:"#9C27B015",padding:"1px 4px",borderRadius:4,marginLeft:6}}>👥 {a.grupo}</span>}
-                   </span>
-                   <span style={{marginLeft:"auto",color:"#378ADD",fontWeight:700,fontSize:14}}>+</span>
-                 </div>
-              ))}
+              {(() => {
+                const sorted = [...dispFiltrados].sort((a, b) => {
+                  const aMatches = c.modalidade && Array.isArray(a.modalidades) && a.modalidades.includes(c.modalidade) ? 1 : 0;
+                  const bMatches = c.modalidade && Array.isArray(b.modalidades) && b.modalidades.includes(c.modalidade) ? 1 : 0;
+                  return bMatches - aMatches;
+                });
+                return sorted.map(a => {
+                  const temModalidade = c.modalidade && Array.isArray(a.modalidades) && a.modalidades.includes(c.modalidade);
+                  const mDef = c.modalidade ? MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade) : null;
+                  return (
+                    <div key={a.id} onClick={()=>{
+                      const tc=deepClone(c); tc.rosters = tc.rosters||{}; tc.rosters[selTeamElenco]=[...(tc.rosters[selTeamElenco]||[]), a.id]; onUpdate(tc);
+                      setFiltroElenco("");
+                    }} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:8,background:t.inputBg,cursor:"pointer",border:`1px solid ${temModalidade ? `${mDef?.color || "#378ADD"}44` : "transparent"}`}}>
+                      <PlayerAvatar atleta={a} size={20}/>
+                      <span style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                        {getPlayerName(a)}
+                        {a.grupo && <span style={{fontSize:10,fontWeight:700,color:"#9C27B0",background:"#9C27B015",padding:"1px 4px",borderRadius:4}}>👥 {a.grupo}</span>}
+                        {temModalidade && mDef && (
+                          <span style={{fontSize:9,fontWeight:800,color:mDef.color,background:`${mDef.color}15`,border:`1px solid ${mDef.color}33`,padding:"1px 4px",borderRadius:4,display:"inline-flex",alignItems:"center",gap:2}}>
+                            {mDef.icon} {mDef.label}
+                          </span>
+                        )}
+                      </span>
+                      <span style={{marginLeft:"auto",color:"#378ADD",fontWeight:700,fontSize:14}}>+</span>
+                    </div>
+                  );
+                });
+              })()}
               {dispFiltrados.length === 0 && <div style={{fontSize:12,color:t.textSec,textAlign:"center",padding:10}}>Nenhum atleta disponível correspondente ou crie um acima.</div>}
             </div>
           </div>
@@ -7357,7 +7440,21 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
           <button onClick={onBack} style={S.btnSm()}>← Voltar</button>
-          <div style={{minWidth:0}}><h2 style={{fontSize:17,fontWeight:800,margin:0,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</h2><div style={{fontSize:11,color:t.textSec}}>{c.type==="pontos"?"Pontos Corridos":c.type==="mata"?"Mata-Mata":"Misto"} · {c.teams.length} times</div></div>
+          <div style={{minWidth:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+              <h2 style={{fontSize:17,fontWeight:800,margin:0,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</h2>
+              {(() => {
+                const mDef = c.modalidade ? MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade) : null;
+                if (!mDef) return null;
+                return (
+                  <span style={{fontSize:10,fontWeight:800,color:mDef.color,background:`${mDef.color}15`,border:`1px solid ${mDef.color}33`,padding:"1px 6px",borderRadius:4,display:"inline-flex",alignItems:"center",gap:2}}>
+                    {mDef.icon} {mDef.label}
+                  </span>
+                );
+              })()}
+            </div>
+            <div style={{fontSize:11,color:t.textSec}}>{c.type==="pontos"?"Pontos Corridos":c.type==="mata"?"Mata-Mata":"Misto"} · {c.teams.length} times</div>
+          </div>
         </div>
         <div style={{display:"flex",gap:6,flexShrink:0}}>
           {champion&&<Tag label={"🏆 "+champion}/>}
@@ -7994,8 +8091,37 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                 <div style={{flex:1,minWidth:100}}><label style={S.label}>Fone Fixo</label><input style={S.input} value={formAtleta.foneResidencial || ""} onChange={e=>setFormAtleta(v=>({...v,foneResidencial:e.target.value}))} placeholder="Ex: 1136123456"/></div>
               </div>
 
-              {/* 3. Vínculo Religioso */}
-              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>3. Vínculo Religioso</div>
+              {/* 3. Modalidades de Inscrição */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>3. Modalidades de Inscrição</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>
+                {MODALIDADES_ESPORTIVAS.map(m => {
+                  const mods = Array.isArray(formAtleta.modalidades) ? formAtleta.modalidades : [];
+                  const selected = mods.includes(m.id);
+                  return (
+                    <label key={m.id} style={{
+                      display:"flex",alignItems:"center",gap:6,cursor:"pointer",
+                      padding:"6px 12px",borderRadius:20,border:`2px solid ${selected ? m.color : t.cardBorder}`,
+                      background:selected ? m.color + "22" : t.inputBg,
+                      color:selected ? m.color : t.textSec,fontWeight:selected ? 700 : 500,fontSize:13,
+                      transition:"all 0.15s",userSelect:"none"
+                    }}>
+                      <input type="checkbox" style={{display:"none"}} checked={selected}
+                        onChange={() => setFormAtleta(v => {
+                          const cur = Array.isArray(v.modalidades) ? v.modalidades : [];
+                          return {...v, modalidades: selected ? cur.filter(x => x !== m.id) : [...cur, m.id]};
+                        })}
+                      />
+                      {m.icon} {m.label}
+                    </label>
+                  );
+                })}
+              </div>
+              {Array.isArray(formAtleta.modalidades) && formAtleta.modalidades.length === 0 && (
+                <div style={{fontSize:11,color:"#E24B4A",marginTop:4}}>⚠️ Selecione ao menos uma modalidade.</div>
+              )}
+
+              {/* 4. Vínculo Religioso */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>4. Vínculo Religioso</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <div style={{flex:1,minWidth:140}}>
                   <label style={S.label}>Tipo de Atleta</label>
@@ -8012,8 +8138,8 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                 )}
               </div>
 
-              {/* 4. Endereço Residencial */}
-              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>4. Endereço Residencial</div>
+              {/* 5. Endereço Residencial */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>5. Endereço Residencial</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <div style={{flex:1,minWidth:100}}><label style={S.label}>CEP</label><input style={S.input} value={formAtleta.cep || ""} onChange={e=>setFormAtleta(v=>({...v,cep:e.target.value}))} placeholder="Ex: 69000-000"/></div>
                 <div style={{flex:1,minWidth:100}}>
@@ -8226,6 +8352,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
   const[cf,setCf]=useState({
     name:"",
     type:"pontos",
+    modalidade:"Futsal",
     turno:true,
     date:"",
     teams:["",""],
@@ -8289,6 +8416,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
         id: Date.now(),
         name: cf.name || "Campeonato",
         type: "liga",
+        modalidade: cf.modalidade || "Futsal",
         teams: allTeamsList,
         date: cf.date,
         fee: Number(cf.fee || 0),
@@ -8301,7 +8429,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
       const teams=cf.teams.map(x=>x.trim()).filter(Boolean);
       if(teams.length<2){alert("Mínimo 2 times!");return;}
       if(new Set(teams).size!==teams.length){alert("Times duplicados!");return;}
-      let data={id:Date.now(),name:cf.name||"Campeonato",type:cf.type,teams,date:cf.date,fee:Number(cf.fee||0)};
+      let data={id:Date.now(),name:cf.name||"Campeonato",type:cf.type,modalidade:cf.modalidade||"Futsal",teams,date:cf.date,fee:Number(cf.fee||0)};
       if(cf.type==="pontos"){data.rounds=generateRR(teams,cf.turno);data.standings=initStandings(teams);}
       else if(cf.type==="mata"){data.knockout=generateKO(teams);}
       else {
@@ -8322,8 +8450,24 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
         <div><label style={S.label}>Nome</label><input style={S.input} value={cf.name} onChange={e=>setCf(v=>({...v,name:e.target.value}))} placeholder="Ex: Copa da Várzea"/></div>
         <div><label style={S.label}>Data</label><input style={S.input} type="date" value={cf.date} onChange={e=>setCf(v=>({...v,date:e.target.value}))}/></div>
       </div>
+
       <div>
-        <label style={S.label}>Modalidade</label>
+        <label style={S.label}>Esporte / Modalidade</label>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>
+          {MODALIDADES_ESPORTIVAS.map(m => (
+            <button key={m.id} onClick={()=>setCf(f=>({...f,modalidade:m.id}))}
+              style={{padding:"8px 14px",borderRadius:20,border:`2px solid ${cf.modalidade===m.id?m.color:t.inputBorder}`,
+                background:cf.modalidade===m.id?m.color+"22":t.inputBg,
+                color:cf.modalidade===m.id?m.color:t.textSec,cursor:"pointer",
+                fontWeight:cf.modalidade===m.id?700:500,fontSize:13,transition:"all 0.15s"
+              }}
+            >{m.icon} {m.label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label style={S.label}>Tipo de Torneio</label>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(80px, 1fr))",gap:8}}>
           {[["pontos","Pontos Corridos"],["mata","Mata-Mata"],["misto","Misto"],["liga","Liga (Grupos + Mata)"]].map(([v,l])=>(
             <button key={v} onClick={()=>setCf(f=>({...f,type:v}))} style={{padding:"10px 4px",borderRadius:10,border:`2px solid ${cf.type===v?"#1D9E75":t.inputBorder}`,background:cf.type===v?"#1D9E7522":t.inputBg,color:cf.type===v?"#1D9E75":t.text,cursor:"pointer",fontWeight:cf.type===v?700:400,fontSize:12}}>{l}</button>
