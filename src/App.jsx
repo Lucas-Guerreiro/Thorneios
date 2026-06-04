@@ -227,6 +227,23 @@ const handleOpenExternalLink = async (url) => {
   }
 };
 
+const escapeHtmlGlobal = (value) => {
+  const str = String(value ?? "");
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+};
+
+const downloadXls = (filename, headers, rows) => {
+  const thead = headers.map(h => `<th>${escapeHtmlGlobal(h)}</th>`).join("");
+  const tbody = rows.map(row => `<tr>${headers.map(h => `<td>${escapeHtmlGlobal(row[h] ?? "")}</td>`).join("")}</tr>`).join("");
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></body></html>`;
+  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href; link.download = filename;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  URL.revokeObjectURL(href);
+};
+
 function GaleriaThumbnail({ mediaUrl, title, t }) {
   const [imageError, setImageError] = useState(false);
   const embed = getEmbedUrl(mediaUrl);
@@ -5802,6 +5819,108 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [quickTeamName, setQuickTeamName] = useState("");
   const [quickPlayersText, setQuickPlayersText] = useState("");
+  const [showXlsMenuElenco, setShowXlsMenuElenco] = useState(false);
+
+  // --- XLS Elenco: Modelo, Import, Export ---
+  const ELENCO_HEADERS = ["nome","apelido","numeroCamisa","documento","dataNascimento","celular1","email","tipoAtleta","igrejaMembro","grupo","logradouro","nomeVia","bairro","cep","nomeMae","ativo","goleiro"];
+
+  const downloadModeloElenco = () => {
+    const sample = {
+      nome: "João da Silva", apelido: "Joãozinho", numeroCamisa: "10",
+      documento: "12.345.678-9", dataNascimento: "1995-06-15", celular1: "(11) 91234-5678",
+      email: "joao@email.com", tipoAtleta: "Adventista", igrejaMembro: "Igreja Central",
+      grupo: "Time A", logradouro: "Rua", nomeVia: "das Flores", bairro: "Centro",
+      cep: "01234-567", nomeMae: "Maria da Silva", ativo: "true", goleiro: "false"
+    };
+    downloadXls(`modelo-atletas-campeonato.xls`, ELENCO_HEADERS, [sample]);
+  };
+
+  const exportarElenco = () => {
+    const allRosteredIds = Object.values(c.rosters || {}).flat();
+    const atletasCamp = atletas.filter(a => allRosteredIds.includes(a.id));
+    if (atletasCamp.length === 0) { alert("Nenhum atleta escalado para exportar."); return; }
+    const rows = atletasCamp.map(a => {
+      const obj = {};
+      ELENCO_HEADERS.forEach(h => { obj[h] = a[h] ?? ""; });
+      return obj;
+    });
+    downloadXls(`elencos-${(c.name||"campeonato").replace(/\s+/g,"-")}-${todayStr()}.xls`, ELENCO_HEADERS, rows);
+  };
+
+  const importarElenco = async (event) => {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parser = new DOMParser();
+      const doc2 = parser.parseFromString(text, "text/html");
+      const table = doc2.querySelector("table");
+      if (!table) throw new Error("Arquivo XLS não contém tabela válida.");
+      const allRows = Array.from(table.querySelectorAll("tr")).map(row =>
+        Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || "")
+      );
+      if (allRows.length < 2) throw new Error("A planilha não contém dados de atletas.");
+      const headers = allRows[0].map(h => String(h).trim());
+      const dataRows = allRows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
+
+      let adicionados = 0;
+      let atualizados = 0;
+      const tc = deepClone(c);
+      tc.rosters = tc.rosters || {};
+
+      dataRows.forEach((cells, idx) => {
+        const item = {};
+        cells.forEach((value, i) => { const key = headers[i]; if (key) item[key] = String(value).trim(); });
+
+        if (!item.nome) return;
+
+        const existingIdx = atletas.findIndex(a =>
+          a.nome.toLowerCase() === item.nome.toLowerCase() ||
+          (item.apelido && a.apelido && a.apelido.toLowerCase() === item.apelido.toLowerCase())
+        );
+
+        let atletaId;
+        if (existingIdx >= 0) {
+          atletaId = atletas[existingIdx].id;
+          onUpdateAtleta(atletaId, {
+            ...item,
+            ativo: item.ativo !== "false",
+            goleiro: item.goleiro === "true",
+          });
+          atualizados++;
+        } else {
+          atletaId = Date.now() + Math.floor(Math.random() * 100000) + idx;
+          onAddAtleta({
+            id: atletaId,
+            ...item,
+            ativo: item.ativo !== "false",
+            goleiro: item.goleiro === "true",
+            habilidade: 3,
+            foto: "",
+            docFoto: "",
+            customFields: {},
+          });
+          adicionados++;
+        }
+
+        // Escalar no time selecionado (se houver)
+        if (selTeamElenco) {
+          tc.rosters[selTeamElenco] = tc.rosters[selTeamElenco] || [];
+          if (!tc.rosters[selTeamElenco].includes(atletaId)) {
+            tc.rosters[selTeamElenco].push(atletaId);
+          }
+        }
+      });
+
+      onUpdate(tc);
+      alert(`Importação concluída! ${adicionados} atletas adicionados, ${atualizados} atualizados${selTeamElenco ? ` e escalados em "${selTeamElenco}"` : ""}.`);
+    } catch (err) {
+      alert("Erro ao importar planilha: " + (err.message || err));
+    } finally {
+      if (event.target) event.target.value = "";
+      setShowXlsMenuElenco(false);
+    }
+  };
 
   const renderPrintableSumula = () => {
     if (!sumulaModal) return null;
@@ -6516,6 +6635,65 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
 
     return (
       <div>
+        {/* Menu de Importar/Exportar Planilha de Atletas */}
+        <div style={{...S.card, marginBottom: 12, borderColor: "#1D9E7555", background: t.inputBg}}>
+          <button
+            onClick={() => setShowXlsMenuElenco(!showXlsMenuElenco)}
+            style={{
+              background: "none", border: "none", color: "#1D9E75", fontWeight: 800,
+              fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center",
+              gap: 6, padding: 0, width: "100%", textAlign: "left"
+            }}
+          >
+            {showXlsMenuElenco ? "▼ Fechar Planilha" : "📊 Importar / Exportar Atletas por Planilha (XLS)"}
+          </button>
+
+          {showXlsMenuElenco && (
+            <div style={{marginTop: 12, display: "flex", flexDirection: "column", gap: 0, border: `1px solid ${t.cardBorder}`, borderRadius: 10, overflow: "hidden"}}>
+              <button
+                onClick={() => { downloadModeloElenco(); setShowXlsMenuElenco(false); }}
+                style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}}
+                onMouseEnter={e => e.currentTarget.style.background = t.card}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <span>📄</span>
+                <div>
+                  <div style={{fontWeight:600}}>Baixar Modelo de Planilha</div>
+                  <div style={{fontSize:11,color:t.textSec}}>Planilha em branco com todos os campos para preenchimento</div>
+                </div>
+              </button>
+
+              <label
+                style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s",margin:0}}
+                onMouseEnter={e => e.currentTarget.style.background = t.card}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <span>📥</span>
+                <div>
+                  <div style={{fontWeight:600}}>Importar Atletas da Planilha</div>
+                  <div style={{fontSize:11,color:t.textSec}}>
+                    Carrega atletas da planilha XLS{selTeamElenco ? ` e escalona automaticamente em "${selTeamElenco}"` : ""}
+                  </div>
+                </div>
+                <input type="file" accept=".xls,.xlsx" style={{display:"none"}} onChange={importarElenco} />
+              </label>
+
+              <button
+                onClick={() => { exportarElenco(); setShowXlsMenuElenco(false); }}
+                style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}}
+                onMouseEnter={e => e.currentTarget.style.background = t.card}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+              >
+                <span>📤</span>
+                <div>
+                  <div style={{fontWeight:600}}>Exportar Elencos Atuais</div>
+                  <div style={{fontSize:11,color:t.textSec}}>Baixar lista de todos os atletas escalados em XLS</div>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Formulário de Inscrição Rápida de Elenco em Lote */}
         <div style={{...S.card, marginBottom: 16, borderColor: "#378ADD55", background: t.inputBg}}>
           <button 
