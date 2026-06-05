@@ -8090,7 +8090,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
 
         const newGroups = [];
         for (let i = 0; i < gc; i++) {
-          const name = "Grupo " + String.fromCharCode(65 + i);
+          const name = "Grupo " + (i + 1);
           const teams = [];
           for (let j = 0; j < tpg; j++) {
             const timeIdx = i * tpg + j;
@@ -8171,7 +8171,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
       const tpg = cf.teamsPerGroup || 4;
       const newGroups = [];
       for (let i = 0; i < gc; i++) {
-        const name = "Grupo " + String.fromCharCode(65 + i);
+        const name = "Grupo " + (i + 1);
         const existing = cf.groupsData?.[i];
         const teams = [];
         for (let j = 0; j < tpg; j++) {
@@ -8237,7 +8237,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
       else if(cf.type==="mata"){data.knockout=generateKO(teams);}
       else {
         const gc=Math.min(cf.groupCount,Math.floor(teams.length/2));
-        const groups=Array.from({length:gc},(_,i)=>({name:"Grupo "+String.fromCharCode(65+i),teams:[]}));
+        const groups=Array.from({length:gc},(_,i)=>({name:"Grupo "+(i+1),teams:[]}));
         teams.forEach((tm,i)=>groups[i%gc].teams.push(tm));
         data.groups=groups.map(g=>({...g,rounds:generateRR(g.teams,false),standings:initStandings(g.teams)}));
         data.knockout=null;
