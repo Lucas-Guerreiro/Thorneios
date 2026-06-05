@@ -339,17 +339,30 @@ const escapeHtmlGlobal = (value) => {
   return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 };
 
-const downloadXls = (filename, headers, rows) => {
-  const thead = headers.map(h => `<th>${escapeHtmlGlobal(h)}</th>`).join("");
-  const tbody = rows.map(row => `<tr>${headers.map(h => `<td>${escapeHtmlGlobal(row[h] ?? "")}</td>`).join("")}</tr>`).join("");
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></body></html>`;
-  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+const downloadCsv = (filename, headers, rows) => {
+  const csvFilename = filename.replace(/\.xls$/, '.csv');
+  const escCsv = (v) => {
+    const s = String(v == null ? '' : v);
+    if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  };
+  const lines = [
+    headers.map(escCsv).join(','),
+    ...rows.map(row => headers.map(h => escCsv(row[h])).join(','))
+  ];
+  const csv = '\uFEFF' + lines.join('\r\n'); // BOM para o Excel reconhecer UTF-8
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const href = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = href; link.download = filename;
+  const link = document.createElement('a');
+  link.href = href; link.download = csvFilename;
   document.body.appendChild(link); link.click(); document.body.removeChild(link);
   URL.revokeObjectURL(href);
 };
+// Alias para manter compatibilidade com todo o código existente
+const downloadXls = downloadCsv;
+
 
 function GaleriaThumbnail({ mediaUrl, title, t }) {
   const [imageError, setImageError] = useState(false);
@@ -3870,7 +3883,7 @@ function CRUDAtletas({
             <label style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s",margin:0}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <span>📥</span>
               <div><div style={{fontWeight:600}}>Importar Atletas ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</div><div style={{fontSize:11,color:t.textSec}}>Carregar arquivo XLS</div></div>
-              <input type="file" accept=".xls" style={{display:"none"}} onChange={(e)=>{handleImport(e);setExpandMenu(false);}} />
+              <input type="file" accept=".csv,.xls" style={{display:"none"}} onChange={(e)=>{handleImport(e);setExpandMenu(false);}} />
             </label>
           </div>
         </div>
@@ -4301,7 +4314,7 @@ function CRUDQuadras({
             <label style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s",margin:0}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <span>📥</span>
               <div><div style={{fontWeight:600}}>Importar Quadras</div><div style={{fontSize:11,color:t.textSec}}>Carregar arquivo XLS</div></div>
-              <input type="file" accept=".xls" style={{display:"none"}} onChange={(e)=>{onImport(e);setExpandMenu(false);}} />
+              <input type="file" accept=".csv,.xls" style={{display:"none"}} onChange={(e)=>{onImport(e);setExpandMenu(false);}} />
             </label>
           </div>
         </div>
@@ -6085,14 +6098,23 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     if (!file) return;
     try {
       const text = await file.text();
-      const parser = new DOMParser();
-      const doc2 = parser.parseFromString(text, "text/html");
-      const table = doc2.querySelector("table");
-      if (!table) throw new Error("Arquivo XLS não contém tabela válida.");
-      const allRows = Array.from(table.querySelectorAll("tr")).map(row =>
-        Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || "")
-      );
-      if (allRows.length < 2) throw new Error("A planilha não contém dados de atletas.");
+      // Suporta CSV (novo formato) e HTML-XLS (formato legado)
+      let allRows;
+      if (file.name.endsWith('.csv') || !text.trimStart().startsWith('<')) {
+        // Parsing CSV
+        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+        allRows = lines.map(line => line.split(',').map(cell => cell.startsWith('"') && cell.endsWith('"') ? cell.slice(1,-1).replace(/""/g,'"') : cell));
+      } else {
+        // Parsing HTML-XLS legado
+        const parser = new DOMParser();
+        const doc2 = parser.parseFromString(text, "text/html");
+        const table = doc2.querySelector("table");
+        if (!table) throw new Error("Arquivo não contém tabela válida. Use o modelo CSV.");
+        allRows = Array.from(table.querySelectorAll("tr")).map(row =>
+          Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || "")
+        );
+      }
+      if (allRows.length < 2) throw new Error("A planilha de elenco não contém dados de atletas.");
       const headers = allRows[0].map(h => String(h).trim());
       const dataRows = allRows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
 
@@ -6924,7 +6946,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                     Carrega atletas da planilha XLS{selTeamElenco ? ` e escalona automaticamente em "${selTeamElenco}"` : ""}
                   </div>
                 </div>
-                <input type="file" accept=".xls,.xlsx" style={{display:"none"}} onChange={importarElenco} />
+                <input type="file" accept=".csv,.xls,.xlsx" style={{display:"none"}} onChange={importarElenco} />
               </label>
 
               <button
@@ -9333,12 +9355,13 @@ export default function App(){
       grupo: "Sábado",
       customFields: "{}"
     };
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody><tr>${headers.map(key => `<td>${escapeHtml(sample[key] ?? "")}</td>`).join("")}</tr></tbody></table></body></html>`;
-    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const _csvLines = [headers.map(h => { const s = String(sample[h] ?? ''); return (s.includes(',') || s.includes('"')) ? '"' + s.replace(/"/g,'""') + '"' : s; }).join(',')];
+    const csv = '\uFEFF' + [headers.map(h => h).join(','), ..._csvLines].join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const href = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = href;
-    link.download = `modelo-atletas.xls`;
+    link.download = `modelo-atletas.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -9347,12 +9370,14 @@ export default function App(){
 
   const exportAtletas = () => {
     const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","grupo","customFields"];
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${atletas.map(a => `<tr>${headers.map(key => `<td>${escapeHtml(key === "customFields" ? JSON.stringify(a.customFields || {}) : a[key] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
-    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const esc = (v) => { const s = String(v == null ? '' : v); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+    const rows = atletas.map(a => headers.map(h => esc(h === "customFields" ? JSON.stringify(a.customFields || {}) : a[h])).join(','));
+    const csv = '\uFEFF' + [headers.map(esc).join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const href = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = href;
-    link.download = `atletas-${todayStr()}.xls`;
+    link.download = `atletas-${todayStr()}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -9373,14 +9398,23 @@ export default function App(){
     if (!file) return;
     try {
       const text = await file.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, "text/html");
-      const table = doc.querySelector("table");
-      if (!table) throw new Error("O arquivo XLS não contém uma tabela válida.");
-      const rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
-      if (rows.length < 2) throw new Error("A tabela XLS não contém dados de atletas.");
+      // Suporta CSV (novo formato) e HTML-XLS (formato legado)
+      let rows;
+      if (file.name.endsWith('.csv') || text.trimStart().startsWith('id,') || text.trimStart().startsWith('\uFEFFid,')) {
+        // Parsing CSV
+        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+        rows = lines.map(line => line.split(',').map(cell => cell.startsWith('"') && cell.endsWith('"') ? cell.slice(1,-1).replace(/""/g,'"') : cell));
+      } else {
+        // Parsing HTML-XLS legado
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        const table = doc.querySelector('table');
+        if (!table) throw new Error('Arquivo não contém tabela válida. Use o modelo CSV.');
+        rows = Array.from(table.querySelectorAll('tr')).map(row => Array.from(row.querySelectorAll('th,td')).map(cell => cell.textContent || ''));
+      }
+      if (rows.length < 2) throw new Error('O arquivo não contém dados de atletas.');
       const headers = rows[0].map(h => String(h).trim());
-      const dataRows = rows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
+      const dataRows = rows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ''));
       const normalized = dataRows.map(cells => {
         const item = {};
         cells.forEach((value, index) => {
@@ -9458,12 +9492,13 @@ export default function App(){
       docFoto: "",
       customFields: "{}"
     };
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody><tr>${headers.map(key => `<td>${escapeHtml(sample[key] ?? "")}</td>`).join("")}</tr></tbody></table></body></html>`;
-    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const _csvLines = [headers.map(h => { const s = String(sample[h] ?? ''); return (s.includes(',') || s.includes('"')) ? '"' + s.replace(/"/g,'""') + '"' : s; }).join(',')];
+    const csv = '\uFEFF' + [headers.map(h => h).join(','), ..._csvLines].join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const href = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = href;
-    link.download = `modelo-atletas-campeonato.xls`;
+    link.download = `modelo-atletas-campeonato.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -9472,12 +9507,14 @@ export default function App(){
 
   const exportAtletasCampeonato = () => {
     const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","grupo","celular1","celular2","foneResidencial","email","tipoAtleta","igrejaMembro","logradouro","nomeVia","cep","complemento","bairro","nomeMae","docFoto","customFields"];
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${atletasCampeonato.map(a => `<tr>${headers.map(key => `<td>${escapeHtml(key === "customFields" ? JSON.stringify(a.customFields || {}) : a[key] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
-    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const esc = (v) => { const s = String(v == null ? '' : v); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+    const rows = atletasCampeonato.map(a => headers.map(h => esc(h === "customFields" ? JSON.stringify(a.customFields || {}) : a[h])).join(','));
+    const csv = '\uFEFF' + [headers.map(esc).join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const href = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = href;
-    link.download = `atletas-campeonato-${todayStr()}.xls`;
+    link.download = `atletas-campeonato-${todayStr()}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -9489,12 +9526,21 @@ export default function App(){
     if (!file) return;
     try {
       const text = await file.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, "text/html");
-      const table = doc.querySelector("table");
-      if (!table) throw new Error("O arquivo XLS não contém uma tabela válida.");
-      const rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
-      if (rows.length < 2) throw new Error("A tabela XLS não contém dados de atletas.");
+      // Suporta CSV (novo formato) e HTML-XLS (formato legado)
+      let rows;
+      if (file.name.endsWith('.csv') || text.trimStart().startsWith('id,') || text.trimStart().startsWith('\uFEFFid,')) {
+        // Parsing CSV
+        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+        rows = lines.map(line => line.split(',').map(cell => cell.startsWith('"') && cell.endsWith('"') ? cell.slice(1,-1).replace(/""/g,'"') : cell));
+      } else {
+        // Parsing HTML-XLS legado
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, "text/html");
+        const table = doc.querySelector("table");
+        if (!table) throw new Error("O arquivo não contém uma tabela válida. Use o modelo CSV.");
+        rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
+      }
+      if (rows.length < 2) throw new Error("A tabela de atletas de campeonato não contém dados.");
       const headers = rows[0].map(h => String(h).trim());
       const dataRows = rows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
       const normalized = dataRows.map(cells => {
@@ -9553,12 +9599,13 @@ export default function App(){
       endereco: "Av. Principal, 500",
       ativa: "true"
     };
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody><tr>${headers.map(key => `<td>${escapeHtml(sample[key] ?? "")}</td>`).join("")}</tr></tbody></table></body></html>`;
-    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const _csvLines = [headers.map(h => { const s = String(sample[h] ?? ''); return (s.includes(',') || s.includes('"')) ? '"' + s.replace(/"/g,'""') + '"' : s; }).join(',')];
+    const csv = '\uFEFF' + [headers.map(h => h).join(','), ..._csvLines].join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const href = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = href;
-    link.download = `modelo-quadras.xls`;
+    link.download = `modelo-quadras.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -9567,12 +9614,14 @@ export default function App(){
 
   const exportQuadras = () => {
     const headers = ["id", "nome", "endereco", "ativa"];
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>table{border-collapse:collapse;}td,th{border:1px solid #999;padding:4px;}</style></head><body><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${quadras.map(q => `<tr>${headers.map(key => `<td>${escapeHtml(q[key] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></body></html>`;
-    const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const esc = (v) => { const s = String(v == null ? '' : v); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+    const rows = quadras.map(q => headers.map(h => esc(q[h])).join(','));
+    const csv = '\uFEFF' + [headers.map(esc).join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const href = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = href;
-    link.download = `quadras-${todayStr()}.xls`;
+    link.download = `quadras-${todayStr()}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -9584,12 +9633,21 @@ export default function App(){
     if (!file) return;
     try {
       const text = await file.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, "text/html");
-      const table = doc.querySelector("table");
-      if (!table) throw new Error("O arquivo XLS não contém uma tabela válida.");
-      const rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
-      if (rows.length < 2) throw new Error("A tabela XLS não contém dados de quadras.");
+      // Suporta CSV (novo formato) e HTML-XLS (formato legado)
+      let rows;
+      if (file.name.endsWith('.csv') || text.trimStart().startsWith('id,') || text.trimStart().startsWith('\uFEFFid,')) {
+        // Parsing CSV
+        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+        rows = lines.map(line => line.split(',').map(cell => cell.startsWith('"') && cell.endsWith('"') ? cell.slice(1,-1).replace(/""/g,'"') : cell));
+      } else {
+        // Parsing HTML-XLS legado
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, "text/html");
+        const table = doc.querySelector("table");
+        if (!table) throw new Error("O arquivo não contém uma tabela válida. Use o modelo CSV.");
+        rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
+      }
+      if (rows.length < 2) throw new Error("A tabela de quadras não contém dados.");
       const headers = rows[0].map(h => String(h).trim());
       const dataRows = rows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
       const normalized = dataRows.map(cells => {
