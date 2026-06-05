@@ -8166,6 +8166,338 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
         )}
       </div>
       
+      {sumulaModal && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
+          <div style={{...S.card,width:"100%",maxWidth:400,maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontWeight:800,fontSize:16,color:t.text}}>📝 Súmula da Partida</div>
+              <button onClick={()=>setSumulaModal(null)} style={{background:"none",border:"none",color:t.textSec,fontSize:20,cursor:"pointer"}}>✕</button>
+            </div>
+
+            <button 
+              onClick={() => window.print()}
+              style={{
+                ...S.btn("#378ADD18", "#378ADD"),
+                justifyContent: "center",
+                marginBottom: 16,
+                fontSize: 12,
+                padding: "8px 12px",
+                width: "100%",
+                border: "1px dashed #378ADDaa"
+              }}
+            >
+              🖨️ Exportar / Imprimir Súmula Física (A4)
+            </button>
+            
+            <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:20}}>
+              <div style={{textAlign:"center",fontWeight:700,color:t.text}}>{sumulaModal.m.home}<br/><span style={{fontSize:20,color:"#1D9E75"}}>{sumulaModal.m.homeScore}</span></div>
+              <div style={{fontSize:20,fontWeight:700,color:t.textSec,marginTop:10}}>×</div>
+              <div style={{textAlign:"center",fontWeight:700,color:t.text}}>{sumulaModal.m.away}<br/><span style={{fontSize:20,color:"#1D9E75"}}>{sumulaModal.m.awayScore}</span></div>
+            </div>
+
+            <div style={{flex:1,overflowY:"auto",paddingRight:4,display:"flex",flexDirection:"column",gap:16}}>
+              {(() => {
+                const suspended = getSuspendedPlayersForMatch(c, sumulaModal.eKey);
+                return ["home","away"].map(side=>{
+                   const tm = sumulaModal.m[side];
+                   const rst = getRosterByTeamName(tm);
+                   const tmRoster = (rst && rst.length > 0) ? rst : atletas.map(a=>a.id);
+                   const evts = (sumulaModal.m.events||[]).filter(e=>e.teamName===tm);
+                   return (
+                     <div key={side} style={{border:`1px solid ${t.cardBorder}`,padding:10,borderRadius:12}}>
+                       <div style={{fontWeight:800,color:colorOf(tm,c.teams),marginBottom:10,fontSize:13}}>{tm}</div>
+                       <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                         {evts.map((e,i)=>{
+                           const at = atletas.find(x=>String(x.id)===String(e.atletaId));
+                           return (
+                             <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:t.text,background:t.inputBg,padding:"6px 10px",borderRadius:8}}>
+                               <span>{e.type==="gol"?"⚽":e.type==="amarelo"?"🟨":"🟥"}</span>
+                               <PlayerAvatar atleta={at} size={18}/>
+                               <span style={{flex:1}}>{getPlayerName(at) || `Atleta #${e.atletaId}`}</span>
+                               <button onClick={()=>{
+                                  const newEvts = [...(sumulaModal.m.events||[])];
+                                  newEvts.splice(newEvts.indexOf(e),1);
+                                  setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
+                               }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800}}>✕</button>
+                             </div>
+                           );
+                         })}
+                       </div>
+                       <div style={{marginTop:10,display:"flex",gap:6}}>
+                         <select id={`sel-${side}`} value={sumulaSelection[side]} onChange={e=>setSumulaSelection(prev=>({...prev,[side]:e.target.value}))} style={{...S.select,padding:"6px",fontSize:12,flex:1}}>
+                           <option value="">Selecione o jogador...</option>
+                           {tmRoster.map(id=>{
+                             const at = atletas.find(x=>String(x.id)===String(id));
+                             const isSuspended = suspended && suspended[id];
+                             return (
+                               <option key={id} value={id} disabled={!!isSuspended}>
+                                 {getPlayerName(at) || `Atleta #${id}`} {isSuspended ? `(Suspenso - ${isSuspended}) ❌` : ""}
+                               </option>
+                             );
+                           })}
+                         </select>
+                         <div style={{display:"flex",gap:4}}>
+                           <button onClick={()=>{
+                              const val = sumulaSelection[side]; if(!val)return;
+                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"gol", atletaId:val, teamName:tm}];
+                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
+                           }} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}}>⚽</button>
+                           <button onClick={()=>{
+                              const val = sumulaSelection[side]; if(!val)return;
+                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"amarelo", atletaId:val, teamName:tm}];
+                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
+                           }} style={{...S.btnSm("#BA751722","#BA7517"),padding:"6px"}}>🟨</button>
+                           <button onClick={()=>{
+                              const val = sumulaSelection[side]; if(!val)return;
+                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"vermelho", atletaId:val, teamName:tm}];
+                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
+                           }} style={{...S.btnSm("#E24B4A22","#E24B4A"),padding:"6px"}}>🟥</button>
+                         </div>
+                       </div>
+                     </div>
+                   );
+                });
+              })()}
+            </div>
+
+            {/* Representantes das Equipes */}
+            <div style={{border:`1px solid ${t.cardBorder}`,padding:12,borderRadius:12,display:"flex",flexDirection:"column",gap:10,marginTop:12}}>
+              <div style={{fontWeight:800,color:t.text,fontSize:13,display:"flex",alignItems:"center",gap:6}}>
+                <span>🤝</span> Representantes das Equipes
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <div>
+                  <label style={{...S.label,fontSize:11,marginBottom:4}}>Representante Mandante ({sumulaModal.m.home})</label>
+                  <input 
+                    type="text" 
+                    style={S.input} 
+                    value={sumulaModal.m.homeRepresentative || ""} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSumulaModal(prev => ({
+                        ...prev,
+                        m: { ...prev.m, homeRepresentative: val }
+                      }));
+                    }} 
+                    placeholder="Nome do representante"
+                  />
+                </div>
+                <div>
+                  <label style={{...S.label,fontSize:11,marginBottom:4}}>Representante Visitante ({sumulaModal.m.away})</label>
+                  <input 
+                    type="text" 
+                    style={S.input} 
+                    value={sumulaModal.m.awayRepresentative || ""} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSumulaModal(prev => ({
+                        ...prev,
+                        m: { ...prev.m, awayRepresentative: val }
+                      }));
+                    }} 
+                    placeholder="Nome do representante"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Registrar Nova Ocorrência */}
+            <div style={{border:`1px solid ${t.cardBorder}`,padding:12,borderRadius:12,display:"flex",flexDirection:"column",gap:10,marginTop:12}}>
+              <div style={{fontWeight:800,color:t.text,fontSize:13,display:"flex",alignItems:"center",gap:6}}>
+                <span>⚠️</span> Registrar Ocorrência / Observação
+              </div>
+              
+              {/* Tipo de Ocorrência */}
+              <div>
+                <label style={{...S.label,fontSize:11,marginBottom:4}}>Tipo de Ocorrência</label>
+                <select 
+                  style={S.select} 
+                  value={sumulaModal.newObs?.type || "Indisciplina"}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setSumulaModal(prev => ({
+                      ...prev,
+                      newObs: { ...(prev.newObs || { text: "", homeAthletes: [], awayAthletes: [] }), type: val }
+                    }));
+                  }}
+                >
+                  <option value="Indisciplina">Indisciplina</option>
+                  <option value="Irregularidade">Irregularidade</option>
+                  <option value="Reclamação">Reclamação</option>
+                </select>
+              </div>
+
+              {/* Duas listas de atletas (uma por time) com checkboxes */}
+              <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                {["home", "away"].map(side => {
+                  const teamName = sumulaModal.m[side];
+                  const rst = getRosterByTeamName(teamName);
+                  const rosterIds = (rst && rst.length > 0) ? rst : atletas.map(a => a.id);
+                  const selectedList = side === "home" 
+                    ? (sumulaModal.newObs?.homeAthletes || [])
+                    : (sumulaModal.newObs?.awayAthletes || []);
+
+                  return (
+                    <div key={side} style={{flex:1,minWidth:140,border:`1px solid ${t.cardBorder}`,borderRadius:8,padding:6,background:t.card}}>
+                      <div style={{fontSize:11,fontWeight:700,color:colorOf(teamName, c.teams),marginBottom:6,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4}}>
+                        {side === "home" ? "Atletas Mandante" : "Atletas Visitante"}
+                      </div>
+                      <div style={{maxHeight:120,overflowY:"auto",display:"flex",flexDirection:"column",gap:4,paddingRight:2}}>
+                        {rosterIds.map(id => {
+                          const at = atletas.find(x => String(x.id) === String(id));
+                          if (!at) return null;
+                          const isChecked = selectedList.includes(id);
+                          return (
+                            <label key={id} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:t.text,cursor:"pointer",padding:"2px 4px",borderRadius:4,background:isChecked?t.inputBg:"transparent"}}>
+                              <input 
+                                type="checkbox" 
+                                checked={isChecked}
+                                onChange={() => {
+                                  setSumulaModal(prev => {
+                                    const currentObs = prev.newObs || { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] };
+                                    const oldList = side === "home" ? (currentObs.homeAthletes || []) : (currentObs.awayAthletes || []);
+                                    const newList = oldList.includes(id)
+                                      ? oldList.filter(x => x !== id)
+                                      : [...oldList, id];
+                                    
+                                    return {
+                                      ...prev,
+                                      newObs: {
+                                        ...currentObs,
+                                        [side === "home" ? "homeAthletes" : "awayAthletes"]: newList
+                                      }
+                                    };
+                                  });
+                                }}
+                              />
+                              <span style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(at)}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Texto da Ocorrência */}
+              <div>
+                <label style={{...S.label,fontSize:11,marginBottom:4}}>Descrição da Ocorrência</label>
+                <textarea 
+                  style={{...S.input,height:60,fontFamily:"inherit",fontSize:12,resize:"none"}}
+                  value={sumulaModal.newObs?.text || ""}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setSumulaModal(prev => ({
+                      ...prev,
+                      newObs: { ...(prev.newObs || { type: "Indisciplina", homeAthletes: [], awayAthletes: [] }), text: val }
+                    }));
+                  }}
+                  placeholder="Ex: Ofendeu o árbitro aos 10 minutos de jogo..."
+                />
+              </div>
+
+              {/* Botão de Adicionar */}
+              <button 
+                onClick={() => {
+                  const currentObs = sumulaModal.newObs || { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] };
+                  if (!currentObs.text || !currentObs.text.trim()) {
+                    alert("Por favor, digite uma descrição para a ocorrência.");
+                    return;
+                  }
+                  const newObsItem = {
+                    id: Date.now() + Math.random(),
+                    type: currentObs.type || "Indisciplina",
+                    text: currentObs.text.trim(),
+                    homeAthletes: currentObs.homeAthletes || [],
+                    awayAthletes: currentObs.awayAthletes || []
+                  };
+                  setSumulaModal(prev => ({
+                    ...prev,
+                    m: {
+                      ...prev.m,
+                      observations: [...(prev.m.observations || []), newObsItem]
+                    },
+                    newObs: { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] }
+                  }));
+                }}
+                style={{...S.btn("#378ADD18","#378ADD"),justifyContent:"center",fontSize:11,padding:6}}
+              >
+                ＋ Adicionar Ocorrência
+              </button>
+            </div>
+
+            {/* Lista de Ocorrências Cadastradas */}
+            {sumulaModal.m.observations && sumulaModal.m.observations.length > 0 && (
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:12}}>
+                <div style={{fontWeight:700,fontSize:12,color:t.textSec}}>Ocorrências Registradas:</div>
+                {sumulaModal.m.observations.map(obs => {
+                  // Mapeia nomes dos atletas
+                  const homeNames = (obs.homeAthletes || []).map(id => {
+                    const at = atletas.find(x => String(x.id) === String(id));
+                    return at ? (at.apelido || at.nome) : `Atleta #${id}`;
+                  });
+                  const awayNames = (obs.awayAthletes || []).map(id => {
+                    const at = atletas.find(x => String(x.id) === String(id));
+                    return at ? (at.apelido || at.nome) : `Atleta #${id}`;
+                  });
+
+                  // Cores por tipo
+                  let badgeBg = "#BA751722";
+                  let badgeColor = "#BA7517";
+                  if (obs.type === "Irregularidade") {
+                    badgeBg = "#E24B4A22";
+                    badgeColor = "#E24B4A";
+                  } else if (obs.type === "Reclamação") {
+                    badgeBg = "#378ADD22";
+                    badgeColor = "#378ADD";
+                  }
+
+                  return (
+                    <div key={obs.id} style={{border:`1px solid ${t.cardBorder}`,padding:10,borderRadius:10,background:t.inputBg,display:"flex",flexDirection:"column",gap:6}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{fontSize:10,fontWeight:800,background:badgeBg,color:badgeColor,padding:"2px 8px",borderRadius:6,textTransform:"uppercase"}}>
+                          {obs.type}
+                        </span>
+                        <button 
+                          onClick={() => {
+                            const updatedObs = sumulaModal.m.observations.filter(x => x.id !== obs.id);
+                            setSumulaModal(prev => ({
+                              ...prev,
+                              m: { ...prev.m, observations: updatedObs }
+                            }));
+                          }}
+                          style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800,fontSize:12}}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div style={{fontSize:12,color:t.text,lineHeight:"1.4",whiteSpace:"pre-wrap"}}>
+                        {obs.text}
+                      </div>
+                      {(homeNames.length > 0 || awayNames.length > 0) && (
+                        <div style={{borderTop:`1px dashed ${t.cardBorder}`,paddingTop:4,marginTop:2,fontSize:10,color:t.textSec,display:"flex",flexDirection:"column",gap:2}}>
+                          {homeNames.length > 0 && (
+                            <div><strong>{sumulaModal.m.home}:</strong> {homeNames.join(", ")}</div>
+                          )}
+                          {awayNames.length > 0 && (
+                            <div><strong>{sumulaModal.m.away}:</strong> {awayNames.join(", ")}</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            <div style={{marginTop:16}}>
+              <button onClick={()=>handleSaveSumula(sumulaModal.m, sumulaModal.m.events||[])} style={{...S.btn(),width:"100%",justifyContent:"center"}}>Salvar Súmula</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Súmula Oficial Formatada para Impressão A4 Física */}
       {renderPrintableSumula()}
     </div>
