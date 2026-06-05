@@ -8165,6 +8165,15 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
     URL.revokeObjectURL(href);
   };
 
+  const shuffleArray = (array) => {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
   useEffect(() => {
     if (cf.type === "liga") {
       const gc = cf.groupCount || 2;
@@ -8194,18 +8203,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
 
   function criar(){
     if (cf.type === "liga") {
-      const groups = cf.groupsData.map(g => {
-        const trimmedTeams = g.teams.map(t => t.trim()).filter(Boolean);
-        return {
-          name: g.name,
-          teams: trimmedTeams,
-          quadra: g.quadra,
-          rounds: generateRR(trimmedTeams, false),
-          standings: initStandings(trimmedTeams)
-        };
-      });
-      
-      const allTeamsList = groups.flatMap(g => g.teams);
+      const allTeamsList = cf.groupsData.flatMap(g => g.teams.map(t => t.trim()).filter(Boolean));
       if (allTeamsList.length < (cf.groupCount * cf.teamsPerGroup)) {
         alert("Preencha todos os nomes dos times nos grupos!");
         return;
@@ -8215,12 +8213,27 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
         return;
       }
       
+      // Embaralha de forma aleatória todos os times preenchidos nos grupos
+      const shuffledTeams = shuffleArray(allTeamsList);
+
+      const groups = cf.groupsData.map((g, gi) => {
+        const tpg = cf.teamsPerGroup || 4;
+        const groupTeams = shuffledTeams.slice(gi * tpg, (gi + 1) * tpg);
+        return {
+          name: g.name,
+          teams: groupTeams,
+          quadra: g.quadra,
+          rounds: generateRR(groupTeams, false),
+          standings: initStandings(groupTeams)
+        };
+      });
+      
       let data = {
         id: Date.now(),
         name: cf.name || "Campeonato",
         type: "liga",
         modalidade: cf.modalidade || "Futsal",
-        teams: allTeamsList,
+        teams: shuffledTeams,
         date: cf.date,
         fee: Number(cf.fee || 0),
         groups: groups,
@@ -8232,13 +8245,17 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
       const teams=cf.teams.map(x=>x.trim()).filter(Boolean);
       if(teams.length<2){alert("Mínimo 2 times!");return;}
       if(new Set(teams).size!==teams.length){alert("Times duplicados!");return;}
+      
       let data={id:Date.now(),name:cf.name||"Campeonato",type:cf.type,modalidade:cf.modalidade||"Futsal",teams,date:cf.date,fee:Number(cf.fee||0)};
       if(cf.type==="pontos"){data.rounds=generateRR(teams,cf.turno);data.standings=initStandings(teams);}
       else if(cf.type==="mata"){data.knockout=generateKO(teams);}
       else {
         const gc=Math.min(cf.groupCount,Math.floor(teams.length/2));
+        const shuffledTeams = shuffleArray(teams); // Embaralha a lista plana de times
         const groups=Array.from({length:gc},(_,i)=>({name:"Grupo "+(i+1),teams:[]}));
-        teams.forEach((tm,i)=>groups[i%gc].teams.push(tm));
+        shuffledTeams.forEach((tm,i)=>groups[i%gc].teams.push(tm));
+        
+        data.teams = shuffledTeams; // Salva na ordem embaralhada
         data.groups=groups.map(g=>({...g,rounds:generateRR(g.teams,false),standings:initStandings(g.teams)}));
         data.knockout=null;
         data.mixedPhase="groups";
