@@ -8004,6 +8004,167 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
     fee:0
   });
 
+  const [importedAtletas, setImportedAtletas] = useState([]);
+  const [importFeedback, setImportFeedback] = useState("");
+
+  const handleImportPlanilha = async (event) => {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      let rows;
+      if (file.name.endsWith('.csv') || !text.trimStart().startsWith('<')) {
+        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+        rows = lines.map(line => line.split(',').map(cell => cell.startsWith('"') && cell.endsWith('"') ? cell.slice(1,-1).replace(/""/g,'"') : cell));
+      } else {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, "text/html");
+        const table = doc.querySelector("table");
+        if (!table) throw new Error("O arquivo não contém uma tabela válida. Use o modelo CSV.");
+        rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
+      }
+      if (rows.length < 2) throw new Error("A tabela não contém dados de atletas.");
+      const headers = rows[0].map(h => String(h).trim());
+      const dataRows = rows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
+
+      const athletesList = [];
+      const timesUnicosSet = new Set();
+
+      dataRows.forEach((cells, index) => {
+        const item = {};
+        cells.forEach((value, idx) => {
+          const key = headers[idx];
+          if (!key) return;
+          if (key === "customFields") {
+            try {
+              item.customFields = JSON.parse(value || "{}");
+            } catch {
+              item.customFields = {};
+            }
+            return;
+          }
+          if (key === "habilidade") {
+            item.habilidade = Number(value) || 3;
+            return;
+          }
+          if (key === "goleiro" || key === "ativo") {
+            item[key] = String(value).trim().toLowerCase() === "true";
+            return;
+          }
+          if (key === "id") {
+            item.id = value ? Number(value) : undefined;
+            return;
+          }
+          item[key] = value;
+        });
+
+        const timeAtleta = (item.time || item.grupo || "").trim();
+        if (timeAtleta) {
+          timesUnicosSet.add(timeAtleta);
+        }
+
+        athletesList.push({
+          ...item,
+          id: item.id || Date.now() + Math.floor(Math.random() * 100000) + index,
+          habilidade: Number(item.habilidade) || 3,
+          ativo: item.ativo !== false,
+          goleiro: item.goleiro === true,
+          grupo: timeAtleta,
+          customFields: item.customFields && typeof item.customFields === "object" ? item.customFields : {},
+        });
+      });
+
+      const timesUnicos = Array.from(timesUnicosSet);
+      setImportedAtletas(athletesList);
+      setImportFeedback(`Sucesso: ${athletesList.length} atleta(s) e ${timesUnicos.length} time(s) carregados da planilha.`);
+
+      if (cf.type === "liga") {
+        const totalTimes = timesUnicos.length;
+        let gc = cf.groupCount;
+        let tpg = cf.teamsPerGroup;
+
+        if (totalTimes > 0) {
+          gc = Math.max(2, Math.ceil(totalTimes / 4));
+          tpg = Math.ceil(totalTimes / gc);
+        }
+
+        const newGroups = [];
+        for (let i = 0; i < gc; i++) {
+          const name = "Grupo " + String.fromCharCode(65 + i);
+          const teams = [];
+          for (let j = 0; j < tpg; j++) {
+            const timeIdx = i * tpg + j;
+            teams.push(timesUnicos[timeIdx] || "");
+          }
+          newGroups.push({
+            name: name,
+            teams: teams,
+            quadra: ""
+          });
+        }
+
+        setCf(prev => ({
+          ...prev,
+          groupCount: gc,
+          teamsPerGroup: tpg,
+          groupsData: newGroups,
+          teams: timesUnicos
+        }));
+      } else {
+        setCf(prev => ({
+          ...prev,
+          teams: timesUnicos.length >= 2 ? timesUnicos : [...timesUnicos, ""]
+        }));
+      }
+
+    } catch (error) {
+      console.error("Erro na importação da planilha no campeonato:", error);
+      alert("Erro ao ler planilha: " + (error.message || error));
+    } finally {
+      if (event.target) event.target.value = "";
+    }
+  };
+
+  const downloadModeloPlanilha = () => {
+    const headers = ["id", "nome", "apelido", "foto", "habilidade", "goleiro", "ativo", "documento", "dataNascimento", "numeroCamisa", "time", "celular1", "celular2", "foneResidencial", "email", "logradouro", "nomeVia", "cep", "complemento", "bairro", "nomeMae", "docFoto", "customFields"];
+    const sample = {
+      id: "",
+      nome: "João Silva",
+      apelido: "João",
+      foto: "",
+      habilidade: "3",
+      goleiro: "false",
+      ativo: "true",
+      documento: "1234567",
+      dataNascimento: "1990-01-01",
+      numeroCamisa: "10",
+      time: "Ex: Real Madrid",
+      celular1: "11999999999",
+      celular2: "",
+      foneResidencial: "",
+      email: "joao@email.com",
+      logradouro: "Rua",
+      nomeVia: "Das Flores",
+      cep: "01001-000",
+      complemento: "Apto 12",
+      bairro: "Centro",
+      nomeMae: "Maria Silva",
+      docFoto: "",
+      customFields: "{}"
+    };
+    const _csvLines = [headers.map(h => { const s = String(sample[h] ?? ''); return (s.includes(',') || s.includes('"')) ? '"' + s.replace(/"/g,'""') + '"' : s; }).join(',')];
+    const csv = '\uFEFF' + [headers.map(h => h).join(','), ..._csvLines].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `modelo-cadastro-atletas-campeonato.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  };
+
   useEffect(() => {
     if (cf.type === "liga") {
       const gc = cf.groupCount || 2;
@@ -8066,7 +8227,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
         knockout: null,
         mixedPhase: "groups"
       };
-      onSave(data);
+      onSave(data, importedAtletas);
     } else {
       const teams=cf.teams.map(x=>x.trim()).filter(Boolean);
       if(teams.length<2){alert("Mínimo 2 times!");return;}
@@ -8082,7 +8243,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
         data.knockout=null;
         data.mixedPhase="groups";
       }
-      onSave(data);
+      onSave(data, importedAtletas);
     }
   }
 
@@ -8136,6 +8297,45 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
 
       <div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><label style={S.label}>Taxa de inscrição por atleta (R$)</label><input type="number" min={0} value={cf.fee} onChange={e=>setCf(v=>({...v,fee:Number(e.target.value)}))} style={{...S.input,width:180}}/></div>
+      </div>
+
+      <div style={{...S.card, padding: 14, border: `1px solid ${t.cardBorder}`, background: t.cardBg || t.inputBg, display: "flex", flexDirection: "column", gap: 10, borderRadius: 8}}>
+        <div style={{fontSize: 13, fontWeight: 700, color: t.text}}>📥 Importar Atletas & Times por Planilha (Opcional)</div>
+        <div style={{fontSize: 11, color: t.textSec, lineHeight: "1.4"}}>
+          Selecione uma planilha de atletas com a coluna <strong>time</strong> para criar o campeonato com os times e atletas já cadastrados e vinculados.
+        </div>
+        <div style={{display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center"}}>
+          <button 
+            type="button" 
+            onClick={downloadModeloPlanilha} 
+            style={{...S.btnSm("#20E27815", t.accent), display: "flex", alignItems: "center", gap: 6, border: `1px solid ${t.accent}`, background: "transparent", color: t.accent, cursor: "pointer", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600}}
+          >
+            <span>📄</span> Baixar Modelo CSV
+          </button>
+          <label 
+            style={{
+              padding: "6px 12px", 
+              borderRadius: 6, 
+              background: "#20E27822", 
+              color: t.accent, 
+              cursor: "pointer", 
+              fontSize: 12, 
+              fontWeight: 600, 
+              display: "flex", 
+              alignItems: "center", 
+              gap: 6, 
+              border: `1px solid ${t.accent}`
+            }}
+          >
+            <span>📥</span> Carregar Planilha
+            <input type="file" accept=".csv,.xls,.xlsx" style={{display: "none"}} onChange={handleImportPlanilha} />
+          </label>
+        </div>
+        {importFeedback && (
+          <div style={{fontSize: 12, color: "#1D9E75", fontWeight: 600, display: "flex", alignItems: "center", gap: 6}}>
+            <span>✅</span> {importFeedback}
+          </div>
+        )}
       </div>
 
       <div>
@@ -10439,8 +10639,47 @@ export default function App(){
       <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
         <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>🏆 Criar Novo Campeonato / Liga</h2>
       </div>
-      <NovoCampeonato quadras={quadras} onSave={d=>{
+      <NovoCampeonato quadras={quadras} onSave={(d, importedAtletas)=>{
         const newD = {...d, manager_id: auth.role === "manager" ? auth.manager_id : null};
+        
+        if (importedAtletas && importedAtletas.length > 0) {
+          newD.rosters = newD.rosters || {};
+          const novosAtletasList = [];
+          
+          importedAtletas.forEach(a => {
+            const timeDoAtleta = a.grupo || "";
+            if (timeDoAtleta) {
+              newD.rosters[timeDoAtleta] = newD.rosters[timeDoAtleta] || [];
+              if (!newD.rosters[timeDoAtleta].includes(a.id)) {
+                newD.rosters[timeDoAtleta].push(a.id);
+              }
+            }
+            novosAtletasList.push(a);
+          });
+          
+          setAtletasCampeonato(prev => {
+            const updated = [...prev];
+            novosAtletasList.forEach(a => {
+              const idx = updated.findIndex(u => u.nome.toLowerCase() === a.nome.toLowerCase());
+              if (idx >= 0) {
+                // Atualiza mantendo o ID existente
+                updated[idx] = { ...updated[idx], ...a, id: updated[idx].id };
+                const timeDoAtleta = a.grupo || "";
+                if (timeDoAtleta && newD.rosters[timeDoAtleta]) {
+                  newD.rosters[timeDoAtleta] = newD.rosters[timeDoAtleta].map(x => x === a.id ? updated[idx].id : x);
+                }
+              } else {
+                // Adiciona novo atleta
+                updated.push({
+                  ...a,
+                  manager_id: auth.role === "manager" ? auth.manager_id : null
+                });
+              }
+            });
+            return updated;
+          });
+        }
+
         setCampeonatos(p=>[...p,newD]);
         setCurrent(newD);
         setScreen("gerenciarChamp");
