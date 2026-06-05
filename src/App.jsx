@@ -7559,6 +7559,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     const [editAllowOnline, setEditAllowOnline] = useState(c.allowOnlineReg || false);
     const [newCustomField, setNewCustomField] = useState("");
     const [customFields, setCustomFields] = useState(c.customFieldsDef || []);
+    const [editGroupsData, setEditGroupsData] = useState(c.groups ? c.groups.map(g => ({ name: g.name, quadra: g.quadra || "" })) : []);
 
     const handleAddField = () => {
       const fieldName = newCustomField.trim();
@@ -7583,6 +7584,11 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       
       const slugVal = editSlug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, "");
 
+      const novosGrupos = c.groups ? c.groups.map((g, gi) => ({
+        ...g,
+        quadra: editGroupsData[gi]?.quadra || ""
+      })) : null;
+
       const tc = {
         ...c,
         name: editName.trim(),
@@ -7590,7 +7596,8 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
         fee: Number(editFee),
         customSlug: slugVal,
         allowOnlineReg: editAllowOnline,
-        customFieldsDef: customFields
+        customFieldsDef: customFields,
+        ...(novosGrupos ? { groups: novosGrupos } : {})
       };
       onUpdate(tc);
       alert("Configurações salvas com sucesso!");
@@ -7663,6 +7670,37 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
             )}
           </div>
         </div>
+
+        {/* Quadras dos Grupos/Chaves */}
+        {c.groups && c.groups.length > 0 && (
+          <div style={S.card}>
+            <h3 style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:14}}>🏟️ Quadras dos Grupos / Chaves</h3>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {editGroupsData.map((g, gi) => (
+                <div key={gi} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
+                  <span style={{fontSize:13,fontWeight:600,color:t.text}}>{g.name}</span>
+                  <select
+                    value={g.quadra}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setEditGroupsData(prev => {
+                        const copy = [...prev];
+                        copy[gi] = { ...copy[gi], quadra: val };
+                        return copy;
+                      });
+                    }}
+                    style={{...S.input,width:180,padding:"4px 8px",fontSize:12,height:"auto"}}
+                  >
+                    <option value="">Sem Quadra</option>
+                    {quadras.filter(q => q.ativa).map(q => (
+                      <option key={q.id} value={q.nome}>{q.nome}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Divulgação & Links */}
         <div style={S.card}>
@@ -8325,6 +8363,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
       const gc = cf.groupCount || 2;
       const tpg = cf.teamsPerGroup || 4;
       const newGroups = [];
+      const activeQuadras = quadras.filter(q => q.ativa);
       for (let i = 0; i < gc; i++) {
         const name = "Grupo " + (i + 1);
         const existing = cf.groupsData?.[i];
@@ -8332,10 +8371,11 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
         for (let j = 0; j < tpg; j++) {
           teams.push(existing?.teams?.[j] || "");
         }
+        const defaultQuadra = activeQuadras.length > 0 ? (activeQuadras[i % activeQuadras.length]?.nome || "") : "";
         newGroups.push({
           name: name,
           teams: teams,
-          quadra: existing?.quadra || ""
+          quadra: existing?.quadra !== undefined ? existing.quadra : defaultQuadra
         });
       }
       
@@ -8345,7 +8385,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
         setCf(prev => ({ ...prev, groupsData: newGroups }));
       }
     }
-  }, [cf.type, cf.groupCount, cf.teamsPerGroup]);
+  }, [cf.type, cf.groupCount, cf.teamsPerGroup, quadras]);
 
   function criar(){
     if (cf.type === "liga") {
@@ -8406,7 +8446,12 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
       else {
         const gc=Math.min(cf.groupCount,Math.floor(teams.length/2));
         const shuffledTeams = shuffleArray(teams); // Embaralha a lista plana de times
-        const groups=Array.from({length:gc},(_,i)=>({name:"Grupo "+(i+1),teams:[]}));
+        const activeQuadras = quadras.filter(q => q.ativa);
+        const groups=Array.from({length:gc},(_,i)=>({
+          name:"Grupo "+(i+1),
+          teams:[],
+          quadra: activeQuadras.length > 0 ? (activeQuadras[i % activeQuadras.length]?.nome || "") : ""
+        }));
         shuffledTeams.forEach((tm,i)=>groups[i%gc].teams.push(tm));
         
         data.teams = shuffledTeams; // Salva na ordem embaralhada
