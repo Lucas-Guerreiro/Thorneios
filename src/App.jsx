@@ -196,6 +196,108 @@ function resizeImage(file, maxSize, callback) {
   reader.readAsDataURL(file);
 }
 
+function compressBase64(base64Str, maxSize, quality = 0.6) {
+  return new Promise((resolve) => {
+    if (!base64Str || !base64Str.startsWith("data:image")) {
+      resolve(base64Str);
+      return;
+    }
+    // Se a imagem já for leve (menor que 20KB de Base64), não precisa processar de novo
+    if (base64Str.length < 25000) {
+      resolve(base64Str);
+      return;
+    }
+
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement("canvas");
+      let width = img.width, height = img.height;
+      if (width > height) {
+        if (width > maxSize) {
+          height *= maxSize / width;
+          width = maxSize;
+        }
+      } else {
+        if (height > maxSize) {
+          width *= maxSize / height;
+          height = maxSize;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = function() {
+      resolve(base64Str);
+    };
+    img.src = base64Str;
+  });
+}
+
+async function otimizarTodoEstado(state) {
+  const newState = { ...state };
+
+  // 1. Otimizar atletas gerais (pelada)
+  if (Array.isArray(newState.atletas)) {
+    newState.atletas = await Promise.all(newState.atletas.map(async (atleta) => {
+      let foto = atleta.foto;
+      let docFoto = atleta.docFoto;
+      if (foto) foto = await compressBase64(foto, 120, 0.6);
+      if (docFoto) docFoto = await compressBase64(docFoto, 400, 0.6);
+      return { ...atleta, foto, docFoto };
+    }));
+  }
+
+  // 2. Otimizar atletas do campeonato
+  if (Array.isArray(newState.atletasCampeonato)) {
+    newState.atletasCampeonato = await Promise.all(newState.atletasCampeonato.map(async (atleta) => {
+      let foto = atleta.foto;
+      let docFoto = atleta.docFoto;
+      if (foto) foto = await compressBase64(foto, 120, 0.6);
+      if (docFoto) docFoto = await compressBase64(docFoto, 400, 0.6);
+      return { ...atleta, foto, docFoto };
+    }));
+  }
+
+  // 3. Otimizar campeonatos (escudos e fotos de partidas)
+  if (Array.isArray(newState.campeonatos)) {
+    newState.campeonatos = await Promise.all(newState.campeonatos.map(async (camp) => {
+      const newCamp = { ...camp };
+      
+      // Escudos dos times
+      if (newCamp.emblems && typeof newCamp.emblems === "object") {
+        const newEmblems = {};
+        for (const [team, b64] of Object.entries(newCamp.emblems)) {
+          newEmblems[team] = await compressBase64(b64, 200, 0.6);
+        }
+        newCamp.emblems = newEmblems;
+      }
+
+      // Fotos das partidas
+      if (Array.isArray(newCamp.rounds)) {
+        newCamp.rounds = await Promise.all(newCamp.rounds.map(async (round) => {
+          if (!Array.isArray(round.matches)) return round;
+          const newMatches = await Promise.all(round.matches.map(async (match) => {
+            if (!Array.isArray(match.photos)) return match;
+            const newPhotos = await Promise.all(match.photos.map(async (photo) => {
+              const newData = await compressBase64(photo.data, 400, 0.6);
+              return { ...photo, data: newData };
+            }));
+            return { ...match, photos: newPhotos };
+          }));
+          return { ...round, matches: newMatches };
+        }));
+      }
+
+      return newCamp;
+    }));
+  }
+
+  return newState;
+}
+
 const getPlayerName = a => {
   if (!a) return "";
   return a.apelido || a.nome || a.name || `Atleta #${a.id || 'Sem ID'}`;
@@ -6794,6 +6896,39 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     );
   }
 
+  function renderKnockout() {
+    if (!c.knockout || c.knockout.length === 0) {
+      return (
+        <div style={{...S.card, textAlign: "center", padding: 20, color: t.textSec}}>
+          Nenhuma chave de mata-mata foi gerada ainda. Finalize os jogos da fase de grupos e avance para gerar o mata-mata.
+        </div>
+      );
+    }
+    return (
+      <div style={{overflowX:"auto"}}>
+        <div style={{display:"flex",gap:14,minWidth:"fit-content",paddingBottom:8}}>
+          {(c.knockout || []).map((phase,pi)=>(
+            <div key={pi} style={{minWidth:200}}>
+              <div style={{fontSize:11,fontWeight:700,color:t.textSec,textAlign:"center",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>{phase.name}</div>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {(phase.matches || []).map((m,mi)=>(
+                  <div key={mi} style={{border:`1px solid ${t.cardBorder}`,borderRadius:12,overflow:"hidden",background:t.card}}>
+                    {[{tm:m.home,s:m.homeScore,w:m.winner===m.home},{tm:m.away,s:m.awayScore,w:m.winner===m.away}].map((side,si)=>(
+                      <div key={si} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",borderBottom:si===0?`1px solid ${t.cardBorder}`:"none",background:side.w?"#1D9E7514":"transparent"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={side.tm||"?"} color={colorOf(side.tm,c.teams)} size={26} src={c.emblems?.[side.tm]}/><span style={{fontSize:13,fontWeight:700,color:t.text}}>{side.tm||"—"}</span></div>
+                        <span style={{fontWeight:800,color:side.w?"#1D9E75":t.text,fontSize:14}}>{m.played?side.s:"—"}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   function renderJogos() {
     return (
       <>
@@ -7098,14 +7233,12 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                     onChange={(e)=>{
                       const file = e.target.files?.[0];
                       if(!file) return;
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
+                      resizeImage(file, 200, (b64) => {
                         const tc = deepClone(c);
                         tc.emblems = tc.emblems || {};
-                        tc.emblems[selTeamElenco] = reader.result;
+                        tc.emblems[selTeamElenco] = b64;
                         onUpdate(tc);
-                      };
-                      reader.readAsDataURL(file);
+                      });
                     }} 
                     style={{display:"none"}}
                   />
@@ -7684,7 +7817,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                    onChange={(e) => {
                      const file = e.target.files?.[0];
                      if (!file) return;
-                     resizeImage(file, 800, (base64) => {
+                     resizeImage(file, 400, (base64) => {
                        saveMatchPhoto(eKey, base64);
                      });
                      e.target.value = '';
@@ -7770,7 +7903,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      resizeImage(file, 800, (base64) => saveMatchPhoto(eKey, base64));
+                      resizeImage(file, 400, (base64) => saveMatchPhoto(eKey, base64));
                       e.target.value = '';
                     }}
                   />
@@ -10221,16 +10354,22 @@ export default function App(){
     }
     setCloudLoading(true);
     try {
+      // Otimiza todas as imagens em background antes de salvar
+      const otimizado = await otimizarTodoEstado(appState);
+      
+      // Atualiza o estado local com os dados comprimidos
+      setAppState(otimizado);
+
       const docKey = auth.role === "adm" ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
       const payload = {
-        appState: appState,
+        appState: otimizado,
         lastUpdated: new Date().toISOString(),
         updatedBy: auth.name || "Sem Nome"
       };
-      // Clean undefined values just in case
+      
       const cleanPayload = JSON.parse(JSON.stringify(payload));
       await setDoc(doc(db, "sistema", docKey), cleanPayload);
-      alert("Banco de dados completo salvo na Nuvem com sucesso! 🚀");
+      alert("Banco de dados completo otimizado e salvo na Nuvem com sucesso! 🚀");
     } catch (e) {
       console.error(e);
       alert("Erro ao salvar na nuvem: " + e.message);
