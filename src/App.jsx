@@ -37,8 +37,8 @@ const todayStr= () => {
 };
 const SKILL_COLORS = ["#888","#BA7517","#378ADD","#1D9E75","#D85A30"];
 const SKILL_NAMES  = ["Iniciante","Básico","Intermediário","Avançado","Elite"];
-const LIGHT = { bg: "#ffffff", card: "#ffffff", cardBorder: "#efefef", inputBg: "#fafafa", inputBorder: "#dbdbdb", inputColor: "#262626", text: "#262626", textSec: "#737373", tabBorder: "#efefef" };
-const DARK  = { bg: "#000000", card: "#121212", cardBorder: "#262626", inputBg: "#1c1c1e", inputBorder: "#262626", inputColor: "#f5f5f5", text: "#f5f5f5", textSec: "#a8a8a8", tabBorder: "#262626" };
+const LIGHT = { bg: "#F3F4F6", card: "#ffffff", cardBorder: "#E5E7EB", inputBg: "#F9FAFB", inputBorder: "#D1D5DB", inputColor: "#1A1C23", text: "#1A1C23", textSec: "#6B7280", tabBorder: "#E5E7EB" };
+const DARK  = { bg: "#0F1116", card: "#171A21", cardBorder: "#212631", inputBg: "#1B1E26", inputBorder: "#2D3342", inputColor: "#F5F6F8", text: "#F5F6F8", textSec: "#8E929E", tabBorder: "#212631" };
 
 function useTheme(){ 
   const [dark, setDark] = useState(() => {
@@ -55,15 +55,114 @@ function useTheme(){
   return { dark, setDark: toggleDark, t: dark ? DARK : LIGHT }; 
 }
 function makeStyles(t){
+  const isDark = t.bg === "#0F1116";
   return{
-    page:  {minHeight:"100vh",padding:"60px 16px 24px",maxWidth:780,margin:"0 auto",background:t.bg,color:t.text},
-    card:  {background:t.card,borderRadius:12,padding:"16px",border:`1px solid ${t.cardBorder}`,boxShadow:"none"},
-    input: {padding:"9px 13px",borderRadius:8,border:`1px solid ${t.inputBorder}`,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"border-color 0.2s"},
-    select:{padding:"9px 13px",borderRadius:8,border:`1px solid ${t.inputBorder}`,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"border-color 0.2s"},
-    btn:   (bg,c)=>({padding:"9px 16px",borderRadius:8,border:"none",background:bg||t.accent||"#0095F6",color:c||"#fff",cursor:"pointer",fontWeight:600,fontSize:14,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6,transition:"background 0.2s, opacity 0.2s"}),
-    btnSm: (bg,c)=>({padding:"6px 12px",borderRadius:6,border:`1px solid ${t.inputBorder}`,background:bg||t.inputBg,color:c||t.text,cursor:"pointer",fontWeight:600,fontSize:12,transition:"background 0.2s"}),
-    label: {fontSize:11,color:t.textSec,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,marginBottom:5,display:"block"},
-    tab:   a=>({padding:"10px 14px",border:"none",borderBottom:a?("2.5px solid " + (t.accent||"#0095F6")):"2.5px solid transparent",background:"none",color:a?t.text:t.textSec,cursor:"pointer",fontSize:13,fontWeight:a?800:500,letterSpacing:"0.5px",textTransform:"uppercase",whiteSpace:"nowrap"}),
+    page:  {minHeight:"100vh",padding:"24px 0",maxWidth:1200,margin:"0 auto",background:t.bg,color:t.text,fontFamily:"'Outfit', sans-serif"},
+    card:  {background:t.card,borderRadius:16,padding:"16px",border:"1px solid " + t.cardBorder,boxShadow:!isDark?"0 4px 20px rgba(0,0,0,0.04)":"none",transition:"all 0.25s"},
+    input: {padding:"10px 14px",borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease",focus:{borderColor:t.accent}},
+    select:{padding:"10px 14px",borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease"},
+    btn:   (bg,c)=>{
+      const backColor = bg || t.accent || "#20E278";
+      const isNeonGreen = backColor.toLowerCase() === "#20e278" || backColor.toLowerCase() === "#00e676" || backColor.toLowerCase() === "#1d9e75" || backColor.toLowerCase() === "#06aa48";
+      const textColor = c || (isNeonGreen ? "#0F1116" : "#fff");
+      return {
+        padding:"10px 18px",
+        borderRadius:12,
+        border:"none",
+        background:backColor,
+        color:textColor,
+        cursor:"pointer",
+        fontWeight:700,
+        fontSize:14,
+        display:"inline-flex",
+        alignItems:"center",
+        justifyContent:"center",
+        gap:6,
+        transition:"all 0.2s ease",
+        boxShadow: isNeonGreen && !isDark ? "0 4px 12px rgba(6, 170, 72, 0.25)" : "none"
+      };
+    },
+    btnSm: (bg,c)=>{
+      const backColor = bg || t.inputBg;
+      const isNeonGreen = backColor.toLowerCase() === "#20e278" || backColor.toLowerCase() === "#00e676" || backColor.toLowerCase() === "#06aa48";
+      const textColor = c || (isNeonGreen ? "#0F1116" : t.text);
+      return {
+        padding:"6px 14px",
+        borderRadius:10,
+        border:"1px solid " + t.cardBorder,
+        background:backColor,
+        color:textColor,
+        cursor:"pointer",
+        fontWeight:700,
+        fontSize:12,
+        transition:"all 0.2s ease"
+      };
+    },
+    label: {fontSize:11,color:t.textSec,fontWeight:800,textTransform:"uppercase",letterSpacing:0.8,marginBottom:6,display:"block"},
+    tab:   a=>({
+      padding:"10px 16px",
+      border:"none",
+      borderBottom:a?("3px solid " + (t.accent||"#20E278")):"3px solid transparent",
+      background:"none",
+      color:a?t.text:t.textSec,
+      cursor:"pointer",
+      fontSize:13,
+      fontWeight:a?800:600,
+      letterSpacing:"0.6px",
+      textTransform:"uppercase",
+      whiteSpace:"nowrap",
+      transition:"all 0.2s ease"
+    }),
+    layoutContainer: isMobile => ({
+      display: "flex",
+      gap: "20px",
+      flexDirection: isMobile ? "column" : "row",
+      alignItems: "flex-start",
+      width: "100%",
+      marginTop: "8px"
+    }),
+    sidebarLeft: isMobile => ({
+      width: isMobile ? "100%" : "280px",
+      flexShrink: 0,
+      display: "flex",
+      flexDirection: "column",
+      gap: "16px",
+      position: isMobile ? "static" : "sticky",
+      top: "24px"
+    }),
+    sidebarRight: isMobile => ({
+      width: isMobile ? "100%" : "300px",
+      flexShrink: 0,
+      display: "flex",
+      flexDirection: "column",
+      gap: "16px",
+      position: isMobile ? "static" : "sticky",
+      top: "24px"
+    }),
+    mainContent: {
+      flex: 1,
+      minWidth: 0,
+      display: "flex",
+      flexDirection: "column",
+      gap: "20px",
+      width: "100%"
+    },
+    sidebarItem: (active, activeColor) => ({
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "10px 12px",
+      borderRadius: "12px",
+      border: "none",
+      background: active ? activeColor + "15" : "transparent",
+      color: active ? activeColor : t.text,
+      cursor: "pointer",
+      textAlign: "left",
+      fontSize: "13px",
+      fontWeight: active ? 700 : 500,
+      width: "100%",
+      transition: "all 0.2s ease"
+    })
   };
 }
 
@@ -2067,9 +2166,9 @@ function PublicScreen({campeonatos,atletas,current,setCurrent,onBack,t}){
     return (
       <div key={`${m.home}-${m.away}-${m.date||Math.random()}`} style={{padding:12,border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,display:"flex",flexDirection:"column",gap:10}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0,justifyContent:"flex-start"}}><div style={{width:28,height:28,borderRadius:999,background:colorOf(m.home,publicChamp.teams),display:"grid",placeItems:"center",color:"#fff",fontWeight:700}}>{m.home?.charAt(0)}</div><span style={{fontWeight:700,color:t.text}}>{m.home}</span></div>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:100,flexShrink:0}}><div style={{fontSize:18,fontWeight:800,color:t.text}}>{m.played?`${m.homeScore}×${m.awayScore}`:"—×—"}</div><div style={{fontSize:11,color:t.textSec,marginTop:4}}>{m.date?formatarData(m.date):"Data não informada"}</div></div>
-          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0,justifyContent:"flex-end"}}><span style={{fontWeight:700,color:t.text}}>{m.away}</span><div style={{width:28,height:28,borderRadius:999,background:colorOf(m.away,publicChamp.teams),display:"grid",placeItems:"center",color:"#fff",fontWeight:700}}>{m.away?.charAt(0)}</div></div>
+          <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0,justifyContent:"flex-start"}}><Avatar name={m.home} size={36} color={colorOf(m.home,publicChamp.teams)} src={publicChamp.emblems?.[m.home]}/><span style={{fontWeight:800,fontSize:15,color:t.text}}>{m.home}</span></div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:100,flexShrink:0}}><div style={{fontSize:20,fontWeight:900,color:t.text}}>{m.played?`${m.homeScore}×${m.awayScore}`:"—×—"}</div><div style={{fontSize:11,color:t.textSec,marginTop:4}}>{m.date?formatarData(m.date):"Data não informada"}</div></div>
+          <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0,justifyContent:"flex-end"}}><span style={{fontWeight:800,fontSize:15,color:t.text}}>{m.away}</span><Avatar name={m.away} size={36} color={colorOf(m.away,publicChamp.teams)} src={publicChamp.emblems?.[m.away]}/></div>
         </div>
         {matchEvents.length ? (
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -2101,7 +2200,7 @@ function PublicScreen({campeonatos,atletas,current,setCurrent,onBack,t}){
   const renderTable = () => {
     if(publicChamp.type==="pontos") return (
       <>
-        <StandingsTable standings={publicChamp.standings} teams={publicChamp.teams} colorOf={colorOf} t={t}/>
+        <StandingsTable standings={publicChamp.standings} teams={publicChamp.teams} colorOf={colorOf} t={t} emblems={publicChamp.emblems}/>
         {renderStats()}
       </>
     );
@@ -2110,7 +2209,7 @@ function PublicScreen({campeonatos,atletas,current,setCurrent,onBack,t}){
         {publicChamp.groups.map((g,gi)=>(
           <div key={gi} style={{marginBottom:18}}>
             <h3 style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:10}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3>
-            <StandingsTable standings={g.standings} teams={publicChamp.teams} colorOf={colorOf} t={t}/>
+            <StandingsTable standings={g.standings} teams={publicChamp.teams} colorOf={colorOf} t={t} emblems={publicChamp.emblems}/>
           </div>
         ))}
         {renderStats()}
@@ -2631,9 +2730,9 @@ function CloudPublicChampScreen({champ,onBack,t}){
     return (
       <div key={`${m.home}-${m.away}-${m.date||Math.random()}`} style={{padding:12,border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,display:"flex",flexDirection:"column",gap:10}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0,justifyContent:"flex-start"}}><div style={{width:28,height:28,borderRadius:999,background:colorOf(m.home,c.teams),display:"grid",placeItems:"center",color:"#fff",fontWeight:700}}>{m.home?.charAt(0)}</div><span style={{fontWeight:700,color:t.text}}>{m.home}</span></div>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:100,flexShrink:0}}><div style={{fontSize:18,fontWeight:800,color:t.text}}>{m.played?`${m.homeScore}×${m.awayScore}`:"—×—"}</div><div style={{fontSize:11,color:t.textSec,marginTop:4}}>{m.date?m.date.split("-").reverse().join("/"):"Data não informada"}</div></div>
-          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0,justifyContent:"flex-end"}}><span style={{fontWeight:700,color:t.text}}>{m.away}</span><div style={{width:28,height:28,borderRadius:999,background:colorOf(m.away,c.teams),display:"grid",placeItems:"center",color:"#fff",fontWeight:700}}>{m.away?.charAt(0)}</div></div>
+          <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0,justifyContent:"flex-start"}}><Avatar name={m.home} size={36} color={colorOf(m.home,c.teams)} src={c.emblems?.[m.home]}/><span style={{fontWeight:800,fontSize:15,color:t.text}}>{m.home}</span></div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:100,flexShrink:0}}><div style={{fontSize:20,fontWeight:900,color:t.text}}>{m.played?`${m.homeScore}×${m.awayScore}`:"—×—"}</div><div style={{fontSize:11,color:t.textSec,marginTop:4}}>{m.date?m.date.split("-").reverse().join("/"):"Data não informada"}</div></div>
+          <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0,justifyContent:"flex-end"}}><span style={{fontWeight:800,fontSize:15,color:t.text}}>{m.away}</span><Avatar name={m.away} size={36} color={colorOf(m.away,c.teams)} src={c.emblems?.[m.away]}/></div>
         </div>
         {matchEvents.length ? (
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -2673,11 +2772,11 @@ function CloudPublicChampScreen({champ,onBack,t}){
       </div>
 
       {tab==="tabela"&&c.type==="pontos"&&(
-         <StandingsTable standings={c.standings || []} teams={c.teams || []} colorOf={colorOf} t={t}/>
+         <StandingsTable standings={c.standings || []} teams={c.teams || []} colorOf={colorOf} t={t} emblems={c.emblems}/>
       )}
             {tab==="tabela"&&(c.type==="misto"||c.type==="liga")&&(
          <div>
-           {(c.groups || []).map((g,gi)=><div key={gi} style={{marginBottom:20}}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}</h3><StandingsTable standings={g.standings || []} teams={c.teams || []} colorOf={colorOf} t={t}/></div>)}
+           {(c.groups || []).map((g,gi)=><div key={gi} style={{marginBottom:20}}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}</h3><StandingsTable standings={g.standings || []} teams={c.teams || []} colorOf={colorOf} t={t} emblems={c.emblems}/></div>)}
          </div>
       )}
 
@@ -2691,9 +2790,9 @@ function CloudPublicChampScreen({champ,onBack,t}){
                   {(phase.matches || []).map((m,mi)=>(
                     <div key={mi} style={{border:`1px solid ${t.cardBorder}`,borderRadius:12,overflow:"hidden",background:t.card}}>
                       {[{tm:m.home,s:m.homeScore,w:m.winner===m.home},{tm:m.away,s:m.awayScore,w:m.winner===m.away}].map((side,si)=>(
-                        <div key={si} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",borderBottom:si===0?`1px solid ${t.cardBorder}`:"none",background:side.w?"#1D9E7514":"transparent"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:5}}><Avatar name={side.tm||"?"} color={colorOf(side.tm,c.teams)} size={20}/><span style={{fontSize:11,color:t.text}}>{side.tm||"—"}</span></div>
-                          <span style={{fontWeight:700,color:side.w?"#1D9E75":t.text,fontSize:13}}>{m.played?side.s:"—"}</span>
+                        <div key={si} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",borderBottom:si===0?`1px solid ${t.cardBorder}`:"none",background:side.w?"#1D9E7514":"transparent"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={side.tm||"?"} color={colorOf(side.tm,c.teams)} size={26} src={c.emblems?.[side.tm]}/><span style={{fontSize:13,fontWeight:700,color:t.text}}>{side.tm||"—"}</span></div>
+                          <span style={{fontWeight:800,color:side.w?"#1D9E75":t.text,fontSize:14}}>{m.played?side.s:"—"}</span>
                         </div>
                       ))}
                     </div>
@@ -2787,7 +2886,16 @@ function CloudPublicChampScreen({champ,onBack,t}){
   );
 }
 
-function Avatar({name,size=28,color="#378ADD"}){
+function Avatar({name,size=28,color="#378ADD",src}){
+  if (src) {
+    return (
+      <img 
+        src={src} 
+        alt={name} 
+        style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",flexShrink:0}}
+      />
+    );
+  }
   const initials = String(name||"?").split(" ").filter(Boolean).map(n=>n[0].toUpperCase()).slice(0,2).join("");
   return(
     <div style={{width:size,height:size,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:color,color:"#fff",fontSize:Math.max(12, size*0.45),fontWeight:700,flexShrink:0}}>
@@ -2805,7 +2913,7 @@ function Tag({label,color="#1D9E75"}){
 function Sec({title,children,t}){return<div style={{marginBottom:24}}><h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>{title}</h3>{children}</div>;}
 
 /* ─────────────────────────── STANDINGS ──────────────────────────── */
-function StandingsTable({standings,teams,colorOf,accent,t}){
+function StandingsTable({standings,teams,colorOf,accent,t,emblems}){
   const ac=accent||"#1D9E75";
   return(
     <div style={{overflowX:"auto"}}>
@@ -2816,7 +2924,7 @@ function StandingsTable({standings,teams,colorOf,accent,t}){
         <tbody>{(standings||[]).map((s,i)=>(
           <tr key={s.name} style={{borderBottom:`1px solid ${t.cardBorder}`,background:i===0?ac+"14":"transparent"}}>
             <td style={{padding:"9px 6px",textAlign:"center",fontWeight:700,color:t.textSec}}>{i+1}</td>
-            <td style={{padding:"9px 6px"}}><div style={{display:"flex",alignItems:"center",gap:6}}><Avatar name={s.name} color={colorOf?colorOf(s.name,teams):"#1D9E75"} size={22}/><span style={{fontWeight:600,color:t.text,fontSize:12}}>{s.name}</span></div></td>
+            <td style={{padding:"9px 6px"}}><div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={s.name} color={colorOf?colorOf(s.name,teams):"#1D9E75"} size={28} src={emblems?.[s.name]}/><span style={{fontWeight:700,color:t.text,fontSize:14}}>{s.name}</span></div></td>
             {[s.j,s.v,s.e,s.d,s.gp,s.gc,s.sg].map((v,vi)=><td key={vi} style={{padding:"9px 6px",textAlign:"center",color:t.text,fontSize:12}}>{v}</td>)}
             <td style={{padding:"9px 6px",textAlign:"center",fontWeight:800,color:ac,fontSize:14}}>{s.pts}</td>
           </tr>
@@ -4764,9 +4872,11 @@ function AbaParticipacoes({pelada,atletas,participacoes,datasRealizacao,onAdd,on
 }
 
 /* ─────────────────────────── GERENCIAR PELADA ───────────────────── */
-function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdatePelada,onRemovePelada,onAddData,onUpdateData,onRemoveData,onAddPart,onUpdatePart,onRemovePart,onUpdateAtleta,onAddFinanceiro,onAddAtleta,onBack,t}){
+function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdatePelada,onRemovePelada,onAddData,onUpdateData,onRemoveData,onAddPart,onUpdatePart,onRemovePart,onUpdateAtleta,onAddFinanceiro,onAddAtleta,onBack,t,aba,setAba}){
   const S=makeStyles(t);
-  const[aba,setAba]=useState("info");
+  const [localAba, setLocalAba] = useState("info");
+  const currentAba = aba || localAba;
+  const currentSetAba = setAba || setLocalAba;
   const ABAS=["info","datas","atletas","participações"];
   const datas=datasRealizacao.filter(d=>d.pelada_id===pelada.id);
   const parts=participacoes.filter(p=>p.pelada_id===pelada.id);
@@ -5055,10 +5165,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
       {/* Abas principais */}
       <div style={{display:"flex",gap:0,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:20}}>
-        {[...ABAS,"sorteio","jogos","placar","relatório"].map(tb=><button key={tb} onClick={()=>setAba(tb)} style={S.tab(aba===tb)}>{tb === "placar" ? "Classificação" : tb.charAt(0).toUpperCase()+tb.slice(1)}</button>)}
+        {[...ABAS,"sorteio","jogos","placar","relatório"].map(tb=><button key={tb} onClick={()=>currentSetAba(tb)} style={S.tab(currentAba===tb)}>{tb === "placar" ? "Classificação" : tb.charAt(0).toUpperCase()+tb.slice(1)}</button>)}
       </div>
 
-      {aba==="info"&&(
+      {currentAba==="info"&&(
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           <div style={S.card}>
             <div style={{fontWeight:600,fontSize:13,color:t.text,marginBottom:8}}>Informações da Pelada</div>
@@ -5067,10 +5177,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           <CriarPelada onSave={(d)=>onUpdatePelada(pelada.id,d)} initial={pelada} t={t}/>
         </div>
       )}
-      {aba==="datas"&&<AbaDatas peladaId={pelada.id} datasRealizacao={datasRealizacao} onAdd={onAddData} onUpdate={onUpdateData} onRemove={onRemoveData} t={t}/>}
-      {aba==="atletas"&&<AbaAtletasPelada pelada={pelada} atletas={atletas} participacoes={participacoes} onAddPart={onAddPart} onRemovePart={onRemovePart} onUpdatePart={onUpdatePart} onAddFinanceiro={onAddFinanceiro} onAddAtleta={onAddAtleta} t={t}/>}
-      {aba==="participações"&&<AbaParticipacoes pelada={pelada} atletas={atletas} participacoes={participacoes} datasRealizacao={datasRealizacao} onAdd={onAddPart} onUpdate={onUpdatePart} onRemove={onRemovePart} onUpdateAtleta={onUpdateAtleta} onAddFinanceiro={onAddFinanceiro} t={t}/>}
-      {aba==="sorteio"&&(
+      {currentAba==="datas"&&<AbaDatas peladaId={pelada.id} datasRealizacao={datasRealizacao} onAdd={onAddData} onUpdate={onUpdateData} onRemove={onRemoveData} t={t}/>}
+      {currentAba==="atletas"&&<AbaAtletasPelada pelada={pelada} atletas={atletas} participacoes={participacoes} onAddPart={onAddPart} onRemovePart={onRemovePart} onUpdatePart={onUpdatePart} onAddFinanceiro={onAddFinanceiro} onAddAtleta={onAddAtleta} t={t}/>}
+      {currentAba==="participações"&&<AbaParticipacoes pelada={pelada} atletas={atletas} participacoes={participacoes} datasRealizacao={datasRealizacao} onAdd={onAddPart} onUpdate={onUpdatePart} onRemove={onRemovePart} onUpdateAtleta={onUpdateAtleta} onAddFinanceiro={onAddFinanceiro} t={t}/>}
+      {currentAba==="sorteio"&&(
         <div>
           <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px solid ${t.cardBorder}`}}>
             <div style={{display:"flex",gap:10,marginBottom:14,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:14}}>
@@ -5175,7 +5285,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           )}
         </div>
       )}
-      {aba==="jogos"&&(
+      {currentAba==="jogos"&&(
         <div>
           {peladaState?.currentMatch&&!peladaState.currentMatch.played&&(
             <div style={{...S.card,border:"2px solid #1D9E7555",marginBottom:20}}>
@@ -5296,8 +5406,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           )}
         </div>
       )}
-      {aba==="placar"&&<StandingsTable standings={peladaStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent="#378ADD" t={t}/>}
-      {aba==="relatório"&&<AbaRelatorioPelada peladaState={peladaState} datas={datas} atletas={atletas} repDataId={repDataId} setRepDataId={setRepDataId} repSortBy={repSortBy} setRepSortBy={setRepSortBy} formatarData={formatarData} t={t} />}
+      {currentAba==="placar"&&<StandingsTable standings={peladaStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent="#378ADD" t={t}/>}
+      {currentAba==="relatório"&&<AbaRelatorioPelada peladaState={peladaState} datas={datas} atletas={atletas} repDataId={repDataId} setRepDataId={setRepDataId} repSortBy={repSortBy} setRepSortBy={setRepSortBy} formatarData={formatarData} t={t} />}
 
       {subModal && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
@@ -5826,7 +5936,7 @@ const getSuspendedPlayersForMatch = (c, targetKey) => {
 };
 
 /* ─────────────────────────── CAMPEONATO ─────────────────────────── */
-function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,onUpdateAtleta,cloudLoading,publicarNaNuvem,t}){
+function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,onUpdateAtleta,cloudLoading,publicarNaNuvem,t,tab,setTab,isMobile}){
   const S=makeStyles(t);
   const c = champ;
   const rosters = c.rosters || {};
@@ -5844,7 +5954,9 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   };
   const [editingTeams,setEditingTeams] = useState(false);
   const [teamsDraft,setTeamsDraft] = useState(Array.isArray(champ.teams)?[...champ.teams]:[]);
-  const[tab,setTab]=useState("jogos");
+  const [localTab, setLocalTab] = useState("jogos");
+  const currentTab = tab || localTab;
+  const currentSetTab = setTab || setLocalTab;
   const[editing,setEditing]=useState(null);
   const[sumulaModal,setSumulaModal]=useState(null); // {match, eKey, onSaveSumula, home, away}
   const[sumulaSelection,setSumulaSelection]=useState({home:"",away:""});
@@ -6587,6 +6699,16 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     );
   }
 
+  function renderJogos() {
+    return (
+      <>
+        {currentTab==="jogos"&&c.type==="pontos"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{(c.rounds || []).map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{(rd.matches || []).map((m,mi)=><MatchRow key={mi} m={m} eKey={"rr-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveRR(ri,mi,hs,as2,dt,nh,na,nr)} roundsList={(c.rounds || []).map(r=>r.round)} currentRound={rd.round} teamsList={c.teams || []}/>)}</div></Sec>)}</div>}
+        {currentTab==="jogos"&&c.type==="mata"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{(c.knockout || []).map((phase,pi)=><Sec key={pi} title={phase.name} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{(phase.matches || []).map((m,mi)=><MatchRow key={mi} m={m} eKey={"ko-"+pi+"-"+mi} onSave={(hs,as2,dt,nh,na)=>saveKO(pi,mi,hs,as2,dt,nh,na)} teamsList={c.teams || []}/>)}</div></Sec>)}</div>}
+        {currentTab==="jogos"&&(c.type==="misto"||c.type==="liga")&&<div style={{display:"flex",flexDirection:"column",gap:24}}>{(c.groups || []).map((g,gi)=><div key={gi}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3>{(g.rounds || []).map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{(rd.matches || []).map((m,mi)=><MatchRow key={mi} m={m} eKey={"gr-"+gi+"-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveGroup(gi,ri,mi,hs,as2,dt,nh,na,nr)} roundsList={(g.rounds || []).map(r=>r.round)} currentRound={rd.round} teamsList={g.teams || []}/>)}</div></Sec>)}</div>)}</div>}
+      </>
+    );
+  }
+
   function ResumoArtilharia() {
     const evts = [];
     if(c.rounds) c.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>evts.push(e))));
@@ -6834,7 +6956,21 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
         <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:16,paddingBottom:8}}>
           {(editingTeams?teamsDraft:c.teams).map((tm,i)=>(
             <div key={tm+String(i)} style={{display:"inline-flex",alignItems:"center",gap:6}}>
-              <button onClick={()=>setSelTeamElenco(tm)} style={{...S.btnSm(selTeamElenco===tm?colorOf(tm,c.teams):"transparent", selTeamElenco===tm?"#fff":t.textSec), border:`1px solid ${selTeamElenco===tm?colorOf(tm,c.teams):t.cardBorder}`, whiteSpace:"nowrap", fontWeight:600}}>{tm}</button>
+              <button 
+                onClick={()=>setSelTeamElenco(tm)} 
+                style={{
+                  ...S.btnSm(selTeamElenco===tm?colorOf(tm,c.teams):"transparent", selTeamElenco===tm?"#fff":t.textSec), 
+                  border:`1px solid ${selTeamElenco===tm?colorOf(tm,c.teams):t.cardBorder}`, 
+                  whiteSpace:"nowrap", 
+                  fontWeight:600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                {c.emblems?.[tm] && <Avatar name={tm} size={14} src={c.emblems[tm]}/>}
+                {tm}
+              </button>
               {editingTeams && (
                 <button onClick={()=>{ setTeamsDraft(d=>d.filter((_,j)=>j!==i)); }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer"}}>✕</button>
               )}
@@ -6845,7 +6981,57 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
         
         {selTeamElenco ? (
           <div style={S.card}>
-            <div style={{fontWeight:800,fontSize:14,color:colorOf(selTeamElenco,c.teams),marginBottom:12}}>Elenco: {selTeamElenco}</div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <Avatar name={selTeamElenco} color={colorOf(selTeamElenco,c.teams)} size={32} src={c.emblems?.[selTeamElenco]}/>
+                <span style={{fontWeight:800,fontSize:15,color:colorOf(selTeamElenco,c.teams)}}>Elenco: {selTeamElenco}</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <label style={{
+                  ...S.btnSm("#378ADD22","#378ADD"),
+                  display:"inline-flex",
+                  alignItems:"center",
+                  cursor:"pointer",
+                  fontWeight:700,
+                  fontSize:11,
+                  padding:"4px 8px"
+                }}>
+                  🛡️ Upload Escudo
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e)=>{
+                      const file = e.target.files?.[0];
+                      if(!file) return;
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        const tc = deepClone(c);
+                        tc.emblems = tc.emblems || {};
+                        tc.emblems[selTeamElenco] = reader.result;
+                        onUpdate(tc);
+                      };
+                      reader.readAsDataURL(file);
+                    }} 
+                    style={{display:"none"}}
+                  />
+                </label>
+                {c.emblems?.[selTeamElenco] && (
+                  <button 
+                    onClick={()=>{
+                      if(window.confirm(`Remover emblema de "${selTeamElenco}"?`)){
+                        const tc = deepClone(c);
+                        tc.emblems = tc.emblems || {};
+                        delete tc.emblems[selTeamElenco];
+                        onUpdate(tc);
+                      }
+                    }} 
+                    style={S.btnSm("#E24B4A22","#E24B4A")}
+                  >
+                    Remover
+                  </button>
+                )}
+              </div>
+            </div>
             <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
               {teamRoster.map(id=>{
                 const a = atletas.find(x=>x.id===id);
@@ -7329,9 +7515,9 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
               </div>
             </div>
           ) : (
-            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"space-between"}}>
-              <div style={{display:"flex",alignItems:"center",gap:5}}><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={22}/><span style={{fontSize:12,fontWeight:700,color:t.text}}>{m.home}</span></div>
-              <div style={{display:"flex",alignItems:"center",gap:5}}><span style={{fontSize:12,fontWeight:700,color:t.text}}>{m.away}</span><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={22}/></div>
+            <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",justifyContent:"space-between"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={30} src={c.emblems?.[m.home]}/><span style={{fontSize:14,fontWeight:800,color:t.text}}>{m.home}</span></div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14,fontWeight:800,color:t.text}}>{m.away}</span><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={30} src={c.emblems?.[m.away]}/></div>
             </div>
           )}
 
@@ -7385,10 +7571,10 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     };
     return(
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,gap:6,flexWrap:"wrap"}}>
-          <div style={{display:"flex",alignItems:"center",gap:5,flex:1,justifyContent:"flex-end",minWidth:80}}><span style={{fontSize:12,fontWeight:500,color:t.text,textAlign:"right"}}>{m.home}</span><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={24}/></div>
-          <div style={{textAlign:"center",minWidth:70,flexShrink:0}}>{m.played?<span style={{fontWeight:800,fontSize:15,color:"#1D9E75"}}>{m.homeScore}×{m.awayScore}</span>:<span style={{color:t.textSec}}>—×—</span>}</div>
-          <div style={{display:"flex",alignItems:"center",gap:5,flex:1,minWidth:80}}><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={24}/><span style={{fontSize:12,fontWeight:500,color:t.text}}>{m.away}</span></div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,gap:8,flexWrap:"wrap"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-end",minWidth:100}}><span style={{fontSize:14,fontWeight:700,color:t.text,textAlign:"right"}}>{m.home}</span><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={32} src={c.emblems?.[m.home]}/></div>
+          <div style={{textAlign:"center",minWidth:80,flexShrink:0}}>{m.played?<span style={{fontWeight:900,fontSize:18,color:"#1D9E75"}}>{m.homeScore}×{m.awayScore}</span>:<span style={{color:t.textSec,fontSize:14}}>—×—</span>}</div>
+          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:100}}><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={32} src={c.emblems?.[m.away]}/><span style={{fontSize:14,fontWeight:700,color:t.text}}>{m.away}</span></div>
           <div style={{display:"flex",gap:4,flexShrink:0}}>
              <button onClick={()=>setSumulaModal({m, eKey, round: m.round || currentRound})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}} title="Súmula da Partida">📝</button>
              <button onClick={()=>setEditing({key:eKey})} style={{...S.btnSm(),padding:"6px 12px"}}>{m.played?"✏️":"▶"}</button>
@@ -7437,909 +7623,216 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
 
   return(
     <div style={S.page}>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
-          <button onClick={onBack} style={S.btnSm()}>← Voltar</button>
-          <div style={{minWidth:0}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-              <h2 style={{fontSize:17,fontWeight:800,margin:0,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</h2>
-              {(() => {
-                const mDef = c.modalidade ? MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade) : null;
-                if (!mDef) return null;
-                return (
-                  <span style={{fontSize:10,fontWeight:800,color:mDef.color,background:`${mDef.color}15`,border:`1px solid ${mDef.color}33`,padding:"1px 6px",borderRadius:4,display:"inline-flex",alignItems:"center",gap:2}}>
-                    {mDef.icon} {mDef.label}
-                  </span>
-                );
-              })()}
-            </div>
-            <div style={{fontSize:11,color:t.textSec}}>{c.type==="pontos"?"Pontos Corridos":c.type==="mata"?"Mata-Mata":"Misto"} · {c.teams.length} times</div>
+      {/* Top Header - Estilo 365scores Competição Header */}
+      <div style={{
+        ...S.card,
+        background: 'linear-gradient(135deg, ' + t.card + ' 0%, ' + t.inputBg + ' 100%)',
+        padding:16,
+        marginBottom:16,
+        border:'1px solid ' + t.cardBorder,
+        display:"flex",
+        flexDirection:"column",
+        gap:12
+      }}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,width:"100%"}}>
+          <button onClick={onBack} style={{...S.btnSm(), padding:"6px 12px"}}>← Voltar à Home</button>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            {champion&&<Tag label={"🏆 "+champion} color={t.accent}/>}
+            <button onClick={()=>onDelete(c.id)} style={S.btnSm("#E24B4A15","#E24B4A")} title="Excluir Campeonato">🗑 Excluir</button>
           </div>
         </div>
-        <div style={{display:"flex",gap:6,flexShrink:0}}>
-          {champion&&<Tag label={"🏆 "+champion}/>}
-          <button onClick={()=>onDelete(c.id)} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginTop:4}}>
+          {(() => {
+            const mDef = c.modalidade ? MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade) : null;
+            const mIcon = mDef ? mDef.icon : "🏆";
+            const mColor = mDef ? mDef.color : (t.accent || "#20E278");
+            return (
+              <div style={{width:46,height:46,borderRadius:"50%",background:mColor + '15',color:mColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:"bold",flexShrink:0}}>
+                {mIcon}
+              </div>
+            );
+          })()}
+          <div style={{minWidth:0,flex:1}}>
+            <h2 style={{fontSize:18,fontWeight:900,margin:0,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</h2>
+            <div style={{fontSize:12,color:t.textSec,marginTop:2,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+              <span style={{fontWeight:700,color:t.accent}}>{c.type==="pontos"?"Pontos Corridos":c.type==="mata"?"Mata-Mata":c.type==="liga"?"Liga":"Misto"}</span>
+              <span>•</span>
+              <span>{c.teams.length} times</span>
+              {c.local && (
+                <>
+                  <span>•</span>
+                  <span>📍 {c.local}</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {champion && (
-        <div style={{
-          background: "linear-gradient(135deg, rgba(29, 158, 117, 0.12) 0%, rgba(212, 175, 55, 0.12) 100%)",
-          border: "2.5px solid #D4AF37",
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 20,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          position: "relative",
-          overflow: "hidden"
-        }}>
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: "radial-gradient(circle at 80% 20%, rgba(212, 175, 55, 0.15) 0%, transparent 50%)",
-            pointerEvents: "none"
-          }} />
-          
-          <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, zIndex: 1}}>
-            <div style={{display: "flex", alignItems: "center", gap: 12}}>
-              <span style={{fontSize: 34}}>🏆</span>
-              <div>
-                <div style={{fontSize: 10, fontWeight: 700, color: "#D4AF37", textTransform: "uppercase", letterSpacing: 1.5}}>Campeão Declarado</div>
-                <div style={{fontSize: 22, fontWeight: 900, color: t.text}}>{champion}</div>
-              </div>
-            </div>
-            
-            {artilheiro && (
-              <div style={{display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.06)", padding: "8px 14px", borderRadius: 14, border: `1px solid ${t.cardBorder}`}}>
-                <span style={{fontSize: 22}}>⚽</span>
-                <div>
-                  <div style={{fontSize: 9, fontWeight: 700, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>Artilheiro</div>
-                  <div style={{fontSize: 13, fontWeight: 700, color: t.text}}>{getPlayerName(artilheiro.atleta)}</div>
-                  <div style={{fontSize: 11, color: t.textSec}}>{artilheiro.teamName} · <strong style={{color: "#378ADD"}}>{artilheiro.gols} gols</strong></div>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div style={{display: "flex", gap: 8, zIndex: 1, marginTop: 4}}>
-            <button onClick={() => setShowCelebration(true)} style={{...S.btn("#D4AF37"), color: "#000", fontWeight: 800, padding: "8px 16px", fontSize: 13, cursor: "pointer"}}>🎉 Celebrar Conquista</button>
-          </div>
-        </div>
-      )}
-
-      <div style={{display:"flex",gap:0,marginBottom:20,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto"}}>
-        {tabs.map(tb=><button key={tb} onClick={()=>setTab(tb)} style={S.tab(tab===tb)}>{tb.charAt(0).toUpperCase()+tb.slice(1)}</button>)}
-      </div>
-      {tab==="tabela"&&c.type==="pontos"&&(
-         <>
-           <StandingsTable standings={c.standings} teams={c.teams} colorOf={colorOf} t={t}/>
-           <ResumoArtilharia />
-         </>
-      )}
-      {tab==="tabela"&&c.type==="misto"&&(
-         <div>
-           {c.groups.map((g,gi)=><div key={gi} style={{marginBottom:20}}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3><StandingsTable standings={g.standings} teams={c.teams} colorOf={colorOf} t={t}/></div>)}
-           {c.mixedPhase==="groups"&&<button onClick={advanceMixed} style={S.btn("#378ADD")}>Avançar para Mata-Mata →</button>}
-           <ResumoArtilharia />
-         </div>
-      )}
-      
-      {tab==="elencos" && <AbaElencos />}
-      {tab==="estatísticas" && renderEstatisticas()}
-      {tab==="solicitações" && c.allowOnlineReg && <AbaSolicitacoes />}
-      {tab==="mural" && <AbaMuralOrganizador c={c} onUpdate={onUpdate} t={t} />}
-      {tab==="galeria" && <AbaGaleriaOrganizador c={c} onUpdate={onUpdate} t={t} />}
-      {tab==="configurações" && <AbaConfiguracoes />}
-      
-      {tab==="nuvem" && (
-        <div style={{display:"flex",flexDirection:"column",gap:20}}>
-          <div style={S.card}>
-            <h3 style={{fontSize:16,fontWeight:800,marginBottom:12,color:t.text,display:"flex",alignItems:"center",gap:8}}>
-              🌐 Compartilhar na Nuvem (Público)
-            </h3>
-            <p style={{fontSize:13,color:t.textSec,lineHeight:"1.5",marginBottom:16}}>
-              Por padrão, os dados do Thorneios ficam armazenados de forma 100% segura apenas no seu dispositivo. 
-              Ao publicar na nuvem, você gera um código e um link de acesso para que jogadores e torcedores acompanhem a tabela, rodadas, placares e artilharia em tempo real de qualquer outro dispositivo, sem precisar de login.
-            </p>
-
-            {c.npointId ? (
-              <div style={{display:"flex",flexDirection:"column",gap:16}}>
-                <div style={{background: t.bg, borderRadius:12, padding:14, border:`1px dashed ${t.cardBorder}`, display:"flex", flexDirection:"column", gap:8}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
-                    <span style={{color:t.textSec}}>Status de Sincronização:</span>
-                    <strong style={{color:"#1D9E75"}}>● Ativo e Compartilhado</strong>
-                  </div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
-                    <span style={{color:t.textSec}}>Última Atualização:</span>
-                    <strong style={{color:t.text}}>{c.lastPublished || "Desconhecida"}</strong>
-                  </div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
-                    <span style={{color:t.textSec}}>Código do Campeonato:</span>
-                    <strong style={{color:"#1D9E75",fontSize:16,fontFamily:"monospace",letterSpacing:0.5}}>{c.npointId}</strong>
-                  </div>
-                </div>
-
-                <div>
-                  <label style={S.label}>Link de Acesso do Público</label>
-                  <div style={{display:"flex",gap:8,marginTop:6}}>
-                    <input 
-                      readOnly 
-                      value={`${window.location.origin}${window.location.pathname}?c=${c.npointId}`} 
-                      style={{...S.input, flex:1, fontFamily:"monospace", fontSize:12, background:t.bg}} 
-                    />
-                    <button 
-                      onClick={() => {
-                        const link = `${window.location.origin}${window.location.pathname}?c=${c.npointId}`;
-                        navigator.clipboard.writeText(link);
-                        alert("Link de acesso copiado para a área de transferência!");
-                      }} 
-                      style={S.btn("#378ADD")}
-                    >
-                      Copiar
-                    </button>
-                  </div>
-                </div>
-
-                <div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:8}}>
-                  <button 
-                    onClick={async () => {
-                      const res = await publicarNaNuvem(c);
-                      if (res) {
-                        onUpdate(res);
-                      }
-                    }} 
-                    disabled={cloudLoading} 
-                    style={S.btn("#1D9E75")}
-                  >
-                    {cloudLoading ? "Sincronizando..." : "🔄 Atualizar Placares na Nuvem"}
-                  </button>
-
-                  <button 
-                    onClick={() => {
-                      const link = `${window.location.origin}${window.location.pathname}?c=${c.npointId}`;
-                      const text = encodeURIComponent(`Acompanhe a tabela e placares do campeonato *${c.name}* em tempo real aqui: ${link}`);
-                      window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
-                    }} 
-                    style={S.btn("#25D366")}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style={{marginRight:2}}>
-                      <path d="M13.601 2.326A7.85 7.85 0 0 0 8 0a7.86 7.86 0 0 0-7.3 4.582 9.07 9.07 0 0 0-.446 1.179A9.16 9.16 0 0 0 0 8c0 1.8.6 3.51 1.7 4.9L.4 16l3.2-.8c1.3.7 2.8 1.1 4.4 1.1A7.86 7.86 0 0 0 16 8c0-2.15-.83-4.17-2.399-5.674zM10.5 11.5c-.1.1-.3.1-.4 0-1.2-1.2-2.1-2.6-2.4-3.2-.3-.6-.3-1.1-.1-1.4.1-.1.3-.3.4-.4.1-.1.1-.2.1-.3v-.3c0-.1-.1-.3-.2-.6-.1-.3-.3-.7-.4-.9-.1-.2-.2-.2-.3-.2s-.2 0-.3.1c-.1 0-.3.2-.4.4-.1.3-.2.6-.2 1 0 1 1 2.4 2.5 3.9 1.5 1.5 2.9 2.5 3.9 2.5.4 0 .7-.1 1-.2.2-.1.4-.3.4-.4.1-.1.1-.2.1-.3s-.1-.2-.4-.3z"/>
-                    </svg>
-                    WhatsApp
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div style={{display:"flex",justifyContent:"flex-start",marginTop:12}}>
-                <button 
-                  onClick={async () => {
-                    const res = await publicarNaNuvem(c);
-                    if (res) {
-                      onUpdate(res);
-                    }
-                  }} 
-                  disabled={cloudLoading} 
-                  style={{...S.btn("#1D9E75"), padding:"12px 24px"}}
-                >
-                  {cloudLoading ? "Publicando..." : "🌐 Publicar Campeonato na Nuvem"}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {tab==="chave"&&c.knockout&&(
-        <div style={{overflowX:"auto"}}>
-          <div style={{display:"flex",gap:14,minWidth:"fit-content",paddingBottom:8}}>
-            {c.knockout.map((phase,pi)=>(
-              <div key={pi} style={{minWidth:200}}>
-                <div style={{fontSize:11,fontWeight:700,color:t.textSec,textAlign:"center",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>{phase.name}</div>
-                <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                  {phase.matches.map((m,mi)=>{
-                    const eKey="ko-"+pi+"-"+mi,isEd=editing?.key===eKey;
-                    return(
-                      <div key={mi} style={{border:`1px solid ${t.cardBorder}`,borderRadius:12,overflow:"hidden",background:t.card}}>
-                        {[{tm:m.home,s:m.homeScore,w:m.winner===m.home},{tm:m.away,s:m.awayScore,w:m.winner===m.away}].map((side,si)=>(
-                          <div key={si} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",borderBottom:si===0?`1px solid ${t.cardBorder}`:"none",background:side.w?"#1D9E7514":"transparent"}}>
-                            <div style={{display:"flex",alignItems:"center",gap:5}}><Avatar name={side.tm||"?"} color={colorOf(side.tm,c.teams)} size={20}/><span style={{fontSize:11,color:t.text}}>{side.tm||"—"}</span></div>
-                            <span style={{fontWeight:700,color:side.w?"#1D9E75":t.text,fontSize:13}}>{m.played?side.s:"—"}</span>
-                          </div>
-                        ))}
-                        {m.home&&m.away&&(isEd?(
-                          <div style={{padding:10,display:"flex",flexDirection:"column",gap:7,background:t.inputBg}}>
-                            <div style={{display:"flex",alignItems:"center",gap:5}}>
-                              <input type="number" min={0} max={99} value={editing.hs||""} onChange={e=>setEditing(v=>({...v,hs:e.target.value}))} style={{...S.input,width:42,textAlign:"center",padding:"5px 3px"}}/>
-                              <span style={{color:t.text}}>×</span>
-                              <input type="number" min={0} max={99} value={editing.as2||""} onChange={e=>setEditing(v=>({...v,as2:e.target.value}))} style={{...S.input,width:42,textAlign:"center",padding:"5px 3px"}}/>
-                            </div>
-                            <input type="date" value={editing.dt||""} onChange={e=>setEditing(v=>({...v,dt:e.target.value}))} style={{...S.input,fontSize:11,padding:"5px 7px"}}/>
-                            <div style={{display:"flex",gap:5}}>
-                              <button onClick={()=>saveKO(pi,mi,editing.hs||"",editing.as2||"",editing.dt||"")} style={{...S.btn(),flex:1,justifyContent:"center",fontSize:11,padding:5}}>Salvar</button>
-                              <button onClick={()=>setEditing(null)} style={{...S.btn(t.card,t.textSec),padding:"5px 8px",fontSize:11}}>✕</button>
-                            </div>
-                          </div>
-                        ):(
-                          <div style={{padding:"5px 10px",textAlign:"center",display:"flex",gap:4,justifyContent:"center"}}>
-                            <button onClick={()=>setSumulaModal({m, eKey, round: phase.name})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"4px 10px"}}>📝 Súmula</button>
-                            <button onClick={()=>setEditing({key:eKey,hs:m.homeScore||"",as2:m.awayScore||"",dt:m.date||""})} style={S.btnSm()}>{m.played?"✏️":"▶"}</button>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {tab==="jogos"&&c.type==="pontos"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{c.rounds.map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{rd.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"rr-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveRR(ri,mi,hs,as2,dt,nh,na,nr)} roundsList={c.rounds.map(r=>r.round)} currentRound={rd.round} teamsList={c.teams}/>)}</div></Sec>)}</div>}
-      {tab==="jogos"&&c.type==="mata"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{c.knockout.map((phase,pi)=><Sec key={pi} title={phase.name} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{phase.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"ko-"+pi+"-"+mi} onSave={(hs,as2,dt,nh,na)=>saveKO(pi,mi,hs,as2,dt,nh,na)} teamsList={c.teams}/>)}</div></Sec>)}</div>}
-            {tab==="jogos"&&(c.type==="misto"||c.type==="liga")&&<div style={{display:"flex",flexDirection:"column",gap:24}}>{c.groups.map((g,gi)=><div key={gi}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3>{g.rounds.map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{rd.matches.map((m,mi)=><MatchRow key={mi} m={m} eKey={"gr-"+gi+"-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveGroup(gi,ri,mi,hs,as2,dt,nh,na,nr)} roundsList={g.rounds.map(r=>r.round)} currentRound={rd.round} teamsList={g.teams}/>)}</div></Sec>)}</div>)}</div>}
-      
-      {sumulaModal && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
-          <div style={{...S.card,width:"100%",maxWidth:400,maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{fontWeight:800,fontSize:16,color:t.text}}>📝 Súmula da Partida</div>
-              <button onClick={()=>setSumulaModal(null)} style={{background:"none",border:"none",color:t.textSec,fontSize:20,cursor:"pointer"}}>✕</button>
-            </div>
-
-            <button 
-              onClick={() => window.print()}
-              style={{
-                ...S.btn("#378ADD18", "#378ADD"),
-                justifyContent: "center",
-                marginBottom: 16,
-                fontSize: 12,
-                padding: "8px 12px",
-                width: "100%",
-                border: "1px dashed #378ADDaa"
-              }}
-            >
-              🖨️ Exportar / Imprimir Súmula Física (A4)
-            </button>
-            
-            <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:20}}>
-              <div style={{textAlign:"center",fontWeight:700,color:t.text}}>{sumulaModal.m.home}<br/><span style={{fontSize:20,color:"#1D9E75"}}>{sumulaModal.m.homeScore}</span></div>
-              <div style={{fontSize:20,fontWeight:700,color:t.textSec,marginTop:10}}>×</div>
-              <div style={{textAlign:"center",fontWeight:700,color:t.text}}>{sumulaModal.m.away}<br/><span style={{fontSize:20,color:"#1D9E75"}}>{sumulaModal.m.awayScore}</span></div>
-            </div>
-
-                        <div style={{flex:1,overflowY:"auto",paddingRight:4,display:"flex",flexDirection:"column",gap:16}}>
-              {(() => {
-                const suspended = getSuspendedPlayersForMatch(c, sumulaModal.eKey);
-                return ["home","away"].map(side=>{
-                   const tm = sumulaModal.m[side];
-                   const rst = getRosterByTeamName(tm);
-                   const tmRoster = (rst && rst.length > 0) ? rst : atletas.map(a=>a.id);
-                   const evts = (sumulaModal.m.events||[]).filter(e=>e.teamName===tm);
-                   return (
-                     <div key={side} style={{border:`1px solid ${t.cardBorder}`,padding:10,borderRadius:12}}>
-                       <div style={{fontWeight:800,color:colorOf(tm,c.teams),marginBottom:10,fontSize:13}}>{tm}</div>
-                       <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                         {evts.map((e,i)=>{
-                           const at = atletas.find(x=>String(x.id)===String(e.atletaId));
-                           return (
-                             <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:t.text,background:t.inputBg,padding:"6px 10px",borderRadius:8}}>
-                               <span>{e.type==="gol"?"⚽":e.type==="amarelo"?"🟨":"🟥"}</span>
-                               <PlayerAvatar atleta={at} size={18}/>
-                               <span style={{flex:1}}>{getPlayerName(at) || `Atleta #${e.atletaId}`}</span>
-                               <button onClick={()=>{
-                                  const newEvts = [...(sumulaModal.m.events||[])];
-                                  newEvts.splice(newEvts.indexOf(e),1);
-                                  setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                               }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800}}>✕</button>
-                             </div>
-                           );
-                         })}
-                       </div>
-                       <div style={{marginTop:10,display:"flex",gap:6}}>
-                         <select id={`sel-${side}`} value={sumulaSelection[side]} onChange={e=>setSumulaSelection(prev=>({...prev,[side]:e.target.value}))} style={{...S.select,padding:"6px",fontSize:12,flex:1}}>
-                           <option value="">Selecione o jogador...</option>
-                           {tmRoster.map(id=>{
-                             const at = atletas.find(x=>String(x.id)===String(id));
-                             const isSuspended = suspended && suspended[id];
-                             return (
-                               <option key={id} value={id} disabled={!!isSuspended}>
-                                 {getPlayerName(at) || `Atleta #${id}`} {isSuspended ? `(Suspenso - ${isSuspended}) ❌` : ""}
-                               </option>
-                             );
-                           })}
-                         </select>
-                         <div style={{display:"flex",gap:4}}>
-                           <button onClick={()=>{
-                              const val = sumulaSelection[side]; if(!val)return;
-                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"gol", atletaId:val, teamName:tm}];
-                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                           }} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}}>⚽</button>
-                           <button onClick={()=>{
-                              const val = sumulaSelection[side]; if(!val)return;
-                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"amarelo", atletaId:val, teamName:tm}];
-                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                           }} style={{...S.btnSm("#BA751722","#BA7517"),padding:"6px"}}>🟨</button>
-                           <button onClick={()=>{
-                              const val = sumulaSelection[side]; if(!val)return;
-                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"vermelho", atletaId:val, teamName:tm}];
-                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                           }} style={{...S.btnSm("#E24B4A22","#E24B4A"),padding:"6px"}}>🟥</button>
-                         </div>
-                       </div>
-                     </div>
-                   );
-                 });
-              })()}
-
-              {/* Representantes das Equipes */}
-              <div style={{border:`1px solid ${t.cardBorder}`,padding:12,borderRadius:12,display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{fontWeight:800,color:t.text,fontSize:13,display:"flex",alignItems:"center",gap:6}}>
-                  <span>🤝</span> Representantes das Equipes
-                </div>
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  <div>
-                    <label style={{...S.label,fontSize:11,marginBottom:4}}>Representante Mandante ({sumulaModal.m.home})</label>
-                    <input 
-                      type="text" 
-                      style={S.input} 
-                      value={sumulaModal.m.homeRepresentative || ""} 
-                      onChange={e => {
-                        const val = e.target.value;
-                        setSumulaModal(prev => ({
-                          ...prev,
-                          m: { ...prev.m, homeRepresentative: val }
-                        }));
-                      }} 
-                      placeholder="Nome do representante"
-                    />
-                  </div>
-                  <div>
-                    <label style={{...S.label,fontSize:11,marginBottom:4}}>Representante Visitante ({sumulaModal.m.away})</label>
-                    <input 
-                      type="text" 
-                      style={S.input} 
-                      value={sumulaModal.m.awayRepresentative || ""} 
-                      onChange={e => {
-                        const val = e.target.value;
-                        setSumulaModal(prev => ({
-                          ...prev,
-                          m: { ...prev.m, awayRepresentative: val }
-                        }));
-                      }} 
-                      placeholder="Nome do representante"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Registrar Nova Ocorrência */}
-              <div style={{border:`1px solid ${t.cardBorder}`,padding:12,borderRadius:12,display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{fontWeight:800,color:t.text,fontSize:13,display:"flex",alignItems:"center",gap:6}}>
-                  <span>⚠️</span> Registrar Ocorrência / Observação
-                </div>
-                
-                {/* Tipo de Ocorrência */}
-                <div>
-                  <label style={{...S.label,fontSize:11,marginBottom:4}}>Tipo de Ocorrência</label>
-                  <select 
-                    style={S.select} 
-                    value={sumulaModal.newObs?.type || "Indisciplina"}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setSumulaModal(prev => ({
-                        ...prev,
-                        newObs: { ...(prev.newObs || { text: "", homeAthletes: [], awayAthletes: [] }), type: val }
-                      }));
-                    }}
-                  >
-                    <option value="Indisciplina">Indisciplina</option>
-                    <option value="Irregularidade">Irregularidade</option>
-                    <option value="Reclamação">Reclamação</option>
-                  </select>
-                </div>
-
-                {/* Duas listas de atletas (uma por time) com checkboxes */}
-                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-                  {["home", "away"].map(side => {
-                    const teamName = sumulaModal.m[side];
-                    const rst = getRosterByTeamName(teamName);
-                    const rosterIds = (rst && rst.length > 0) ? rst : atletas.map(a => a.id);
-                    const selectedList = side === "home" 
-                      ? (sumulaModal.newObs?.homeAthletes || [])
-                      : (sumulaModal.newObs?.awayAthletes || []);
-
-                    return (
-                      <div key={side} style={{flex:1,minWidth:140,border:`1px solid ${t.cardBorder}`,borderRadius:8,padding:6,background:t.card}}>
-                        <div style={{fontSize:11,fontWeight:700,color:colorOf(teamName, c.teams),marginBottom:6,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4}}>
-                          {side === "home" ? "Atletas Mandante" : "Atletas Visitante"}
-                        </div>
-                        <div style={{maxHeight:120,overflowY:"auto",display:"flex",flexDirection:"column",gap:4,paddingRight:2}}>
-                          {rosterIds.map(id => {
-                            const at = atletas.find(x => String(x.id) === String(id));
-                            if (!at) return null;
-                            const isChecked = selectedList.includes(id);
-                            return (
-                              <label key={id} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:t.text,cursor:"pointer",padding:"2px 4px",borderRadius:4,background:isChecked?t.inputBg:"transparent"}}>
-                                <input 
-                                  type="checkbox" 
-                                  checked={isChecked}
-                                  onChange={() => {
-                                    setSumulaModal(prev => {
-                                      const currentObs = prev.newObs || { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] };
-                                      const oldList = side === "home" ? (currentObs.homeAthletes || []) : (currentObs.awayAthletes || []);
-                                      const newList = oldList.includes(id)
-                                        ? oldList.filter(x => x !== id)
-                                        : [...oldList, id];
-                                      
-                                      return {
-                                        ...prev,
-                                        newObs: {
-                                          ...currentObs,
-                                          [side === "home" ? "homeAthletes" : "awayAthletes"]: newList
-                                        }
-                                      };
-                                    });
-                                  }}
-                                />
-                                <span style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(at)}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Texto da Ocorrência */}
-                <div>
-                  <label style={{...S.label,fontSize:11,marginBottom:4}}>Descrição da Ocorrência</label>
-                  <textarea 
-                    style={{...S.input,height:60,fontFamily:"inherit",fontSize:12,resize:"none"}}
-                    value={sumulaModal.newObs?.text || ""}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setSumulaModal(prev => ({
-                        ...prev,
-                        newObs: { ...(prev.newObs || { type: "Indisciplina", homeAthletes: [], awayAthletes: [] }), text: val }
-                      }));
-                    }}
-                    placeholder="Ex: Ofendeu o árbitro aos 10 minutos de jogo..."
-                  />
-                </div>
-
-                {/* Botão de Adicionar */}
-                <button 
-                  onClick={() => {
-                    const currentObs = sumulaModal.newObs || { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] };
-                    if (!currentObs.text || !currentObs.text.trim()) {
-                      alert("Por favor, digite uma descrição para a ocorrência.");
-                      return;
-                    }
-                    const newObsItem = {
-                      id: Date.now() + Math.random(),
-                      type: currentObs.type || "Indisciplina",
-                      text: currentObs.text.trim(),
-                      homeAthletes: currentObs.homeAthletes || [],
-                      awayAthletes: currentObs.awayAthletes || []
-                    };
-                    setSumulaModal(prev => ({
-                      ...prev,
-                      m: {
-                        ...prev.m,
-                        observations: [...(prev.m.observations || []), newObsItem]
-                      },
-                      newObs: { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] }
-                    }));
-                  }}
-                  style={{...S.btn("#378ADD18","#378ADD"),justifyContent:"center",fontSize:11,padding:6}}
-                >
-                  ＋ Adicionar Ocorrência
-                </button>
-              </div>
-
-              {/* Lista de Ocorrências Cadastradas */}
-              {sumulaModal.m.observations && sumulaModal.m.observations.length > 0 && (
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  <div style={{fontWeight:700,fontSize:12,color:t.textSec}}>Ocorrências Registradas:</div>
-                  {sumulaModal.m.observations.map(obs => {
-                    // Mapeia nomes dos atletas
-                    const homeNames = (obs.homeAthletes || []).map(id => {
-                      const at = atletas.find(x => String(x.id) === String(id));
-                      return at ? (at.apelido || at.nome) : `Atleta #${id}`;
-                    });
-                    const awayNames = (obs.awayAthletes || []).map(id => {
-                      const at = atletas.find(x => String(x.id) === String(id));
-                      return at ? (at.apelido || at.nome) : `Atleta #${id}`;
-                    });
-
-                    // Cores por tipo
-                    let badgeBg = "#BA751722";
-                    let badgeColor = "#BA7517";
-                    if (obs.type === "Irregularidade") {
-                      badgeBg = "#E24B4A22";
-                      badgeColor = "#E24B4A";
-                    } else if (obs.type === "Reclamação") {
-                      badgeBg = "#378ADD22";
-                      badgeColor = "#378ADD";
-                    }
-
-                    return (
-                      <div key={obs.id} style={{border:`1px solid ${t.cardBorder}`,padding:10,borderRadius:10,background:t.inputBg,display:"flex",flexDirection:"column",gap:6}}>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span style={{fontSize:10,fontWeight:800,background:badgeBg,color:badgeColor,padding:"2px 8px",borderRadius:6,textTransform:"uppercase"}}>
-                            {obs.type}
-                          </span>
-                          <button 
-                            onClick={() => {
-                              const updatedObs = sumulaModal.m.observations.filter(x => x.id !== obs.id);
-                              setSumulaModal(prev => ({
-                                ...prev,
-                                m: { ...prev.m, observations: updatedObs }
-                              }));
-                            }}
-                            style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800,fontSize:12}}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        <div style={{fontSize:12,color:t.text,lineHeight:"1.4",whiteSpace:"pre-wrap"}}>
-                          {obs.text}
-                        </div>
-                        {(homeNames.length > 0 || awayNames.length > 0) && (
-                          <div style={{borderTop:`1px dashed ${t.cardBorder}`,paddingTop:4,marginTop:2,fontSize:10,color:t.textSec,display:"flex",flexDirection:"column",gap:2}}>
-                            {homeNames.length > 0 && (
-                              <div><strong>{sumulaModal.m.home}:</strong> {homeNames.join(", ")}</div>
-                            )}
-                            {awayNames.length > 0 && (
-                              <div><strong>{sumulaModal.m.away}:</strong> {awayNames.join(", ")}</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            
-            <div style={{marginTop:16}}>
-              <button onClick={()=>handleSaveSumula(sumulaModal.m, sumulaModal.m.events||[])} style={{...S.btn(),width:"100%",justifyContent:"center"}}>Salvar Súmula</button>
-            </div>
-          </div>
-        </div>
-      )}
-            {modalNovoAtleta && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001,padding:16}}>
-          <div style={{...S.card,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editAtletaId ? "✏️ Editar Cadastro do Atleta" : "🆕 Cadastrar Atleta e Escalá-lo"}</div>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              {/* 1. Identificação Básica */}
-              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>1. Identificação do Atleta</div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome Completo</label><input style={S.input} value={formAtleta.nome} onChange={e=>setFormAtleta(v=>({...v,nome:e.target.value}))} placeholder="Nome completo"/></div>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Apelido</label><input style={S.input} value={formAtleta.apelido} onChange={e=>setFormAtleta(v=>({...v,apelido:e.target.value}))} placeholder="Nome de camisa"/></div>
-              </div>
+      {/* Grid Container Responsivo (2 Colunas no Desktop) */}
+      <div style={S.layoutContainer(isMobile)}>
+        
+        {/* COLUNA CENTRAL (Conteúdo Ativo) */}
+        <div style={S.mainContent}>
+          {champion && (
+            <div style={{
+              background: "linear-gradient(135deg, rgba(32, 226, 120, 0.1) 0%, rgba(212, 175, 55, 0.1) 100%)",
+              border: "2px solid #D4AF37",
+              borderRadius: 16,
+              padding: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                position: "absolute",
+                inset: 0,
+                backgroundImage: "radial-gradient(circle at 80% 20%, rgba(212, 175, 55, 0.15) 0%, transparent 50%)",
+                pointerEvents: "none"
+              }} />
               
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:100}}>
-                  <label style={S.label}>Número da Camisa</label>
-                  <input type="text" style={S.input} value={formAtleta.numeroCamisa || ""} onChange={e=>setFormAtleta(v=>({...v,numeroCamisa:e.target.value}))} placeholder="Ex: 10"/>
+              <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, zIndex: 1}}>
+                <div style={{display: "flex", alignItems: "center", gap: 12}}>
+                  <span style={{fontSize: 34}}>🏆</span>
+                  <div>
+                    <div style={{fontSize: 10, fontWeight: 700, color: "#D4AF37", textTransform: "uppercase", letterSpacing: 1.5}}>Campeão Declarado</div>
+                    <div style={{fontSize: 22, fontWeight: 900, color: t.text}}>{champion}</div>
+                  </div>
                 </div>
-                <div style={{flex:1,minWidth:140}}>
-                  <label style={S.label}>Grupo / Time</label>
-                  {(() => {
-                    const gruposDisponiveis = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
-                    if (formAtleta.grupo && !gruposDisponiveis.includes(formAtleta.grupo)) {
-                      gruposDisponiveis.push(formAtleta.grupo);
-                    }
-                    return (
-                      <select 
-                        style={S.select} 
-                        value={formAtleta.grupo || ""} 
-                        onChange={e => {
-                          const val = e.target.value;
-                          if (val === "__novo__") {
-                            const novo = window.prompt("Digite o nome do novo grupo/time:");
-                            if (novo && novo.trim()) {
-                              setFormAtleta(v => ({ ...v, grupo: novo.trim() }));
-                            }
-                          } else {
-                            setFormAtleta(v => ({ ...v, grupo: val }));
-                          }
-                        }}
-                      >
-                        <option value="">Nenhum Grupo</option>
-                        {gruposDisponiveis.map(g => (
-                          <option key={g} value={g}>{g}</option>
-                        ))}
-                        <option value="__novo__">➕ Adicionar novo time...</option>
-                      </select>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.goleiro} onChange={e=>setFormAtleta(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
-                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.ativo} onChange={e=>setFormAtleta(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
-              </div>
-
-              <div>
-                <label style={S.label}>Habilidade (Nível técnico)</label>
-                <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setFormAtleta(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${formAtleta.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:formAtleta.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:formAtleta.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:formAtleta.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
-              </div>
-
-              {/* 2. Dados de Contato e Pessoais */}
-              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>2. Dados Pessoais e de Contato</div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG)</label><input style={S.input} value={formAtleta.documento || ""} onChange={e=>setFormAtleta(v=>({...v,documento:e.target.value}))} placeholder="Apenas números do RG"/></div>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={formAtleta.dataNascimento || ""} onChange={e=>setFormAtleta(v=>({...v,dataNascimento:e.target.value}))}/></div>
-              </div>
-              
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome da Mãe</label><input style={S.input} value={formAtleta.nomeMae || ""} onChange={e=>setFormAtleta(v=>({...v,nomeMae:e.target.value}))} placeholder="Nome completo da mãe"/></div>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>E-mail</label><input type="email" style={S.input} value={formAtleta.email || ""} onChange={e=>setFormAtleta(v=>({...v,email:e.target.value}))} placeholder="exemplo@email.com"/></div>
-              </div>
-
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:100}}><label style={S.label}>Celular 1 (WhatsApp)</label><input style={S.input} value={formAtleta.celular1 || ""} onChange={e=>setFormAtleta(v=>({...v,celular1:e.target.value}))} placeholder="Ex: 11999999999"/></div>
-                <div style={{flex:1,minWidth:100}}><label style={S.label}>Celular 2</label><input style={S.input} value={formAtleta.celular2 || ""} onChange={e=>setFormAtleta(v=>({...v,celular2:e.target.value}))} placeholder="Ex: 11999999998"/></div>
-                <div style={{flex:1,minWidth:100}}><label style={S.label}>Fone Fixo</label><input style={S.input} value={formAtleta.foneResidencial || ""} onChange={e=>setFormAtleta(v=>({...v,foneResidencial:e.target.value}))} placeholder="Ex: 1136123456"/></div>
-              </div>
-
-              {/* 3. Modalidades de Inscrição */}
-              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>3. Modalidades de Inscrição</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>
-                {MODALIDADES_ESPORTIVAS.map(m => {
-                  const mods = Array.isArray(formAtleta.modalidades) ? formAtleta.modalidades : [];
-                  const selected = mods.includes(m.id);
-                  return (
-                    <label key={m.id} style={{
-                      display:"flex",alignItems:"center",gap:6,cursor:"pointer",
-                      padding:"6px 12px",borderRadius:20,border:`2px solid ${selected ? m.color : t.cardBorder}`,
-                      background:selected ? m.color + "22" : t.inputBg,
-                      color:selected ? m.color : t.textSec,fontWeight:selected ? 700 : 500,fontSize:13,
-                      transition:"all 0.15s",userSelect:"none"
-                    }}>
-                      <input type="checkbox" style={{display:"none"}} checked={selected}
-                        onChange={() => setFormAtleta(v => {
-                          const cur = Array.isArray(v.modalidades) ? v.modalidades : [];
-                          return {...v, modalidades: selected ? cur.filter(x => x !== m.id) : [...cur, m.id]};
-                        })}
-                      />
-                      {m.icon} {m.label}
-                    </label>
-                  );
-                })}
-              </div>
-              {Array.isArray(formAtleta.modalidades) && formAtleta.modalidades.length === 0 && (
-                <div style={{fontSize:11,color:"#E24B4A",marginTop:4}}>⚠️ Selecione ao menos uma modalidade.</div>
-              )}
-
-              {/* 4. Vínculo Religioso */}
-              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>4. Vínculo Religioso</div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:140}}>
-                  <label style={S.label}>Tipo de Atleta</label>
-                  <select style={S.select} value={formAtleta.tipoAtleta || "Adventista"} onChange={e=>setFormAtleta(v=>({...v,tipoAtleta:e.target.value}))}>
-                    <option value="Adventista">Atleta Adventista</option>
-                    <option value="Não Adventista">Atleta Não Adventista</option>
-                  </select>
-                </div>
-                {formAtleta.tipoAtleta === "Adventista" && (
-                  <div style={{flex:1,minWidth:140}}>
-                    <label style={S.label}>Igreja da Carta de Membro</label>
-                    <input style={S.input} value={formAtleta.igrejaMembro || ""} onChange={e=>setFormAtleta(v=>({...v,igrejaMembro:e.target.value}))} placeholder="IASD a qual é membro"/>
+                {artilheiro && (
+                  <div style={{display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.06)", padding: "8px 14px", borderRadius: 14, border: '1px solid ' + t.cardBorder}}>
+                    <span style={{fontSize: 22}}>⚽</span>
+                    <div>
+                      <div style={{fontSize: 9, fontWeight: 700, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>Artilheiro</div>
+                      <div style={{fontSize: 13, fontWeight: 700, color: t.text}}>{getPlayerName(artilheiro.atleta)}</div>
+                      <div style={{fontSize: 11, color: t.textSec}}>{artilheiro.teamName} · <strong style={{color: "#378ADD"}}>{artilheiro.gols} gols</strong></div>
+                    </div>
                   </div>
                 )}
               </div>
-
-              {/* 5. Endereço Residencial */}
-              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>5. Endereço Residencial</div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:100}}><label style={S.label}>CEP</label><input style={S.input} value={formAtleta.cep || ""} onChange={e=>setFormAtleta(v=>({...v,cep:e.target.value}))} placeholder="Ex: 69000-000"/></div>
-                <div style={{flex:1,minWidth:100}}>
-                  <label style={S.label}>Logradouro</label>
-                  <select style={S.select} value={formAtleta.logradouro || "Rua"} onChange={e=>setFormAtleta(v=>({...v,logradouro:e.target.value}))}>
-                    <option value="Rua">Rua</option>
-                    <option value="Avenida">Avenida</option>
-                    <option value="Travessa">Travessa</option>
-                    <option value="Beco">Beco</option>
-                  </select>
-                </div>
-                <div style={{flex:2,minWidth:140}}><label style={S.label}>Nome da Via</label><input style={S.input} value={formAtleta.nomeVia || ""} onChange={e=>setFormAtleta(v=>({...v,nomeVia:e.target.value}))} placeholder="Nome da rua/avenida"/></div>
+              <div style={{display: "flex", gap: 8, zIndex: 1, marginTop: 4}}>
+                <button onClick={() => setShowCelebration(true)} style={{...S.btn("#D4AF37"), color: "#0F1116", fontWeight: 800, padding: "8px 16px", fontSize: 13, cursor: "pointer"}}>🎉 Celebrar Conquista</button>
               </div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Bairro</label><input style={S.input} value={formAtleta.bairro || ""} onChange={e=>setFormAtleta(v=>({...v,bairro:e.target.value}))} placeholder="Bairro"/></div>
-                <div style={{flex:1,minWidth:140}}><label style={S.label}>Complemento</label><input style={S.input} value={formAtleta.complemento || ""} onChange={e=>setFormAtleta(v=>({...v,complemento:e.target.value}))} placeholder="Ex: Casa, Apto, Fundos"/></div>
-              </div>
-
-              {/* 5. Documentos e Fotos */}
-              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>5. Uploads de Arquivos / Fotos</div>
-              <div>
-                <label style={S.label}>Foto de Rosto (Perfil)</label>
-                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                  {formAtleta.foto&&<img src={formAtleta.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
-                  <input style={{...S.input,flex:1}} value={formAtleta.foto} onChange={e=>setFormAtleta(v=>({...v,foto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
-                  <label style={{...S.btn("#378ADD22","#378ADD"),margin:0}}>
-                    📁 Rosto
-                    <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setFormAtleta(v=>({...v,foto:b64})))}}/>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label style={S.label}>Documento Oficial com Foto (Frente e Verso)</label>
-                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                  {formAtleta.docFoto&&<img src={formAtleta.docFoto} style={{width:40,height:40,borderRadius:4,objectFit:"cover"}}/>}
-                  <input style={{...S.input,flex:1}} value={formAtleta.docFoto} onChange={e=>setFormAtleta(v=>({...v,docFoto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
-                  <label style={{...S.btn("#1D9E7522","#1D9E75"),margin:0}}>
-                    📁 Doc. Foto
-                    <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],600,(b64)=>setFormAtleta(v=>({...v,docFoto:b64})))}}/>
-                  </label>
-                </div>
-              </div>
-
-              {c.customFieldsDef && c.customFieldsDef.map(f => (
-                <div key={f}>
-                  <label style={S.label}>{f}</label>
-                  <input 
-                    style={S.input} 
-                    value={formAtleta.customFields?.[f] || ""} 
-                    onChange={e => {
-                      const val = e.target.value;
-                      setFormAtleta(v => ({
-                        ...v,
-                        customFields: {
-                          ...(v.customFields || {}),
-                          [f]: val
-                        }
-                      }));
-                    }} 
-                    placeholder={`Informe ${f}`}
-                  />
-                </div>
-              ))}
             </div>
-            <div style={{display:"flex",gap:8,marginTop:16}}>
-              <button onClick={salvarNovoAtletaCamp} style={S.btn("#378ADD")}>{editAtletaId ? "Salvar Alterações" : "Salvar e Escalar"}</button>
-              <button onClick={()=>{setModalNovoAtleta(false); setEditAtletaId(null);}} style={S.btn(t.card,t.textSec)}>Cancelar</button>
+          )}
+
+          {/* Aba ativa */}
+          {currentTab==="tabela"&&c.type==="pontos"&&(
+             <div style={{display:"flex",flexDirection:"column",gap:16}}>
+               <StandingsTable standings={c.standings} teams={c.teams} colorOf={colorOf} accent={t.accent} t={t} emblems={c.emblems}/>
+               <ResumoArtilharia />
+             </div>
+          )}
+          {currentTab==="tabela"&&c.type==="misto"&&(
+             <div style={{display:"flex",flexDirection:"column",gap:20}}>
+               {c.groups.map((g,gi)=><div key={gi} style={S.card}><h3 style={{fontSize:13,fontWeight:800,marginBottom:12,color:t.text,textTransform:"uppercase",letterSpacing:0.8}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3><StandingsTable standings={g.standings} teams={c.teams} colorOf={colorOf} accent={t.accent} t={t} emblems={c.emblems}/></div>)}
+               {c.mixedPhase==="groups"&&<button onClick={advanceMixed} style={S.btn(t.accent)}>Avançar para Mata-Mata →</button>}
+               <ResumoArtilharia />
+             </div>
+          )}
+          {currentTab==="tabela"&&c.type==="liga"&&(
+             <div style={{display:"flex",flexDirection:"column",gap:20}}>
+               {c.groups.map((g,gi)=><div key={gi} style={S.card}><h3 style={{fontSize:13,fontWeight:800,marginBottom:12,color:t.text,textTransform:"uppercase",letterSpacing:0.8}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3><StandingsTable standings={g.standings} teams={c.teams} colorOf={colorOf} accent={t.accent} t={t} emblems={c.emblems}/></div>)}
+               {c.mixedPhase==="groups"&&<button onClick={advanceMixed} style={S.btn(t.accent)}>Avançar para Mata-Mata →</button>}
+               <ResumoArtilharia />
+             </div>
+          )}
+          {currentTab==="chave"&&(c.type==="mata"||c.type==="misto"||c.type==="liga")&&renderKnockout()}
+          {currentTab==="jogos"&&renderJogos()}
+          {currentTab==="elencos" && <AbaElencos />}
+          {currentTab==="estatísticas" && renderEstatisticas()}
+          {currentTab==="solicitações" && c.allowOnlineReg && <AbaSolicitacoes />}
+          {currentTab==="mural" && <AbaMuralOrganizador c={c} onUpdate={onUpdate} t={t} />}
+          {currentTab==="galeria" && <AbaGaleriaOrganizador c={c} onUpdate={onUpdate} t={t} />}
+          {currentTab==="configurações" && <AbaConfiguracoes />}
+          {currentTab==="nuvem" && (
+            <div style={{display:"flex",flexDirection:"column",gap:20}}>
+              <div style={S.card}>
+                <h3 style={{fontSize:16,fontWeight:800,marginBottom:12,color:t.text,display:"flex",alignItems:"center",gap:8}}>
+                  🌐 Compartilhar na Nuvem (Público)
+                </h3>
+                <p style={{fontSize:13,color:t.textSec,lineHeight:"1.5",marginBottom:16}}>
+                  Por padrão, os dados do Thorneios ficam armazenados de forma 100% segura apenas no seu dispositivo. 
+                  Ao publicar na nuvem, você gera um código e um link de acesso para que jogadores e torcedores acompanhem a tabela, rodadas, placares e artilharia em tempo real de qualquer outro dispositivo, sem precisar de login.
+                </p>
+
+                {c.npointId ? (
+                  <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                    <div style={{background: t.bg, borderRadius:12, padding:14, border:'1px dashed ' + t.cardBorder, display:"flex", flexDirection:"column", gap:8}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
+                        <span style={{color:t.textSec}}>Status de Sincronização:</span>
+                        <strong style={{color:"#1D9E75"}}>● Ativo e Compartilhado</strong>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
+                        <span style={{color:t.textSec}}>Última Sincronização:</span>
+                        <strong style={{color:t.text}}>{c.lastPublished || "Desconhecida"}</strong>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
+                        <span style={{color:t.textSec}}>Código do Campeonato:</span>
+                        <strong style={{color:"#1D9E75",fontSize:16,fontFamily:"monospace",letterSpacing:0.5}}>{c.npointId}</strong>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={S.label}>Link de Acesso do Público</label>
+                      <div style={{display:"flex",gap:8,marginTop:6}}>
+                        <input 
+                          readOnly 
+                          value={window.location.origin + window.location.pathname + "?c=" + c.npointId} 
+                          style={{...S.input, flex:1, fontFamily:"monospace", fontSize:12, background:t.bg}} 
+                        />
+                        <button 
+                          onClick={() => {
+                            const link = window.location.origin + window.location.pathname + "?c=" + c.npointId;
+                            navigator.clipboard.writeText(link);
+                            alert("Link de acesso copiado para a área de transferência!");
+                          }} 
+                          style={S.btn("#378ADD")}
+                        >
+                          Copiar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={publicarNaNuvem} style={S.btn("#378ADD")}>
+                    🚀 Publicar Agora na Nuvem
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
-      )}
 
-      {showCelebration && (
-        <div style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0, 0, 0, 0.85)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 10000,
-          padding: 16,
-          overflow: "hidden"
-        }}>
-          {/* Confetes animados em CSS puro */}
-          <div style={{position: "absolute", inset: 0, pointerEvents: "none"}}>
-            {Array.from({length: 80}).map((_, i) => {
-              const left = Math.random() * 100;
-              const delay = Math.random() * 5;
-              const duration = 3 + Math.random() * 3;
-              const colors = ["#FFD700", "#FF4500", "#1E90FF", "#00FF00", "#FF1493", "#FF8C00", "#00FFFF"];
-              const randomColor = colors[Math.floor(Math.random() * colors.length)];
-              const size = 6 + Math.random() * 8;
-              return (
-                <div key={i} style={{
-                  position: "absolute",
-                  top: -20,
-                  left: `${left}%`,
-                  width: size,
-                  height: size,
-                  backgroundColor: randomColor,
-                  borderRadius: Math.random() > 0.5 ? "50%" : "2px",
-                  opacity: 0.8,
-                  transform: `rotate(${Math.random() * 360}deg)`,
-                  animation: `confeti-fall ${duration}s linear infinite`,
-                  animationDelay: `${delay}s`
-                }} />
-              );
-            })}
-          </div>
-
-          <style>{`
-            @keyframes confeti-fall {
-              0% {
-                top: -20px;
-                transform: translateX(0) rotate(0deg);
-              }
-              50% {
-                transform: translateX(80px) rotate(180deg);
-              }
-              100% {
-                top: 105vh;
-                transform: translateX(-40px) rotate(360deg);
-              }
-            }
-            @keyframes scale-up {
-              0% { transform: scale(0.85); opacity: 0; }
-              100% { transform: scale(1); opacity: 1; }
-            }
-          `}</style>
-
-          <div style={{
-            ...S.card,
-            width: "100%",
-            maxWidth: 460,
-            textAlign: "center",
-            padding: 30,
-            border: "2.5px solid #D4AF37",
-            boxShadow: "0 0 35px rgba(212, 175, 55, 0.35)",
-            position: "relative",
-            zIndex: 10001,
-            background: t.card,
-            animation: "scale-up 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)"
-          }}>
-            <span style={{fontSize: 70, display: "block", marginBottom: 16}}>🏆</span>
-            
-            <h1 style={{
-              fontSize: 22,
-              fontWeight: 900,
-              color: "#D4AF37",
-              textTransform: "uppercase",
-              letterSpacing: 2,
-              margin: "0 0 6px 0"
-            }}>Campeão do Torneio</h1>
-            
-            <h2 style={{
-              fontSize: 28,
-              fontWeight: 800,
-              color: t.text,
-              margin: "0 0 16px 0",
-              lineHeight: 1.2
-            }}>{champion}</h2>
-
-            <p style={{
-              fontSize: 13,
-              color: t.textSec,
-              lineHeight: 1.5,
-              marginBottom: 20,
-              padding: "0 10px"
-            }}>
-              Parabéns à equipe pela brilhante trajetória e por conquistar o título do campeonato <strong>{c.name}</strong>!
-            </p>
-
+        {/* COLUNA DIREITA (Estatísticas no Desktop) */}
+        {!isMobile && (
+          <div style={S.sidebarRight(isMobile)}>
             {artilheiro && (
-              <div style={{
-                background: "rgba(255,255,255,0.04)",
-                border: `1px solid ${t.cardBorder}`,
-                borderRadius: 14,
-                padding: "12px 18px",
-                marginBottom: 24,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 12,
-                textAlign: "left"
-              }}>
-                <span style={{fontSize: 32}}>⚽</span>
-                <div>
-                  <div style={{fontSize: 10, fontWeight: 700, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>Artilheiro do Campeonato</div>
-                  <div style={{fontSize: 15, fontWeight: 800, color: t.text}}>{getPlayerName(artilheiro.atleta)}</div>
-                  <div style={{fontSize: 12, color: t.textSec}}>{artilheiro.teamName} · <strong style={{color: "#378ADD"}}>{artilheiro.gols} gols</strong></div>
+              <div style={S.card}>
+                <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>⚽ Artilheiro</div>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginTop:6}}>
+                  <Avatar name={getPlayerName(artilheiro.atleta)} color={t.accent} size={36}/>
+                  <div>
+                    <div style={{fontWeight:800,fontSize:14,color:t.text}}>{getPlayerName(artilheiro.atleta)}</div>
+                    <div style={{fontSize:11,color:t.textSec,marginTop:2}}>{artilheiro.teamName}</div>
+                    <div style={{fontSize:12,fontWeight:900,color:t.accent,marginTop:4}}>{artilheiro.gols} Gols Marcados</div>
+                  </div>
                 </div>
               </div>
             )}
 
-            <button onClick={() => setShowCelebration(false)} style={{...S.btn("#1D9E75"), width: "100%", justifyContent: "center", padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer"}}>Fechar Celebração</button>
+            <div style={S.card}>
+              <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>🏟️ Local das Partidas</div>
+              <div style={{fontSize:13,fontWeight:700,color:t.text}}>
+                📍 {c.local || "Quadra Geral da Liga"}
+              </div>
+            </div>
           </div>
-        </div>
-      )}
-
+        )}
+      </div>
+      
       {/* Súmula Oficial Formatada para Impressão A4 Física */}
       {renderPrintableSumula()}
     </div>
@@ -8582,8 +8075,16 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
 /* ─────────────────────────── APP ROOT ───────────────────────────── */
 export default function App(){
   const{dark,setDark,t:themeBase}=useTheme();
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const [accentColor, setAccentColor] = useState(() => {
-    return localStorage.getItem("system_accent") || "#0095F6";
+    return localStorage.getItem("system_accent") || "#20E278";
   });
   const changeAccentColor = (color) => {
     setAccentColor(color);
@@ -8591,6 +8092,444 @@ export default function App(){
   };
   const t = { ...themeBase, accent: accentColor, changeAccentColor };
   const S=makeStyles(t);
+
+  // ── ESTADOS E COMPONENTES DO MENU GLOBAL (LAYOUT SIMPLIFICADO) ─
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeChampTab, setActiveChampTab] = useState("jogos");
+  const [activePeladaTab, setActivePeladaTab] = useState("info");
+  const [expandMenuHome, setExpandMenuHome] = useState(false);
+  const [selectedFinanceChamp, setSelectedFinanceChamp] = useState("geral");
+
+  const GEHeader = () => {
+    let subBarTitle = "Thorneios";
+    let links = [];
+    const isGlobalScreen = ["home", "atletas", "quadras", "financeiro", "backup", "managerRegistry", "novoChamp", "novaPelada"].includes(screen);
+    if (isGlobalScreen) {
+      subBarTitle = "Painel Geral";
+      links = [
+        { label: "Início", active: screen === "home", onClick: () => setScreen("home") },
+        { label: "Atletas", active: screen === "atletas", onClick: () => setScreen("atletas") },
+        { label: "Quadras", active: screen === "quadras", onClick: () => setScreen("quadras") },
+        { label: "Financeiro", active: screen === "financeiro", onClick: () => setScreen("financeiro") },
+        { label: "Backup", active: screen === "backup", onClick: () => setScreen("backup") },
+      ];
+      if (auth.role === "adm") {
+        links.push({ label: "Gestores", active: screen === "managerRegistry", onClick: () => setScreen("managerRegistry") });
+      }
+    } else if (screen === "gerenciarChamp" && current) {
+      const c = campeonatos.find(x => x.id === current.id) || current;
+      subBarTitle = c.name;
+      const champTabs = [
+        "elencos",
+        ...(c.type === "pontos" ? ["tabela", "jogos"] : c.type === "mata" ? ["chave", "jogos"] : ["tabela", "chave", "jogos"]),
+        "estatísticas"
+      ];
+      if (c.allowOnlineReg) {
+        champTabs.push("solicitações");
+      }
+      champTabs.push("mural", "galeria", "configurações", "nuvem");
+      links = [
+        { label: "← Voltar", active: false, onClick: () => setScreen("home"), style: { color: "#E24B4A", fontWeight: "900" } },
+        ...champTabs.map(tb => ({
+          label: tb === "nuvem" ? "🌐 Nuvem" : tb.charAt(0).toUpperCase() + tb.slice(1),
+          active: activeChampTab === tb,
+          onClick: () => setActiveChampTab(tb)
+        }))
+      ];
+    } else if (screen === "gerenciarPelada" && current) {
+      const p = peladas.find(x => x.id === current.id) || current;
+      subBarTitle = p.nome;
+      const pelAbas = [
+        { id: "info", label: "Sorteio" },
+        { id: "datas", label: "Datas" },
+        { id: "atletas", label: "Atletas" },
+        { id: "participações", label: "Presenças" }
+      ];
+      links = [
+        { label: "← Voltar", active: false, onClick: () => setScreen("home"), style: { color: "#E24B4A", fontWeight: "900" } },
+        ...pelAbas.map(ab => ({
+          label: ab.label,
+          active: activePeladaTab === ab.id,
+          onClick: () => setActivePeladaTab(ab.id)
+        }))
+      ];
+    }
+    return (
+      <div style={{width: "100%", zIndex: 1000, display: "flex", flexDirection: "column"}}>
+        {/* Barra Superior Principal */}
+        <div style={{
+          backgroundColor: "#06AA48",
+          height: 48,
+          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+          position: "relative",
+          zIndex: 1002
+        }}>
+          <div style={{
+            width: "100%",
+            maxWidth: "1200px",
+            height: "100%",
+            margin: "0 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 16px",
+            boxSizing: "border-box"
+          }}>
+            <div style={{display: "flex", alignItems: "center", gap: 14}}>
+              <button 
+                onClick={() => setMenuOpen(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 8px",
+                  borderRadius: 4,
+                  fontFamily: "'Outfit', sans-serif",
+                  fontWeight: "800",
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px"
+                }}
+              >
+                <span style={{fontSize: 16}}>☰</span>
+                <span style={{display: isMobile ? "none" : "inline"}}>MENU</span>
+              </button>
+              <div style={{height: 20, width: 1, backgroundColor: "rgba(255,255,255,0.2)"}} />
+              <div 
+                onClick={() => setScreen("home")}
+                style={{
+                  fontSize: 18,
+                  fontWeight: "900",
+                  color: "#fff",
+                  fontFamily: "'Outfit', sans-serif",
+                  letterSpacing: "0.5px",
+                  cursor: "pointer",
+                  userSelect: "none"
+                }}
+              >
+                Thorneios
+              </div>
+            </div>
+            <div style={{display: "flex", alignItems: "center", gap: 12}}>
+              {!isMobile && (
+                <span style={{fontSize: 12, color: "#fff", opacity: 0.9, fontFamily: "'Outfit', sans-serif"}}>
+                  Olá, <strong>{auth.name || "Gestor"}</strong>
+                </span>
+              )}
+              <DarkBtn />
+            </div>
+          </div>
+        </div>
+
+        {/* Barra Inferior Sticky (Abas) */}
+        <div style={{
+          backgroundColor: dark ? "#171A21" : "#ffffff",
+          borderBottom: "1px solid " + t.cardBorder,
+          height: 40,
+          position: "sticky",
+          top: 0,
+          zIndex: 1001,
+          boxShadow: dark ? "none" : "0 2px 4px rgba(0,0,0,0.02)"
+        }}>
+          <div style={{
+            width: "100%",
+            maxWidth: "1200px",
+            height: "100%",
+            margin: "0 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            padding: "0 16px",
+            boxSizing: "border-box"
+          }}>
+            <div style={{
+              fontSize: 13,
+              fontWeight: "900",
+              color: t.text,
+              marginRight: 20,
+              fontFamily: "'Outfit', sans-serif",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: isMobile ? 120 : 250,
+              flexShrink: 0
+            }} title={subBarTitle}>
+              {subBarTitle}
+            </div>
+            <div style={{
+              height: 16,
+              width: 1,
+              backgroundColor: t.cardBorder,
+              marginRight: 10,
+              flexShrink: 0
+            }} />
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              height: "100%",
+              overflowX: "auto",
+              whiteSpace: "nowrap",
+              flex: 1,
+              scrollbarWidth: "none",
+              msOverflowStyle: "none"
+            }}>
+              <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+              {links.map((ln, idx) => (
+                <button 
+                  key={idx}
+                  onClick={ln.onClick}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: ln.active ? "#06AA48" : t.textSec,
+                    padding: "0 12px",
+                    height: "100%",
+                    fontSize: 11,
+                    fontWeight: "800",
+                    fontFamily: "'Outfit', sans-serif",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    cursor: "pointer",
+                    position: "relative",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    transition: "all 0.2s ease",
+                    flexShrink: 0,
+                    ...ln.style
+                  }}
+                >
+                  {ln.label}
+                  {ln.active && (
+                    <div style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 3.5,
+                      backgroundColor: "#06AA48",
+                      borderRadius: "2px 2px 0 0"
+                    }} />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const GEDrawer = () => {
+    if (!menuOpen) return null;
+    return (
+      <div style={{position: "fixed", inset: 0, zIndex: 10000}}>
+        <div 
+          onClick={() => setMenuOpen(false)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(2px)",
+            transition: "opacity 0.3s ease"
+          }} 
+        />
+        <div style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          width: 280,
+          backgroundColor: t.card,
+          borderRight: "1px solid " + t.cardBorder,
+          boxShadow: "4px 0 24px rgba(0,0,0,0.15)",
+          display: "flex",
+          flexDirection: "column",
+          fontFamily: "'Outfit', sans-serif"
+        }}>
+          <div style={{
+            height: 48,
+            backgroundColor: "#06AA48",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 16px",
+            color: "#fff"
+          }}>
+            <div style={{fontSize: 20, fontWeight: "900", letterSpacing: "0.5px"}}>
+              Thorneios
+            </div>
+            <button 
+              onClick={() => setMenuOpen(false)}
+              style={{background: "none", border: "none", color: "#fff", fontSize: 18, cursor: "pointer", padding: 4}}
+            >
+              ✕
+            </button>
+          </div>
+          <div style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "16px 0",
+            display: "flex",
+            flexDirection: "column",
+            gap: 16
+          }}>
+            <div>
+              <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, padding: "0 20px 8px 20px", textTransform: "uppercase", letterSpacing: "1px"}}>Painel Administrativo</div>
+              <div style={{display: "flex", flexDirection: "column"}}>
+                {[
+                  { label: "Início / Home", icon: "🏠", active: screen === "home", onClick: () => { setScreen("home"); setMenuOpen(false); } },
+                  { label: "Atletas Campeonato", icon: "👤", active: screen === "atletas", onClick: () => { setScreen("atletas"); setMenuOpen(false); } },
+                  { label: "Quadras / Campos", icon: "🏟️", active: screen === "quadras", onClick: () => { setScreen("quadras"); setMenuOpen(false); } },
+                  { label: "Caixa Financeiro", icon: "💰", active: screen === "financeiro", onClick: () => { setScreen("financeiro"); setMenuOpen(false); } },
+                  { label: "Importar / Exportar (Backup)", icon: "💾", active: screen === "backup", onClick: () => { setScreen("backup"); setMenuOpen(false); } },
+                ].map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={item.onClick}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "10px 20px",
+                      width: "100%",
+                      textAlign: "left",
+                      background: item.active ? "rgba(6, 170, 72, 0.08)" : "transparent",
+                      border: "none",
+                      borderLeft: `4px solid ${item.active ? "#06AA48" : "transparent"}`,
+                      color: item.active ? "#06AA48" : t.text,
+                      fontWeight: item.active ? "800" : "600",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <span style={{fontSize: 15}}>{item.icon}</span>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, padding: "0 20px 8px 20px", textTransform: "uppercase", letterSpacing: "1px", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+                <span>Minhas Ligas ({campeonatos.length})</span>
+                <button onClick={() => { setScreen("novoChamp"); setMenuOpen(false); }} style={{background: "none", border: "none", color: "#06AA48", fontWeight: "900", cursor: "pointer", fontSize: 11, padding: 0}}>+ Nova</button>
+              </div>
+              <div style={{display: "flex", flexDirection: "column", maxHeight: 180, overflowY: "auto"}}>
+                {campeonatos.map(c => {
+                  const mDef = MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade);
+                  const mIcon = mDef ? mDef.icon : "🏆";
+                  const isCur = screen === "gerenciarChamp" && current?.id === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => { setCurrent(c); setScreen("gerenciarChamp"); setMenuOpen(false); }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "8px 20px",
+                        width: "100%",
+                        textAlign: "left",
+                        background: isCur ? "rgba(6, 170, 72, 0.08)" : "transparent",
+                        border: "none",
+                        borderLeft: `4px solid ${isCur ? "#06AA48" : "transparent"}`,
+                        color: isCur ? "#06AA48" : t.text,
+                        fontWeight: isCur ? "800" : "550",
+                        fontSize: 12.5,
+                        cursor: "pointer",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      <span style={{fontSize: 13}}>{mIcon}</span>
+                      <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>{c.name}</span>
+                    </button>
+                  );
+                })}
+                {campeonatos.length === 0 && <div style={{fontSize: 11, color: t.textSec, fontStyle: "italic", padding: "4px 20px"}}>Nenhum campeonato.</div>}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, padding: "0 20px 8px 20px", textTransform: "uppercase", letterSpacing: "1px", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+                <span>Minhas Peladas ({peladas.length})</span>
+                <button onClick={() => { setScreen("novaPelada"); setMenuOpen(false); }} style={{background: "none", border: "none", color: "#378ADD", fontWeight: "900", cursor: "pointer", fontSize: 11, padding: 0}}>+ Nova</button>
+              </div>
+              <div style={{display: "flex", flexDirection: "column", maxHeight: 150, overflowY: "auto"}}>
+                {peladas.map(p => {
+                  const isCur = screen === "gerenciarPelada" && current?.id === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => { setCurrent(p); setScreen("gerenciarPelada"); setMenuOpen(false); }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "8px 20px",
+                        width: "100%",
+                        textAlign: "left",
+                        background: isCur ? "rgba(55, 138, 221, 0.08)" : "transparent",
+                        border: "none",
+                        borderLeft: `4px solid ${isCur ? "#378ADD" : "transparent"}`,
+                        color: isCur ? "#378ADD" : t.text,
+                        fontWeight: isCur ? "800" : "550",
+                        fontSize: 12.5,
+                        cursor: "pointer",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      <span style={{fontSize: 13}}>👟</span>
+                      <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>{p.nome}</span>
+                    </button>
+                  );
+                })}
+                {peladas.length === 0 && <div style={{fontSize: 11, color: t.textSec, fontStyle: "italic", padding: "4px 20px"}}>Nenhuma pelada.</div>}
+              </div>
+            </div>
+          </div>
+          <div style={{
+            borderTop: "1px solid " + t.cardBorder,
+            padding: "12px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            backgroundColor: t.bg
+          }}>
+            {auth.role === "adm" && (
+              <button onClick={() => { setScreen("managerRegistry"); setMenuOpen(false); }} style={{...S.btnSm(t.card, t.text), justifyContent: "center", fontSize: 12, fontWeight: "700"}}>👥 Gestores da Liga</button>
+            )}
+            <div style={{display: "flex", gap: 6}}>
+              <button onClick={() => { setModalPassword(true); setMenuOpen(false); }} style={{...S.btnSm(t.card, t.text), flex: 1, justifyContent: "center", fontSize: 11.5, fontWeight: "700"}}>🔐 Senha</button>
+              <button onClick={() => { handleLogout(); setMenuOpen(false); }} style={{...S.btnSm("#E24B4A22", "#E24B4A"), flex: 1, justifyContent: "center", fontSize: 11.5, fontWeight: "800"}}>🚪 Sair</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderComLayout = (conteudo) => {
+    return (
+      <div style={{display: "flex", flexDirection: "column", minHeight: "100vh", backgroundColor: t.bg}}>
+        <GEHeader />
+        <GEDrawer />
+        <div style={{flex: 1, padding: isMobile ? "10px" : "16px 24px", maxWidth: "1200px", width: "100%", margin: "0 auto", boxSizing: "border-box"}}>
+          {conteudo}
+        </div>
+      </div>
+    );
+  };
+
 
   // ── Estado Global (Salvo em localStorage) ─────────────────────
   const initialAppState = {
@@ -9398,7 +9337,6 @@ export default function App(){
   };
 
   const[current,setCurrent]=useState(null);
-  const[expandMenuHome,setExpandMenuHome]=useState(false);
 
   const [storageSize, setStorageSize] = useState(0);
 
@@ -9732,320 +9670,281 @@ export default function App(){
   }
 
   /* ── HOME ────────────────────────────────────────────────────── */
-  if(screen==="home")return(
-    <div style={S.page}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24,flexWrap:"wrap",gap:12}}>
-        <div>
-          <h1 style={{fontSize:22,fontWeight:800,margin:0,color:t.text}}>⚽ Thorneios</h1>
-          <p style={{color:t.textSec,margin:"4px 0 0",fontSize:12}}>
-            Olá {auth.name || "visitante"}, você está logado como <strong>{auth.role === "adm" ? "Administrador" : auth.role === "manager" ? "Manager" : auth.role === "user" ? "Usuário" : "convidado"}</strong>
-          </p>
-        </div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button onClick={()=>setExpandMenuHome(!expandMenuHome)} style={{...S.btn("#378ADD"),display:"inline-flex",gap:6,fontSize:12,padding:"8px 14px"}}>
-            <span>☰ Menu</span>
-            <span style={{transform:expandMenuHome?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.3s",display:"inline-block"}}>▼</span>
-          </button>
-          <DarkBtn/>
-        </div>
-      </div>
-      {expandMenuHome&&(
-        <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px solid ${t.inputBorder}`}}>
-          <div style={{display:"flex",flexDirection:"column",gap:0}}>
-                        <button onClick={()=>{setScreen("atletas");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <span>👤</span>
-              <div><div style={{fontWeight:600}}>Atletas</div><div style={{fontSize:11,color:t.textSec}}>Gerenciar lista de atletas</div></div>
-            </button>
-            <button onClick={()=>{setScreen("quadras");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <span>🏟️</span>
-              <div><div style={{fontWeight:600}}>Quadras</div><div style={{fontSize:11,color:t.textSec}}>Gerenciar quadras/campos</div></div>
-            </button>
-            <button onClick={()=>{setScreen("financeiro");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <span>💰</span>
-              <div><div style={{fontWeight:600}}>Financeiro</div><div style={{fontSize:11,color:t.textSec}}>Controle de arrecadação</div></div>
-            </button>
-            <button onClick={()=>{setScreen("backup");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <span>💾</span>
-              <div><div style={{fontWeight:600}}>Backup</div><div style={{fontSize:11,color:t.textSec}}>Exportar e restaurar dados</div></div>
-            </button>
-            {auth.role==="adm" && (
-              <button onClick={()=>{setScreen("managerRegistry");setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <span>👥</span>
-                <div><div style={{fontWeight:600}}>Gestores</div><div style={{fontSize:11,color:t.textSec}}>Gerenciar managers</div></div>
-              </button>
-            )}
-            {(auth.role==="adm" || auth.role==="manager") && (
-              <button onClick={()=>{setModalPassword(true);setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                <span>🔐</span>
-                <div><div style={{fontWeight:600}}>Alterar Senha</div><div style={{fontSize:11,color:t.textSec}}>Mudar sua senha</div></div>
-              </button>
-            )}
-            <button onClick={()=>{handleLogout();setExpandMenuHome(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.currentTarget.style.background="#E24B4A15"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <span>🚪</span>
-              <div><div style={{fontWeight:600}}>Sair</div><div style={{fontSize:11,color:t.textSec}}>Desconectar da conta</div></div>
-            </button>
-          </div>
-        </div>
-      )}
-      {/* Banner informativo sobre localStorage / Cloud Sync */}
-      <div style={{...S.card,background:isFirebaseConfigured ? "#378ADD10" : "#1D9E7510",borderColor:isFirebaseConfigured ? "#378ADD55" : "#1D9E7555",marginBottom:20,padding:12}}>
-        <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-          <div style={{fontSize:18}}>{isFirebaseConfigured ? "☁️" : "💾"}</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:600,color:isFirebaseConfigured ? "#378ADD" : "#1D9E75",marginBottom:2}}>
-              {isFirebaseConfigured ? "Conectado à Nuvem do Firebase" : "Dados salvos localmente"}
-            </div>
-            <div style={{fontSize:12,color:t.textSec}}>
-              {isFirebaseConfigured 
-                ? "Seu sistema está conectado ao Firebase Firestore! Seus dados são salvos online automaticamente a cada alteração e carregados ao entrar em qualquer outro dispositivo. 🌐"
-                : "Seus dados de atletas, peladas, campeonatos e financeiro são salvos automaticamente no seu navegador. Nenhuma conexão com internet é necessária! 🌐"}
-            </div>
-          </div>
-        </div>
-      </div>
+  if(screen==="home"){
+    // Cálculo financeiro real e filtrado por campeonato para o painel lateral do portal
+    const entries = financeiroFiltered?.entries || [];
+    const filteredEntries = selectedFinanceChamp === "geral" 
+      ? entries 
+      : entries.filter(e => String(e.champ_id) === String(selectedFinanceChamp));
+      
+    const totalReceita = filteredEntries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const totalDespesa = filteredEntries.filter(e => e.type === "despesa").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const saldoFinal = totalReceita - totalDespesa;
 
-      {/* Ações rápidas */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:28}}>
-        {[
-          {icon:"🏆",label:"Novo Campeonato",sub:"Pontos, mata-mata ou misto",action:()=>setScreen("novoChamp"),color:"#1D9E75",scope:"campeonato"},
-          {icon:"👟",label:"Nova Pelada",sub:"Sorteio e fila de times",action:()=>setScreen("novaPelada"),color:"#378ADD",scope:"pelada"},
-        ].filter(b => auth.role === "adm" || auth.scope === "geral" || auth.scope === b.scope).map(b=>(
-          <button key={b.label} onClick={b.action} style={{...S.card,textAlign:"center",cursor:"pointer",border:`2px solid ${b.color}44`,display:"block",width:"100%",padding:16,background:t.card,boxSizing:"border-box"}}>
-            <div style={{fontSize:30,marginBottom:6}}>{b.icon}</div>
-            <div style={{fontWeight:700,fontSize:13,color:b.color}}>{b.label}</div>
-            <div style={{fontSize:11,color:t.textSec,marginTop:3,lineHeight:1.4}}>{b.sub}</div>
-          </button>
-        ))}
-      </div>
+    // Filtra no máximo 4 partidas recentes ou pendentes de todos os campeonatos
+    const getRecentMatches = () => {
+      const list = [];
+      campeonatos.forEach(c => {
+        if (c.type === "pontos" && c.rounds) {
+          c.rounds.forEach(r => r.matches && r.matches.forEach(m => list.push({ ...m, champ: c })));
+        } else if (c.type === "mata" && c.knockout) {
+          c.knockout.forEach(p => p.matches && p.matches.forEach(m => list.push({ ...m, champ: c })));
+        } else if ((c.type === "liga" || c.type === "misto") && c.groups) {
+          c.groups.forEach(g => g.rounds && g.rounds.forEach(r => r.matches && r.matches.forEach(m => list.push({ ...m, champ: c }))));
+        }
+      });
+      return list.sort((a,b) => (b.played ? 1 : 0) - (a.played ? 1 : 0)).slice(0, 4);
+    };
+    const recentMatches = getRecentMatches();
 
-      {/* Campeonatos */}
-      {campeonatos.length>0 && (auth.role === "adm" || auth.scope === "geral" || auth.scope === "campeonato") && (
-        <div style={{marginBottom:20}}>
-          <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>🏆 Campeonatos</h3>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {campeonatos.map(c=>(
-              <div key={c.id} style={{...S.card,display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",gap:8}}>
-                <div style={{cursor:"pointer",flex:1,minWidth:0}} onClick={()=>{setCurrent(c);setScreen("gerenciarChamp");}}>
-                  <div style={{fontWeight:700,fontSize:14,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
-                  <div style={{fontSize:11,color:t.textSec}}>{c.teams.length} times · {c.type==="pontos"?"Pontos Corridos":c.type==="mata"?"Mata-Mata":"Misto"}</div>
-                </div>
-                <div style={{display:"flex",gap:6,flexShrink:0}}>
-                  <button onClick={()=>removerChamp(c.id)} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
-                  <button onClick={()=>{setCurrent(c);setScreen("gerenciarChamp");}} style={{fontSize:18,border:"none",background:"none",color:t.textSec,cursor:"pointer",padding:"0 4px"}}>›</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Peladas */}
-      {peladas.length>0 && (auth.role === "adm" || auth.scope === "geral" || auth.scope === "pelada") && (
-        <div>
-          <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>👟 Peladas</h3>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {peladas.map(p=>{
-              const datas=datasRealizacao.filter(d=>d.pelada_id===p.id);
-              const parts=participacoes.filter(x=>x.pelada_id===p.id);
-              const vinc=[...new Set(parts.map(x=>x.atleta_id))].length;
-              return(
-                <div key={p.id} style={{...S.card,display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",gap:8}}>
-                  <div style={{cursor:"pointer",flex:1,minWidth:0}} onClick={()=>{setCurrent(p);setScreen("gerenciarPelada");}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{fontWeight:700,fontSize:14,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.nome}</div>{!p.ativo&&<Tag label="Inativa" color="#E24B4A"/>}</div>
-                    <div style={{fontSize:11,color:t.textSec,marginTop:2}}>{vinc} atletas · {datas.length} datas · Criada {formatarData(p.data_criacao)}</div>
-                  </div>
-                  <div style={{display:"flex",gap:6,flexShrink:0}}>
-                    <button onClick={()=>removerPelada(p.id)} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
-                    <button onClick={()=>{setCurrent(p);setScreen("gerenciarPelada");}} style={{fontSize:18,border:"none",background:"none",color:t.textSec,cursor:"pointer",padding:"0 4px"}}>›</button>
+    return renderComLayout(
+      <div style={S.page}>
+        {/* Layout Container - 3 Colunas responsivas */}
+        <div style={S.layoutContainer(isMobile)}>
+          
+          {/* COLUNA ESQUERDA: Ligas, Peladas (Apenas no Desktop) */}
+          {!isMobile && (
+            <div style={S.sidebarLeft(isMobile)}>
+              {/* Ligas */}
+              {campeonatos.length>0 && (
+                <div style={S.card}>
+                  <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>Ligas Ativas</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:250,overflowY:"auto"}}>
+                    {campeonatos.map(c => {
+                      const mDef = MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade);
+                      const mIcon = mDef ? mDef.icon : "🏆";
+                      const mColor = mDef ? mDef.color : t.accent;
+                      return (
+                        <button key={c.id} onClick={()=>{setCurrent(c);setScreen("gerenciarChamp");}}
+                          style={S.sidebarItem(current?.id === c.id, mColor)}
+                        >
+                          <span style={{fontSize:14}}>{mIcon}</span>
+                          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{c.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+              )}
 
-      {campeonatos.length===0&&peladas.length===0&&(
-        <div style={{...S.card,textAlign:"center",padding:40,border:"2px dashed "+t.cardBorder}}>
-          <div style={{fontSize:40,marginBottom:12}}>⚽</div>
-          <div style={{fontWeight:700,fontSize:15,color:t.text,marginBottom:6}}>Nenhum evento criado</div>
-          <div style={{fontSize:13,color:t.textSec}}>Crie um campeonato, uma pelada ou cadastre atletas para começar.</div>
-        </div>
-      )}
-      {modalPassword && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10001,padding:16}}>
-          <div style={{...S.card,width:"100%",maxWidth:400,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>🔐 Alterar Minha Senha</div>
-            
-            {pwdError && (
-              <div style={{background:"#E24B4A22",color:"#E24B4A",border:"1px solid #E24B4A55",borderRadius:8,padding:10,fontSize:12,marginBottom:12}}>
-                ⚠️ {pwdError}
+              {/* Peladas */}
+              {peladas.length>0 && (
+                <div style={S.card}>
+                  <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>Peladas</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:200,overflowY:"auto"}}>
+                    {peladas.map(p => (
+                      <button key={p.id} onClick={()=>{setCurrent(p);setScreen("gerenciarPelada");}}
+                        style={S.sidebarItem(current?.id === p.id, "#378ADD")}
+                      >
+                        <span>👟</span>
+                        <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{p.nome}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* COLUNA CENTRAL: Ações Rápidas, Sincronização, Feed de Partidas */}
+          <div style={S.mainContent}>
+            {/* Banner de Sincronização */}
+            <div style={{...S.card,background:isFirebaseConfigured ? "#20E27810" : "#378ADD10",borderColor:isFirebaseConfigured ? "#20E27844" : "#378ADD44",padding:14}}>
+              <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+                <div style={{fontSize:20}}>{isFirebaseConfigured ? "☁️" : "💾"}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:800,color:isFirebaseConfigured ? "#20E278" : "#378ADD",marginBottom:3}}>
+                    {isFirebaseConfigured ? "Conectado ao Firebase Cloud Sync" : "Armazenamento Local Ativo"}
+                  </div>
+                  <div style={{fontSize:11,color:t.textSec,lineHeight:1.4}}>
+                    {isFirebaseConfigured 
+                      ? "Seu sistema está conectado ao Firebase! Seus dados são salvos online automaticamente."
+                      : "Seus dados estão salvos de forma segura neste dispositivo. Não precisa de internet!"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Criar Novos Eventos */}
+            <div>
+              <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>Painel do Administrador</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                {[
+                  {icon:"🏆",label:"Novo Campeonato",sub:"Grupos, pontos ou chaves",action:()=>setScreen("novoChamp"),color:t.accent,scope:"campeonato"},
+                  {icon:"👟",label:"Nova Pelada",sub:"Sorteador de times rápidos",action:()=>setScreen("novaPelada"),color:"#378ADD",scope:"pelada"},
+                ].filter(b => auth.role === "adm" || auth.scope === "geral" || auth.scope === b.scope).map(b=>(
+                  <button key={b.label} onClick={b.action} 
+                    style={{
+                      ...S.card,
+                      textAlign:"center",
+                      cursor:"pointer",
+                      border:"1.5px solid " + b.color + "22",
+                      display:"block",
+                      width:"100%",
+                      padding:16,
+                      background:t.card,
+                      boxSizing:"border-box",
+                      transition:"all 0.2s ease"
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = b.color;
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = b.color + "22";
+                      e.currentTarget.style.transform = "none";
+                    }}
+                  >
+                    <div style={{fontSize:28,marginBottom:6}}>{b.icon}</div>
+                    <div style={{fontWeight:800,fontSize:14,color:b.color}}>{b.label}</div>
+                    <div style={{fontSize:11,color:t.textSec,marginTop:4,lineHeight:1.4}}>{b.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Feed de Partidas Recentes */}
+            {recentMatches.length > 0 && (
+              <div>
+                <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>📊 Partidas da Rodada</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {recentMatches.map((m, mi) => {
+                    const c = m.champ;
+                    const mDef = MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade);
+                    const mColor = mDef ? mDef.color : t.accent;
+                    return (
+                      <div key={mi} style={{
+                        ...S.card,
+                        padding:"12px 14px",
+                        borderLeft:"4px solid " + mColor,
+                        display:"flex",
+                        flexDirection:"column",
+                        gap:6,
+                        cursor:"pointer"
+                      }} onClick={() => { setCurrent(c); setScreen("gerenciarChamp"); }}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:10,color:t.textSec}}>
+                          <span style={{fontWeight:800,color:mColor}}>{c.name}</span>
+                          <span>{m.played ? "Encerrado 🟢" : "Pendente 🕒"}</span>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginTop:6}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-end",minWidth:0}}>
+                            <span style={{fontSize:13,fontWeight:800,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.home}</span>
+                            <Avatar name={m.home} color={COLORS[c.teams.indexOf(m.home) % COLORS.length]} size={26} src={c.emblems?.[m.home]}/>
+                          </div>
+                          <div style={{textAlign:"center",minWidth:60,fontSize:15,fontWeight:900,color:t.text}}>
+                            {m.played ? m.homeScore + " - " + m.awayScore : "VS"}
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
+                            <Avatar name={m.away} color={COLORS[c.teams.indexOf(m.away) % COLORS.length]} size={26} src={c.emblems?.[m.away]}/>
+                            <span style={{fontSize:13,fontWeight:800,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.away}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
-            
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <div>
-                <label style={S.label}>Senha Atual</label>
-                <div style={{position:"relative"}}>
-                  <input 
-                    style={{...S.input, paddingRight: 42}} 
-                    type={showCurrent ? "text" : "password"} 
-                    value={pwdForm.current} 
-                    onChange={e=>setPwdForm(v=>({...v,current:e.target.value}))} 
-                    placeholder="Digite sua senha atual"
-                  />
-                  <button 
-                    type="button"
-                    onClick={()=>setShowCurrent(!showCurrent)}
-                    style={{
-                      position: "absolute",
-                      right: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "none",
-                      border: "none",
-                      color: t.textSec,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: 0
-                    }}
-                  >
-                    {showCurrent ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
+
+            {/* Lista de Campeonatos e Peladas no Mobile */}
+            {isMobile && (
+              <>
+                {campeonatos.length>0 && (
+                  <div>
+                    <h3 style={{fontSize:14,fontWeight:700,margin:"16px 0 10px 0",color:t.text}}>🏆 Campeonatos</h3>
+                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {campeonatos.map(c=>(
+                        <div key={c.id} style={{...S.card,display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px"}}>
+                          <div style={{cursor:"pointer",flex:1,minWidth:0}} onClick={()=>{setCurrent(c);setScreen("gerenciarChamp");}}>
+                            <div style={{fontWeight:700,fontSize:14,color:t.text}}>{c.name}</div>
+                            <div style={{fontSize:11,color:t.textSec}}>{c.teams.length} times · {c.type==="pontos"?"Pontos":"Mata-Mata"}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {peladas.length>0 && (
+                  <div>
+                    <h3 style={{fontSize:14,fontWeight:700,margin:"16px 0 10px 0",color:t.text}}>👟 Peladas</h3>
+                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {peladas.map(p=>(
+                        <div key={p.id} style={{...S.card,display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px"}}>
+                          <div style={{cursor:"pointer",flex:1,minWidth:0}} onClick={()=>{setCurrent(p);setScreen("gerenciarPelada");}}>
+                            <div style={{fontWeight:700,fontSize:14,color:t.text}}>{p.nome}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* COLUNA DIREITA: Caixa Financeiro e Status */}
+          <div style={S.sidebarRight(isMobile)}>
+            {/* Resumo Financeiro da Liga com Dropdown */}
+            <div style={S.card}>
+              <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>💰 Financeiro da Liga</div>
               
-              <div>
-                <label style={S.label}>Nova Senha (mínimo 4 caracteres)</label>
-                <div style={{position:"relative"}}>
-                  <input 
-                    style={{...S.input, paddingRight: 42}} 
-                    type={showNew ? "text" : "password"} 
-                    value={pwdForm.newPwd} 
-                    onChange={e=>setPwdForm(v=>({...v,newPwd:e.target.value}))} 
-                    placeholder="Nova senha"
-                  />
-                  <button 
-                    type="button"
-                    onClick={()=>setShowNew(!showNew)}
-                    style={{
-                      position: "absolute",
-                      right: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "none",
-                      border: "none",
-                      color: t.textSec,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: 0
-                    }}
-                  >
-                    {showNew ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
+              {/* Dropdown de Seleção de Campeonato */}
+              <div style={{marginBottom:12}}>
+                <select 
+                  value={selectedFinanceChamp} 
+                  onChange={e => setSelectedFinanceChamp(e.target.value)} 
+                  style={{...S.select, padding:"6px 10px", fontSize:11.5}}
+                >
+                  <option value="geral">Geral (Todos)</option>
+                  {campeonatos.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
-              
-              <div>
-                <label style={S.label}>Confirmar Nova Senha</label>
-                <div style={{position:"relative"}}>
-                  <input 
-                    style={{...S.input, paddingRight: 42}} 
-                    type={showConfirm ? "text" : "password"} 
-                    value={pwdForm.confirm} 
-                    onChange={e=>setPwdForm(v=>({...v,confirm:e.target.value}))} 
-                    placeholder="Confirme a nova senha"
-                  />
-                  <button 
-                    type="button"
-                    onClick={()=>setShowConfirm(!showConfirm)}
-                    style={{
-                      position: "absolute",
-                      right: 12,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "none",
-                      border: "none",
-                      color: t.textSec,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: 0
-                    }}
-                  >
-                    {showConfirm ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{width: 20, height: 20}}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                      </svg>
-                    )}
-                  </button>
+
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:12,color:t.textSec}}>Arrecadado:</span>
+                  <span style={{fontSize:13,fontWeight:700,color:"#20E278"}}>{fmtCur(totalReceita)}</span>
                 </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:12,color:t.textSec}}>Despesas:</span>
+                  <span style={{fontSize:13,fontWeight:700,color:"#E24B4A"}}>{fmtCur(totalDespesa)}</span>
+                </div>
+                <div style={{borderBottom:"1px solid " + t.cardBorder,margin:"4px 0"}}/>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:13,fontWeight:800,color:t.text}}>Saldo Caixa:</span>
+                  <span style={{fontSize:14,fontWeight:900,color:saldoFinal >= 0 ? t.accent : "#E24B4A"}}>{fmtCur(saldoFinal)}</span>
+                </div>
+                <button onClick={()=>{setScreen("financeiro");}} style={{...S.btnSm(), width:"100%", justifyContent:"center", marginTop:6}}>
+                  Ver Caixa Geral →
+                </button>
               </div>
-            </div>
-            
-            <div style={{display:"flex",gap:8,marginTop:20}}>
-              <button onClick={handleUpdatePassword} style={S.btn("#1D9E75")}>Salvar Nova Senha</button>
-              <button onClick={()=>{
-                setModalPassword(false); 
-                setPwdError(""); 
-                setPwdForm({current:"",newPwd:"",confirm:""});
-                setShowCurrent(false);
-                setShowNew(false);
-                setShowConfirm(false);
-              }} style={S.btn(t.card,t.textSec)}>Cancelar</button>
             </div>
           </div>
+
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
 
   /* ── FINANCEIRO ────────────────────────────────────────────────── */
   if(screen==="financeiro"){
-    return <FinanceiroScreen financeiro={financeiroFiltered} setFinanceiro={setFinanceiroWrapped} participacoes={participacoes} peladas={peladas} campeonatos={campeonatos} datasRealizacao={datasRealizacao} setScreen={setScreen} DarkBtn={DarkBtn} t={t} atletas={atletas} auth={auth} />;
+    return renderComLayout(<FinanceiroScreen financeiro={financeiroFiltered} setFinanceiro={setFinanceiroWrapped} participacoes={participacoes} peladas={peladas} campeonatos={campeonatos} datasRealizacao={datasRealizacao} setScreen={setScreen} DarkBtn={DarkBtn} t={t} atletas={atletas} auth={auth} />);
   }
 
   /* ── BACKUP ────────────────────────────────────────────────────── */
-  if(screen==="backup")return(
+  if(screen==="backup")return renderComLayout(
     <div style={S.page}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setScreen("home")} style={S.btnSm()}>← Voltar</button><h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>💾 Backup</h2></div>
-        <DarkBtn/>
+      <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
+        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>💾 Backup e Importação/Exportação</h2>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
         {isFirebaseConfigured && (
           <div style={{...S.card, borderColor:"#378ADD55", background:"#378ADD08"}}>
             <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#378ADD"}}>☁️ Sincronização e Backup Online (Firebase)</h3>
             <p style={{fontSize:13,color:t.textSec,marginBottom:14}}>
-              <b>Sincronização Ativa:</b> Suas alterações locais são salvas na nuvem automaticamente 2 segundos após qualquer alteração. Ao abrir o sistema em outro dispositivo e realizar o login, seus dados atualizados serão baixados automaticamente! Use os botões abaixo para forçar o envio ou recebimento imediato dos dados caso esteja usando múltiplos dispositivos abertos ao mesmo tempo.
+              <b>Sincronização Ativa:</b> Suas alterações locais são salvas na nuvem automaticamente.
             </p>
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
               <button onClick={salvarBackupNuvem} style={S.btn("#378ADD")}>🚀 Salvar Banco na Nuvem</button>
@@ -10056,16 +9955,15 @@ export default function App(){
 
         <div style={{...S.card,borderColor:"#1D9E7555",background:"#1D9E7508"}}>
           <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#1D9E75"}}>{isFirebaseConfigured ? "✅ Armazenamento Local" : "✅ Armazenamento Automático"}</h3>
-          <p style={{fontSize:13,color:t.textSec,marginBottom:8}}>Seus dados são salvos automaticamente no navegador (localStorage) a cada alteração. Isso significa que os dados persistem mesmo após fechar e reabrir o aplicativo.</p>
+          <p style={{fontSize:13,color:t.textSec,marginBottom:8}}>Seus dados são salvos automaticamente no navegador.</p>
           <div style={{fontSize:12,color:t.textSec,background:t.inputBg,padding:"10px",borderRadius:8,marginBottom:10}}>
             <b>Tamanho dos dados salvos:</b> {(storageSize / 1024).toFixed(2)} KB
           </div>
-          <p style={{fontSize:12,color:t.textSec,margin:0}}>🌐 <b>Persistência Nativa:</b> Seus dados estão salvos no Android de forma segura. Eles não serão apagados ao fechar o navegador ou limpar o cache temporário. Faça backups regulares.</p>
         </div>
 
         <div style={S.card}>
           <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>📥 Exportar Dados</h3>
-          <p style={{fontSize:13,color:t.textSec,marginBottom:14}}>Faça o download de todos os dados do sistema. O formato JSON é ideal para restauração futura, enquanto o formato TXT é útil para leitura humana.</p>
+          <p style={{fontSize:13,color:t.textSec,marginBottom:14}}>Faça o download de todos os dados do sistema.</p>
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             <button onClick={exportJSON} style={S.btn("#1D9E75")}>📄 Exportar JSON</button>
             <button onClick={exportTXT} style={S.btn("#378ADD")}>📄 Exportar TXT</button>
@@ -10073,28 +9971,21 @@ export default function App(){
         </div>
         <div style={{...S.card,borderColor:"#E24B4A55"}}>
           <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#E24B4A"}}>📤 Importar Dados (Restaurar)</h3>
-          <p style={{fontSize:13,color:t.textSec,marginBottom:14}}>Restaure os dados a partir de um arquivo JSON exportado anteriormente. <b>Atenção:</b> Isso irá sobrescrever todos os dados atuais do sistema.</p>
+          <p style={{fontSize:13,color:t.textSec,marginBottom:14}}>Restaure os dados a partir de um arquivo JSON.</p>
           <label style={{...S.btn("#E24B4A"),display:"inline-flex",cursor:"pointer"}}>
             📂 Selecionar Arquivo JSON
             <input type="file" accept=".json" style={{display:"none"}} onChange={importJSON} />
           </label>
         </div>
-
-        <div style={{...S.card,borderColor:"#BA751755",background:"#BA751508"}}>
-          <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#BA7517"}}>🗑️ Limpar Dados</h3>
-          <p style={{fontSize:13,color:t.textSec,marginBottom:14}}><b>Cuidado:</b> Esta ação irá apagar <b>todos</b> os dados salvos nativamente. Isso não pode ser desfeito a menos que você tenha um backup exportado.</p>
-          <button onClick={async ()=>{if(window.confirm("Tem certeza? Todos os dados serão apagados permanentemente.")){await clearLocalStorage();setAppState({campeonatos:[],peladas:[],datasRealizacao:[],atletas:[],participacoes:[],financeiro:{entries:[]}});alert("Dados limpos com sucesso!");setScreen("home");}}} style={S.btn("#BA7517")}>🗑️ Limpar Todos os Dados</button>
-        </div>
       </div>
     </div>
   );
 
-    /* ── QUADRAS ──────────────────────────────────────────────────── */
-  if(screen==="quadras")return(
+  /* ── QUADRAS ──────────────────────────────────────────────────── */
+  if(screen==="quadras")return renderComLayout(
     <div style={S.page}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setScreen("home")} style={S.btnSm()}>← Voltar</button><h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>🏟️ Quadras</h2></div>
-        <DarkBtn/>
+      <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
+        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>🏟️ Gerenciamento de Quadras / Campos</h2>
       </div>
       <CRUDQuadras 
         quadras={quadras} 
@@ -10110,13 +10001,12 @@ export default function App(){
   );
 
   /* ── ATLETAS ──────────────────────────────────────────────────── */
-  if(screen==="atletas")return(
+  if(screen==="atletas")return renderComLayout(
     <div style={S.page}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setScreen("home")} style={S.btnSm()}>← Voltar</button><h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>👤 Atletas</h2></div>
-        <DarkBtn/>
+      <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
+        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>👤 Gerenciamento Geral de Atletas</h2>
       </div>
-            <CRUDAtletas 
+      <CRUDAtletas 
         atletas={atletas} 
         onAdd={adicionarAtleta} 
         onUpdate={atualizarAtleta} 
@@ -10137,11 +10027,10 @@ export default function App(){
   );
 
   /* ── NOVO CAMPEONATO ──────────────────────────────────────────── */
-  if(screen==="novoChamp")return(
+  if(screen==="novoChamp")return renderComLayout(
     <div style={S.page}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setScreen("home")} style={S.btnSm()}>← Voltar</button><h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>🏆 Novo Campeonato</h2></div>
-        <DarkBtn/>
+      <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
+        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>🏆 Criar Novo Campeonato / Liga</h2>
       </div>
       <NovoCampeonato quadras={quadras} onSave={d=>{
         const newD = {...d, manager_id: auth.role === "manager" ? auth.manager_id : null};
@@ -10153,8 +10042,8 @@ export default function App(){
   );
 
   /* ── GERENCIAR CAMPEONATO ─────────────────────────────────────── */
-  if(screen==="gerenciarChamp"&&current)return(
-        <CampeonatoScreen 
+  if(screen==="gerenciarChamp"&&current)return renderComLayout(
+    <CampeonatoScreen 
       champ={campeonatos.find(c=>c.id===current.id)||current} 
       atletas={atletasCampeonato} 
       onUpdate={atualizarChamp} 
@@ -10166,15 +10055,17 @@ export default function App(){
       cloudLoading={cloudLoading}
       publicarNaNuvem={publicarNaNuvem}
       t={t}
+      tab={activeChampTab}
+      setTab={setActiveChampTab}
+      isMobile={isMobile}
     />
   );
 
   /* ── NOVA PELADA ──────────────────────────────────────────────── */
-  if(screen==="novaPelada")return(
+  if(screen==="novaPelada")return renderComLayout(
     <div style={S.page}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setScreen("home")} style={S.btnSm()}>← Voltar</button><h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>👟 Nova Pelada</h2></div>
-        <DarkBtn/>
+      <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
+        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>👟 Criar Nova Pelada / Sorteador</h2>
       </div>
       <CriarPelada onSave={d=>{adicionarPelada(d);setScreen("home");}} t={t}/>
     </div>
@@ -10183,7 +10074,7 @@ export default function App(){
   /* ── GERENCIAR PELADA ─────────────────────────────────────────── */
   if(screen==="gerenciarPelada"&&current){
     const pelAtual=peladas.find(p=>p.id===current.id)||current;
-    return(
+    return renderComLayout(
       <GerenciarPelada
         pelada={pelAtual}
         atletas={atletas}
@@ -10202,8 +10093,17 @@ export default function App(){
         onAddAtleta={adicionarAtleta}
         onBack={()=>setScreen("home")}
         t={t}
+        aba={activePeladaTab}
+        setAba={setActivePeladaTab}
       />
     );
+  }
+
+  if(screen==="managerRegistry"){
+    if(auth.role !== "adm"){
+      return <SelectionScreen onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
+    }
+    return renderComLayout(<ManagerRegistry managers={managers} onAdd={adicionarManager} onUpdate={atualizarManager} onRemove={removerManager} onBack={()=>setScreen("home")} t={t} />);
   }
 
   return null;
