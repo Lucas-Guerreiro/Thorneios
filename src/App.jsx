@@ -5963,6 +5963,66 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   const[selTeamElenco,setSelTeamElenco]=useState(champ.teams[0]||"");
   const [showCelebration, setShowCelebration] = useState(false);
 
+  // ── Função para salvar fotos de uma partida específica ────────
+  const saveMatchPhoto = (eKey, photoBase64) => {
+    try {
+      const tc = deepClone(c);
+      // Helper para atualizar um match em qualquer estrutura
+      const addPhoto = (matches) => matches.map(m => {
+        const key = `${m.home}-${m.away}`;
+        if (eKey.includes(key) || m._eKey === eKey) {
+          return { ...m, photos: [...(m.photos || []), { id: Date.now(), data: photoBase64, date: todayStr() }] };
+        }
+        return m;
+      });
+      // Identificar o match pelo eKey e atualizar
+      if (eKey.startsWith('rr-') && tc.rounds) {
+        const parts = eKey.replace('rr-','').split('-');
+        const ri = Number(parts[0]), mi = Number(parts[1]);
+        if (tc.rounds[ri] && tc.rounds[ri].matches[mi]) {
+          const m = tc.rounds[ri].matches[mi];
+          tc.rounds[ri].matches[mi] = { ...m, photos: [...(m.photos||[]), { id: Date.now(), data: photoBase64, date: todayStr() }] };
+        }
+      } else if (eKey.startsWith('ko-') && tc.knockout) {
+        const parts = eKey.replace('ko-','').split('-');
+        const pi = Number(parts[0]), mi = Number(parts[1]);
+        if (tc.knockout[pi] && tc.knockout[pi].matches[mi]) {
+          const m = tc.knockout[pi].matches[mi];
+          tc.knockout[pi].matches[mi] = { ...m, photos: [...(m.photos||[]), { id: Date.now(), data: photoBase64, date: todayStr() }] };
+        }
+      } else if (eKey.startsWith('gr-') && tc.groups) {
+        const parts = eKey.replace('gr-','').split('-');
+        const gi = Number(parts[0]), ri = Number(parts[1]), mi = Number(parts[2]);
+        if (tc.groups[gi] && tc.groups[gi].rounds[ri] && tc.groups[gi].rounds[ri].matches[mi]) {
+          const m = tc.groups[gi].rounds[ri].matches[mi];
+          tc.groups[gi].rounds[ri].matches[mi] = { ...m, photos: [...(m.photos||[]), { id: Date.now(), data: photoBase64, date: todayStr() }] };
+        }
+      }
+      onUpdate(tc);
+    } catch(err) { console.error('Erro ao salvar foto da partida:', err); }
+  };
+
+  const removeMatchPhoto = (eKey, photoId) => {
+    try {
+      const tc = deepClone(c);
+      const removePhoto = (m) => ({ ...m, photos: (m.photos||[]).filter(p => p.id !== photoId) });
+      if (eKey.startsWith('rr-') && tc.rounds) {
+        const parts = eKey.replace('rr-','').split('-');
+        const ri = Number(parts[0]), mi = Number(parts[1]);
+        if (tc.rounds[ri]?.matches[mi]) tc.rounds[ri].matches[mi] = removePhoto(tc.rounds[ri].matches[mi]);
+      } else if (eKey.startsWith('ko-') && tc.knockout) {
+        const parts = eKey.replace('ko-','').split('-');
+        const pi = Number(parts[0]), mi = Number(parts[1]);
+        if (tc.knockout[pi]?.matches[mi]) tc.knockout[pi].matches[mi] = removePhoto(tc.knockout[pi].matches[mi]);
+      } else if (eKey.startsWith('gr-') && tc.groups) {
+        const parts = eKey.replace('gr-','').split('-');
+        const gi = Number(parts[0]), ri = Number(parts[1]), mi = Number(parts[2]);
+        if (tc.groups[gi]?.rounds[ri]?.matches[mi]) tc.groups[gi].rounds[ri].matches[mi] = removePhoto(tc.groups[gi].rounds[ri].matches[mi]);
+      }
+      onUpdate(tc);
+    } catch(err) { console.error('Erro ao remover foto:', err); }
+  };
+
   const [filtroElenco, setFiltroElenco] = useState("");
   const [filtroGrupoElenco, setFiltroGrupoElenco] = useState("");
   const [modalNovoAtleta, setModalNovoAtleta] = useState(false);
@@ -7575,8 +7635,28 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-end",minWidth:100}}><span style={{fontSize:14,fontWeight:700,color:t.text,textAlign:"right"}}>{m.home}</span><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={32} src={c.emblems?.[m.home]}/></div>
           <div style={{textAlign:"center",minWidth:80,flexShrink:0}}>{m.played?<span style={{fontWeight:900,fontSize:18,color:"#1D9E75"}}>{m.homeScore}×{m.awayScore}</span>:<span style={{color:t.textSec,fontSize:14}}>—×—</span>}</div>
           <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:100}}><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={32} src={c.emblems?.[m.away]}/><span style={{fontSize:14,fontWeight:700,color:t.text}}>{m.away}</span></div>
-          <div style={{display:"flex",gap:4,flexShrink:0}}>
+          <div style={{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}>
              <button onClick={()=>setSumulaModal({m, eKey, round: m.round || currentRound})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}} title="Súmula da Partida">📝</button>
+             {/* Câmera — apenas em dispositivos móveis/tablet com câmera */}
+             {isMobile && (
+               <label style={{...S.btnSm("#D85A3022","#D85A30"),padding:"6px",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:10}} title="Tirar foto do jogo">
+                 📷
+                 <input
+                   type="file"
+                   accept="image/*"
+                   capture="environment"
+                   style={{display:"none"}}
+                   onChange={(e) => {
+                     const file = e.target.files?.[0];
+                     if (!file) return;
+                     resizeImage(file, 800, (base64) => {
+                       saveMatchPhoto(eKey, base64);
+                     });
+                     e.target.value = '';
+                   }}
+                 />
+               </label>
+             )}
              <button onClick={()=>setEditing({key:eKey})} style={{...S.btnSm(),padding:"6px 12px"}}>{m.played?"✏️":"▶"}</button>
           </div>
         </div>
@@ -7617,6 +7697,53 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           {renderSideEvents(leftEvents, m.home)}
           {renderSideEvents(rightEvents, m.away)}
         </div>
+
+        {/* Galeria de fotos da partida */}
+        {(() => {
+          const photos = m.photos || [];
+          if (photos.length === 0 && !isMobile) return null;
+          return (
+            <div style={{marginTop: 4}}>
+              {photos.length > 0 && (
+                <>
+                  <div style={{fontSize:10,fontWeight:700,color:t.textSec,marginBottom:6,textTransform:"uppercase",letterSpacing:0.5}}>📷 Fotos da Partida ({photos.length})</div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {photos.map((photo) => (
+                      <div key={photo.id} style={{position:"relative",width:72,height:72,borderRadius:8,overflow:"hidden",border:`1px solid ${t.cardBorder}`}}>
+                        <img src={photo.data} alt="Foto da partida" style={{width:"100%",height:"100%",objectFit:"cover"}} />
+                        <button
+                          onClick={() => { if(window.confirm('Remover esta foto?')) removeMatchPhoto(eKey, photo.id); }}
+                          style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,0.6)",border:"none",color:"#fff",fontSize:10,borderRadius:4,width:18,height:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0}}
+                        >✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {isMobile && (
+                <label style={{
+                  display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",
+                  padding:"6px 12px",borderRadius:10,border:`1px dashed ${t.cardBorder}`,
+                  fontSize:12,color:t.textSec,marginTop: photos.length>0?8:0,fontFamily:"'Outfit',sans-serif"
+                }}>
+                  <span>📷</span> Adicionar foto do jogo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style={{display:"none"}}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      resizeImage(file, 800, (base64) => saveMatchPhoto(eKey, base64));
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          );
+        })()}
       </div>
     );
   }
@@ -8518,13 +8645,235 @@ export default function App(){
     );
   };
 
+  /* ── SIDEBAR PERMANENTE (Desktop) ──────────────────────────────── */
+  const PermanentSidebar = () => {
+    if (isMobile) return null;
+    const navItems = [
+      { label: "Início", icon: "🏠", screen: "home" },
+      { label: "Atletas", icon: "👤", screen: "atletas" },
+      { label: "Quadras / Campos", icon: "🏟️", screen: "quadras" },
+      { label: "Financeiro", icon: "💰", screen: "financeiro" },
+      { label: "Backup", icon: "💾", screen: "backup" },
+      ...(auth.role === "adm" ? [{ label: "Gestores", icon: "👥", screen: "managerRegistry" }] : []),
+    ];
+
+    const avatarLetter = (auth.name || "U")[0].toUpperCase();
+
+    return (
+      <div style={{
+        width: 240,
+        flexShrink: 0,
+        display: "flex",
+        flexDirection: "column",
+        borderRight: "1px solid " + t.cardBorder,
+        backgroundColor: t.card,
+        height: "100%",
+        overflowY: "auto",
+        fontFamily: "'Outfit', sans-serif",
+        gap: 0,
+        position: "sticky",
+        top: 0,
+        alignSelf: "flex-start",
+        maxHeight: "calc(100vh - 88px)",
+      }}>
+        {/* Perfil do usuário */}
+        <div style={{
+          padding: "16px 14px",
+          borderBottom: "1px solid " + t.cardBorder,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #06AA48, #20E278)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 900,
+            fontSize: 18,
+            color: "#fff",
+            flexShrink: 0,
+            boxShadow: "0 2px 8px rgba(6,170,72,0.3)"
+          }}>
+            {avatarLetter}
+          </div>
+          <div style={{minWidth: 0, flex: 1}}>
+            <div style={{fontSize: 13, fontWeight: 800, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+              {auth.name || "Gestor"}
+            </div>
+            <div style={{fontSize: 10, color: t.textSec, marginTop: 1, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 700}}>
+              {auth.role === "adm" ? "⚡ Administrador" : "📋 Gestor"}
+            </div>
+          </div>
+        </div>
+
+        {/* Navegação Principal */}
+        <div style={{padding: "10px 0"}}>
+          <div style={{fontSize: 9, fontWeight: 900, color: t.textSec, padding: "0 14px 6px 14px", textTransform: "uppercase", letterSpacing: 1.2}}>
+            Menu
+          </div>
+          {navItems.map((item) => {
+            const isActive = screen === item.screen;
+            return (
+              <button
+                key={item.screen}
+                onClick={() => setScreen(item.screen)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "9px 14px",
+                  width: "100%",
+                  textAlign: "left",
+                  background: isActive ? "#06AA4812" : "transparent",
+                  border: "none",
+                  borderLeft: `3px solid ${isActive ? "#06AA48" : "transparent"}`,
+                  color: isActive ? "#06AA48" : t.text,
+                  fontWeight: isActive ? 800 : 500,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  fontFamily: "'Outfit', sans-serif",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = t.inputBg; } }}
+                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = "transparent"; } }}
+              >
+                <span style={{fontSize: 14, flexShrink: 0}}>{item.icon}</span>
+                <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Campeonatos */}
+        <div style={{padding: "0 0 8px 0", borderTop: "1px solid " + t.cardBorder}}>
+          <div style={{
+            fontSize: 9, fontWeight: 900, color: t.textSec,
+            padding: "10px 14px 6px 14px", textTransform: "uppercase", letterSpacing: 1.2,
+            display: "flex", justifyContent: "space-between", alignItems: "center"
+          }}>
+            <span>Ligas ({campeonatos.length})</span>
+            <button onClick={() => setScreen("novoChamp")} style={{background: "none", border: "none", color: "#06AA48", fontWeight: 900, cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "'Outfit', sans-serif"}}>
+              + Nova
+            </button>
+          </div>
+          <div style={{maxHeight: 180, overflowY: "auto"}}>
+            {campeonatos.map(c2 => {
+              const mDef = MODALIDADES_ESPORTIVAS.find(x => x.id === c2.modalidade);
+              const mIcon = mDef ? mDef.icon : "🏆";
+              const isCur = screen === "gerenciarChamp" && current?.id === c2.id;
+              return (
+                <button
+                  key={c2.id}
+                  onClick={() => { setCurrent(c2); setScreen("gerenciarChamp"); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, padding: "7px 14px",
+                    width: "100%", textAlign: "left",
+                    background: isCur ? "#06AA4812" : "transparent",
+                    border: "none",
+                    borderLeft: `3px solid ${isCur ? "#06AA48" : "transparent"}`,
+                    color: isCur ? "#06AA48" : t.text,
+                    fontWeight: isCur ? 800 : 500,
+                    fontSize: 12, cursor: "pointer",
+                    fontFamily: "'Outfit', sans-serif",
+                    transition: "all 0.15s ease",
+                  }}
+                  onMouseEnter={e => { if (!isCur) e.currentTarget.style.background = t.inputBg; }}
+                  onMouseLeave={e => { if (!isCur) e.currentTarget.style.background = "transparent"; }}
+                >
+                  <span style={{fontSize: 12, flexShrink: 0}}>{mIcon}</span>
+                  <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>{c2.name}</span>
+                </button>
+              );
+            })}
+            {campeonatos.length === 0 && (
+              <div style={{fontSize: 11, color: t.textSec, fontStyle: "italic", padding: "4px 14px"}}>Nenhuma liga.</div>
+            )}
+          </div>
+        </div>
+
+        {/* Peladas */}
+        <div style={{padding: "0 0 8px 0", borderTop: "1px solid " + t.cardBorder}}>
+          <div style={{
+            fontSize: 9, fontWeight: 900, color: t.textSec,
+            padding: "10px 14px 6px 14px", textTransform: "uppercase", letterSpacing: 1.2,
+            display: "flex", justifyContent: "space-between", alignItems: "center"
+          }}>
+            <span>Peladas ({peladas.length})</span>
+            <button onClick={() => setScreen("novaPelada")} style={{background: "none", border: "none", color: "#378ADD", fontWeight: 900, cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "'Outfit', sans-serif"}}>
+              + Nova
+            </button>
+          </div>
+          <div style={{maxHeight: 140, overflowY: "auto"}}>
+            {peladas.map(p2 => {
+              const isCur = screen === "gerenciarPelada" && current?.id === p2.id;
+              return (
+                <button
+                  key={p2.id}
+                  onClick={() => { setCurrent(p2); setScreen("gerenciarPelada"); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8, padding: "7px 14px",
+                    width: "100%", textAlign: "left",
+                    background: isCur ? "#378ADD12" : "transparent",
+                    border: "none",
+                    borderLeft: `3px solid ${isCur ? "#378ADD" : "transparent"}`,
+                    color: isCur ? "#378ADD" : t.text,
+                    fontWeight: isCur ? 800 : 500,
+                    fontSize: 12, cursor: "pointer",
+                    fontFamily: "'Outfit', sans-serif",
+                    transition: "all 0.15s ease",
+                  }}
+                  onMouseEnter={e => { if (!isCur) e.currentTarget.style.background = t.inputBg; }}
+                  onMouseLeave={e => { if (!isCur) e.currentTarget.style.background = "transparent"; }}
+                >
+                  <span style={{fontSize: 12, flexShrink: 0}}>👟</span>
+                  <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>{p2.nome}</span>
+                </button>
+              );
+            })}
+            {peladas.length === 0 && (
+              <div style={{fontSize: 11, color: t.textSec, fontStyle: "italic", padding: "4px 14px"}}>Nenhuma pelada.</div>
+            )}
+          </div>
+        </div>
+
+        {/* Rodapé da Sidebar */}
+        <div style={{marginTop: "auto", borderTop: "1px solid " + t.cardBorder, padding: "10px 10px", display: "flex", flexDirection: "column", gap: 6}}>
+          <button onClick={() => setModalPassword(true)} style={{...S.btnSm(t.inputBg, t.textSec), justifyContent: "center", fontSize: 11.5, width: "100%"}}>
+            🔐 Alterar Senha
+          </button>
+          <button onClick={handleLogout} style={{...S.btnSm("#E24B4A22", "#E24B4A"), justifyContent: "center", fontSize: 11.5, width: "100%", fontWeight: 800}}>
+            🚪 Sair
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderComLayout = (conteudo) => {
+    if (isMobile) {
+      return (
+        <div style={{display: "flex", flexDirection: "column", minHeight: "100vh", backgroundColor: t.bg}}>
+          <GEHeader />
+          <GEDrawer />
+          <div style={{flex: 1, padding: "10px", boxSizing: "border-box"}}>
+            {conteudo}
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={{display: "flex", flexDirection: "column", minHeight: "100vh", backgroundColor: t.bg}}>
         <GEHeader />
         <GEDrawer />
-        <div style={{flex: 1, padding: isMobile ? "10px" : "16px 24px", maxWidth: "1200px", width: "100%", margin: "0 auto", boxSizing: "border-box"}}>
-          {conteudo}
+        <div style={{flex: 1, display: "flex", maxWidth: "1200px", width: "100%", margin: "0 auto", boxSizing: "border-box", alignItems: "flex-start", gap: 0}}>
+          <PermanentSidebar />
+          <div style={{flex: 1, minWidth: 0, padding: "16px 20px", overflowX: "hidden"}}>
+            {conteudo}
+          </div>
         </div>
       </div>
     );
@@ -9671,17 +10020,21 @@ export default function App(){
 
   /* ── HOME ────────────────────────────────────────────────────── */
   if(screen==="home"){
-    // Cálculo financeiro real e filtrado por campeonato para o painel lateral do portal
+    // Cálculo financeiro
     const entries = financeiroFiltered?.entries || [];
-    const filteredEntries = selectedFinanceChamp === "geral" 
-      ? entries 
-      : entries.filter(e => String(e.champ_id) === String(selectedFinanceChamp));
-      
-    const totalReceita = filteredEntries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const totalDespesa = filteredEntries.filter(e => e.type === "despesa").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const totalReceita = entries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const totalDespesa = entries.filter(e => e.type === "despesa").reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const saldoFinal = totalReceita - totalDespesa;
 
-    // Filtra no máximo 4 partidas recentes ou pendentes de todos os campeonatos
+    // Total de partidas jogadas
+    let totalPartidasJogadas = 0;
+    campeonatos.forEach(c => {
+      if (c.rounds) c.rounds.forEach(r => r.matches && r.matches.forEach(m => { if (m.played) totalPartidasJogadas++; }));
+      if (c.knockout) c.knockout.forEach(p => p.matches && p.matches.forEach(m => { if (m.played) totalPartidasJogadas++; }));
+      if (c.groups) c.groups.forEach(g => g.rounds && g.rounds.forEach(r => r.matches && r.matches.forEach(m => { if (m.played) totalPartidasJogadas++; })));
+    });
+
+    // Partidas recentes (últimas 5)
     const getRecentMatches = () => {
       const list = [];
       campeonatos.forEach(c => {
@@ -9693,111 +10046,103 @@ export default function App(){
           c.groups.forEach(g => g.rounds && g.rounds.forEach(r => r.matches && r.matches.forEach(m => list.push({ ...m, champ: c }))));
         }
       });
-      return list.sort((a,b) => (b.played ? 1 : 0) - (a.played ? 1 : 0)).slice(0, 4);
+      return list.sort((a,b) => (b.played ? 1 : 0) - (a.played ? 1 : 0)).slice(0, 5);
     };
     const recentMatches = getRecentMatches();
 
+    // Comunicados recentes (últimos posts do mural de todos campeonatos)
+    const comunicados = [];
+    campeonatos.forEach(c => {
+      if (c.mural && c.mural.length > 0) {
+        const posts = c.mural.filter(p => p.type === "comunicado" || p.type === "noticia" || p.type === "texto").slice(-2);
+        posts.forEach(p => comunicados.push({ ...p, champName: c.name, champId: c.id, champ: c }));
+      }
+    });
+    comunicados.sort((a, b) => (b.date || 0) > (a.date || 0) ? 1 : -1);
+    const comunicadosRecentes = comunicados.slice(0, 3);
+
+    const statCards = [
+      { label: "Atletas", value: atletas.length, icon: "👤", color: "#378ADD" },
+      { label: "Campeonatos", value: campeonatos.length, icon: "🏆", color: "#06AA48" },
+      { label: "Partidas Jogadas", value: totalPartidasJogadas, icon: "⚽", color: "#D85A30" },
+      { label: "Saldo Caixa", value: fmtCur(saldoFinal), icon: "💰", color: saldoFinal >= 0 ? "#20E278" : "#E24B4A" },
+    ];
+
     return renderComLayout(
-      <div style={S.page}>
-        {/* Layout Container - 3 Colunas responsivas */}
-        <div style={S.layoutContainer(isMobile)}>
-          
-          {/* COLUNA ESQUERDA: Ligas, Peladas (Apenas no Desktop) */}
-          {!isMobile && (
-            <div style={S.sidebarLeft(isMobile)}>
-              {/* Ligas */}
-              {campeonatos.length>0 && (
-                <div style={S.card}>
-                  <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>Ligas Ativas</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:250,overflowY:"auto"}}>
-                    {campeonatos.map(c => {
-                      const mDef = MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade);
-                      const mIcon = mDef ? mDef.icon : "🏆";
-                      const mColor = mDef ? mDef.color : t.accent;
-                      return (
-                        <button key={c.id} onClick={()=>{setCurrent(c);setScreen("gerenciarChamp");}}
-                          style={S.sidebarItem(current?.id === c.id, mColor)}
-                        >
-                          <span style={{fontSize:14}}>{mIcon}</span>
-                          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{c.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+      <div style={{display: "flex", flexDirection: "column", gap: 20, paddingTop: 4}}>
 
-              {/* Peladas */}
-              {peladas.length>0 && (
-                <div style={S.card}>
-                  <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>Peladas</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:200,overflowY:"auto"}}>
-                    {peladas.map(p => (
-                      <button key={p.id} onClick={()=>{setCurrent(p);setScreen("gerenciarPelada");}}
-                        style={S.sidebarItem(current?.id === p.id, "#378ADD")}
-                      >
-                        <span>👟</span>
-                        <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{p.nome}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+        {/* Cards de Estatísticas */}
+        <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12}}>
+          {statCards.map((sc, i) => (
+            <div key={i} style={{
+              ...S.card,
+              padding: "14px 16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              borderLeft: `4px solid ${sc.color}`,
+              transition: "transform 0.2s ease",
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
+            onMouseLeave={e => e.currentTarget.style.transform = "none"}
+            >
+              <div style={{display: "flex", alignItems: "center", justifyContent: "space-between"}}>
+                <span style={{fontSize: 11, fontWeight: 800, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>{sc.label}</span>
+                <span style={{fontSize: 18}}>{sc.icon}</span>
+              </div>
+              <div style={{fontSize: 22, fontWeight: 900, color: sc.color, fontFamily: "'Outfit', sans-serif"}}>{sc.value}</div>
             </div>
-          )}
+          ))}
+        </div>
 
-          {/* COLUNA CENTRAL: Ações Rápidas, Sincronização, Feed de Partidas */}
-          <div style={S.mainContent}>
-            {/* Banner de Sincronização */}
-            <div style={{...S.card,background:isFirebaseConfigured ? "#20E27810" : "#378ADD10",borderColor:isFirebaseConfigured ? "#20E27844" : "#378ADD44",padding:14}}>
-              <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-                <div style={{fontSize:20}}>{isFirebaseConfigured ? "☁️" : "💾"}</div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:800,color:isFirebaseConfigured ? "#20E278" : "#378ADD",marginBottom:3}}>
-                    {isFirebaseConfigured ? "Conectado ao Firebase Cloud Sync" : "Armazenamento Local Ativo"}
-                  </div>
-                  <div style={{fontSize:11,color:t.textSec,lineHeight:1.4}}>
-                    {isFirebaseConfigured 
-                      ? "Seu sistema está conectado ao Firebase! Seus dados são salvos online automaticamente."
-                      : "Seus dados estão salvos de forma segura neste dispositivo. Não precisa de internet!"}
-                  </div>
-                </div>
+        {/* Banner de Sincronização */}
+        <div style={{...S.card, background: isFirebaseConfigured ? "#20E27808" : "#378ADD08", borderColor: isFirebaseConfigured ? "#20E27830" : "#378ADD30", padding: "12px 16px"}}>
+          <div style={{display: "flex", alignItems: "center", gap: 10}}>
+            <div style={{fontSize: 18}}>{isFirebaseConfigured ? "☁️" : "💾"}</div>
+            <div style={{flex: 1}}>
+              <div style={{fontSize: 13, fontWeight: 800, color: isFirebaseConfigured ? "#20E278" : "#378ADD", marginBottom: 2}}>
+                {isFirebaseConfigured ? "Conectado ao Firebase Cloud Sync" : "Armazenamento Local Ativo"}
+              </div>
+              <div style={{fontSize: 11, color: t.textSec}}>
+                {isFirebaseConfigured
+                  ? "Seus dados são salvos online automaticamente."
+                  : "Dados salvos de forma segura neste dispositivo."}
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Criar Novos Eventos */}
+        <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: 16, alignItems: "flex-start"}}>
+          {/* COLUNA PRINCIPAL */}
+          <div style={{display: "flex", flexDirection: "column", gap: 16}}>
+
+            {/* Ações Rápidas */}
             <div>
-              <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>Painel do Administrador</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>Ações Rápidas</div>
+              <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12}}>
                 {[
-                  {icon:"🏆",label:"Novo Campeonato",sub:"Grupos, pontos ou chaves",action:()=>setScreen("novoChamp"),color:t.accent,scope:"campeonato"},
-                  {icon:"👟",label:"Nova Pelada",sub:"Sorteador de times rápidos",action:()=>setScreen("novaPelada"),color:"#378ADD",scope:"pelada"},
-                ].filter(b => auth.role === "adm" || auth.scope === "geral" || auth.scope === b.scope).map(b=>(
-                  <button key={b.label} onClick={b.action} 
+                  {icon: "🏆", label: "Novo Campeonato", sub: "Grupos, pontos ou chaves", action: () => setScreen("novoChamp"), color: t.accent, scope: "campeonato"},
+                  {icon: "👟", label: "Nova Pelada", sub: "Sorteador de times rápidos", action: () => setScreen("novaPelada"), color: "#378ADD", scope: "pelada"},
+                ].filter(b => auth.role === "adm" || auth.scope === "geral" || auth.scope === b.scope).map(b => (
+                  <button key={b.label} onClick={b.action}
                     style={{
                       ...S.card,
-                      textAlign:"center",
-                      cursor:"pointer",
-                      border:"1.5px solid " + b.color + "22",
-                      display:"block",
-                      width:"100%",
-                      padding:16,
-                      background:t.card,
-                      boxSizing:"border-box",
-                      transition:"all 0.2s ease"
+                      textAlign: "center",
+                      cursor: "pointer",
+                      border: "1.5px solid " + b.color + "22",
+                      display: "block",
+                      width: "100%",
+                      padding: 16,
+                      background: t.card,
+                      boxSizing: "border-box",
+                      transition: "all 0.2s ease"
                     }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = b.color;
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = b.color + "22";
-                      e.currentTarget.style.transform = "none";
-                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = b.color; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = b.color + "22"; e.currentTarget.style.transform = "none"; }}
                   >
-                    <div style={{fontSize:28,marginBottom:6}}>{b.icon}</div>
-                    <div style={{fontWeight:800,fontSize:14,color:b.color}}>{b.label}</div>
-                    <div style={{fontSize:11,color:t.textSec,marginTop:4,lineHeight:1.4}}>{b.sub}</div>
+                    <div style={{fontSize: 28, marginBottom: 6}}>{b.icon}</div>
+                    <div style={{fontWeight: 800, fontSize: 14, color: b.color}}>{b.label}</div>
+                    <div style={{fontSize: 11, color: t.textSec, marginTop: 4, lineHeight: 1.4}}>{b.sub}</div>
                   </button>
                 ))}
               </div>
@@ -9806,8 +10151,8 @@ export default function App(){
             {/* Feed de Partidas Recentes */}
             {recentMatches.length > 0 && (
               <div>
-                <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>📊 Partidas da Rodada</div>
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>📊 Partidas Recentes</div>
+                <div style={{display: "flex", flexDirection: "column", gap: 8}}>
                   {recentMatches.map((m, mi) => {
                     const c = m.champ;
                     const mDef = MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade);
@@ -9815,28 +10160,28 @@ export default function App(){
                     return (
                       <div key={mi} style={{
                         ...S.card,
-                        padding:"12px 14px",
-                        borderLeft:"4px solid " + mColor,
-                        display:"flex",
-                        flexDirection:"column",
-                        gap:6,
-                        cursor:"pointer"
-                      }} onClick={() => { setCurrent(c); setScreen("gerenciarChamp"); }}>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:10,color:t.textSec}}>
-                          <span style={{fontWeight:800,color:mColor}}>{c.name}</span>
-                          <span>{m.played ? "Encerrado 🟢" : "Pendente 🕒"}</span>
+                        padding: "12px 14px",
+                        borderLeft: "4px solid " + mColor,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 6,
+                        cursor: "pointer"
+                      }} onClick={() => { setCurrent(c); setScreen("gerenciarChamp"); setActiveChampTab("jogos"); }}>
+                        <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 10, color: t.textSec}}>
+                          <span style={{fontWeight: 800, color: mColor}}>{c.name}</span>
+                          <span>{m.played ? "✅ Encerrado" : "🕒 Pendente"}</span>
                         </div>
-                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginTop:6}}>
-                          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-end",minWidth:0}}>
-                            <span style={{fontSize:13,fontWeight:800,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.home}</span>
+                        <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8}}>
+                          <div style={{display: "flex", alignItems: "center", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 0}}>
+                            <span style={{fontSize: 13, fontWeight: 800, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{m.home}</span>
                             <Avatar name={m.home} color={COLORS[c.teams.indexOf(m.home) % COLORS.length]} size={26} src={c.emblems?.[m.home]}/>
                           </div>
-                          <div style={{textAlign:"center",minWidth:60,fontSize:15,fontWeight:900,color:t.text}}>
+                          <div style={{textAlign: "center", minWidth: 60, fontSize: 16, fontWeight: 900, color: t.text}}>
                             {m.played ? m.homeScore + " - " + m.awayScore : "VS"}
                           </div>
-                          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
+                          <div style={{display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0}}>
                             <Avatar name={m.away} color={COLORS[c.teams.indexOf(m.away) % COLORS.length]} size={26} src={c.emblems?.[m.away]}/>
-                            <span style={{fontSize:13,fontWeight:800,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.away}</span>
+                            <span style={{fontSize: 13, fontWeight: 800, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{m.away}</span>
                           </div>
                         </div>
                       </div>
@@ -9846,33 +10191,29 @@ export default function App(){
               </div>
             )}
 
-            {/* Lista de Campeonatos e Peladas no Mobile */}
+            {/* Lista Mobile de campeonatos */}
             {isMobile && (
               <>
-                {campeonatos.length>0 && (
+                {campeonatos.length > 0 && (
                   <div>
-                    <h3 style={{fontSize:14,fontWeight:700,margin:"16px 0 10px 0",color:t.text}}>🏆 Campeonatos</h3>
-                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                      {campeonatos.map(c=>(
-                        <div key={c.id} style={{...S.card,display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px"}}>
-                          <div style={{cursor:"pointer",flex:1,minWidth:0}} onClick={()=>{setCurrent(c);setScreen("gerenciarChamp");}}>
-                            <div style={{fontWeight:700,fontSize:14,color:t.text}}>{c.name}</div>
-                            <div style={{fontSize:11,color:t.textSec}}>{c.teams.length} times · {c.type==="pontos"?"Pontos":"Mata-Mata"}</div>
-                          </div>
+                    <h3 style={{fontSize: 14, fontWeight: 700, margin: "8px 0 10px 0", color: t.text}}>🏆 Campeonatos</h3>
+                    <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                      {campeonatos.map(c => (
+                        <div key={c.id} style={{...S.card, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", cursor: "pointer"}} onClick={() => {setCurrent(c); setScreen("gerenciarChamp");}}>
+                          <div style={{fontWeight: 700, fontSize: 14, color: t.text}}>{c.name}</div>
+                          <div style={{fontSize: 11, color: t.textSec}}>{c.teams.length} times</div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-                {peladas.length>0 && (
+                {peladas.length > 0 && (
                   <div>
-                    <h3 style={{fontSize:14,fontWeight:700,margin:"16px 0 10px 0",color:t.text}}>👟 Peladas</h3>
-                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                      {peladas.map(p=>(
-                        <div key={p.id} style={{...S.card,display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px"}}>
-                          <div style={{cursor:"pointer",flex:1,minWidth:0}} onClick={()=>{setCurrent(p);setScreen("gerenciarPelada");}}>
-                            <div style={{fontWeight:700,fontSize:14,color:t.text}}>{p.nome}</div>
-                          </div>
+                    <h3 style={{fontSize: 14, fontWeight: 700, margin: "8px 0 10px 0", color: t.text}}>👟 Peladas</h3>
+                    <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                      {peladas.map(p => (
+                        <div key={p.id} style={{...S.card, padding: "12px 14px", cursor: "pointer"}} onClick={() => {setCurrent(p); setScreen("gerenciarPelada");}}>
+                          <div style={{fontWeight: 700, fontSize: 14, color: t.text}}>{p.nome}</div>
                         </div>
                       ))}
                     </div>
@@ -9882,51 +10223,59 @@ export default function App(){
             )}
           </div>
 
-          {/* COLUNA DIREITA: Caixa Financeiro e Status */}
-          <div style={S.sidebarRight(isMobile)}>
-            {/* Resumo Financeiro da Liga com Dropdown */}
+          {/* COLUNA DIREITA: Financeiro + Comunicados */}
+          <div style={{display: "flex", flexDirection: "column", gap: 14}}>
+            {/* Resumo Financeiro */}
             <div style={S.card}>
-              <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:10,textTransform:"uppercase",letterSpacing:0.8}}>💰 Financeiro da Liga</div>
-              
-              {/* Dropdown de Seleção de Campeonato */}
-              <div style={{marginBottom:12}}>
-                <select 
-                  value={selectedFinanceChamp} 
-                  onChange={e => setSelectedFinanceChamp(e.target.value)} 
-                  style={{...S.select, padding:"6px 10px", fontSize:11.5}}
-                >
-                  <option value="geral">Geral (Todos)</option>
-                  {campeonatos.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:12,color:t.textSec}}>Arrecadado:</span>
-                  <span style={{fontSize:13,fontWeight:700,color:"#20E278"}}>{fmtCur(totalReceita)}</span>
+              <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>💰 Caixa da Liga</div>
+              <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+                  <span style={{fontSize: 12, color: t.textSec}}>Arrecadado:</span>
+                  <span style={{fontSize: 13, fontWeight: 700, color: "#20E278"}}>{fmtCur(totalReceita)}</span>
                 </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:12,color:t.textSec}}>Despesas:</span>
-                  <span style={{fontSize:13,fontWeight:700,color:"#E24B4A"}}>{fmtCur(totalDespesa)}</span>
+                <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+                  <span style={{fontSize: 12, color: t.textSec}}>Despesas:</span>
+                  <span style={{fontSize: 13, fontWeight: 700, color: "#E24B4A"}}>{fmtCur(totalDespesa)}</span>
                 </div>
-                <div style={{borderBottom:"1px solid " + t.cardBorder,margin:"4px 0"}}/>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:13,fontWeight:800,color:t.text}}>Saldo Caixa:</span>
-                  <span style={{fontSize:14,fontWeight:900,color:saldoFinal >= 0 ? t.accent : "#E24B4A"}}>{fmtCur(saldoFinal)}</span>
+                <div style={{borderBottom: "1px solid " + t.cardBorder, margin: "2px 0"}}/>
+                <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+                  <span style={{fontSize: 13, fontWeight: 800, color: t.text}}>Saldo:</span>
+                  <span style={{fontSize: 15, fontWeight: 900, color: saldoFinal >= 0 ? t.accent : "#E24B4A"}}>{fmtCur(saldoFinal)}</span>
                 </div>
-                <button onClick={()=>{setScreen("financeiro");}} style={{...S.btnSm(), width:"100%", justifyContent:"center", marginTop:6}}>
-                  Ver Caixa Geral →
+                <button onClick={() => setScreen("financeiro")} style={{...S.btnSm(), width: "100%", justifyContent: "center", marginTop: 4}}>
+                  Ver Caixa Completo →
                 </button>
               </div>
             </div>
-          </div>
 
+            {/* Comunicados Recentes */}
+            {comunicadosRecentes.length > 0 && (
+              <div style={S.card}>
+                <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>📢 Comunicados</div>
+                <div style={{display: "flex", flexDirection: "column", gap: 10}}>
+                  {comunicadosRecentes.map((post, pi) => (
+                    <div
+                      key={pi}
+                      style={{cursor: "pointer", paddingBottom: pi < comunicadosRecentes.length - 1 ? 10 : 0, borderBottom: pi < comunicadosRecentes.length - 1 ? "1px solid " + t.cardBorder : "none"}}
+                      onClick={() => { const cc = campeonatos.find(x => x.id === post.champId); if (cc) { setCurrent(cc); setScreen("gerenciarChamp"); setActiveChampTab("mural"); } }}
+                    >
+                      <div style={{fontSize: 10, fontWeight: 700, color: t.accent, marginBottom: 3}}>{post.champName}</div>
+                      <div style={{fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{post.title || "Sem título"}</div>
+                      <div style={{fontSize: 11, color: t.textSec, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical"}}>{post.content}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
   }
+
+
+
+
 
   /* ── FINANCEIRO ────────────────────────────────────────────────── */
   if(screen==="financeiro"){
