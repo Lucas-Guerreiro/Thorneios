@@ -8217,8 +8217,8 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
   function criar(){
     if (cf.type === "liga") {
       const allTeamsList = cf.groupsData.flatMap(g => g.teams.map(t => t.trim()).filter(Boolean));
-      if (allTeamsList.length < (cf.groupCount * cf.teamsPerGroup)) {
-        alert("Preencha todos os nomes dos times nos grupos!");
+      if (allTeamsList.length < (cf.groupCount * 2)) {
+        alert(`Preencha pelo menos ${cf.groupCount * 2} times no total (mínimo de 2 por grupo)!`);
         return;
       }
       if (new Set(allTeamsList).size !== allTeamsList.length) {
@@ -8226,20 +8226,28 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
         return;
       }
       
-      // Embaralha de forma aleatória todos os times preenchidos nos grupos
+      // Embaralha de forma aleatória todos os times preenchidos
       const shuffledTeams = shuffleArray(allTeamsList);
 
-      const groups = cf.groupsData.map((g, gi) => {
-        const tpg = cf.teamsPerGroup || 4;
-        const groupTeams = shuffledTeams.slice(gi * tpg, (gi + 1) * tpg);
-        return {
-          name: g.name,
-          teams: groupTeams,
-          quadra: g.quadra,
-          rounds: generateRR(groupTeams, false),
-          standings: initStandings(groupTeams)
-        };
+      // Inicializa os grupos vazios
+      const groups = cf.groupsData.map(g => ({
+        name: g.name,
+        teams: [],
+        quadra: g.quadra
+      }));
+
+      // Distribui os times embaralhados de forma equilibrada (round-robin) nos grupos
+      shuffledTeams.forEach((tm, i) => {
+        const groupIdx = i % cf.groupCount;
+        groups[groupIdx].teams.push(tm);
       });
+
+      // Mapeia os grupos com suas respectivas rodadas e tabelas de classificação
+      const finalGroups = groups.map(g => ({
+        ...g,
+        rounds: generateRR(g.teams, false),
+        standings: initStandings(g.teams)
+      }));
       
       let data = {
         id: Date.now(),
@@ -8249,7 +8257,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
         teams: shuffledTeams,
         date: cf.date,
         fee: Number(cf.fee || 0),
-        groups: groups,
+        groups: finalGroups,
         knockout: null,
         mixedPhase: "groups"
       };
