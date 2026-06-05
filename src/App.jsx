@@ -6061,7 +6061,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   const [showXlsMenuElenco, setShowXlsMenuElenco] = useState(false);
 
   // --- XLS Elenco: Modelo, Import, Export ---
-  const ELENCO_HEADERS = ["nome","apelido","numeroCamisa","documento","dataNascimento","celular1","email","tipoAtleta","igrejaMembro","modalidades","grupo","logradouro","nomeVia","bairro","cep","nomeMae","ativo","goleiro"];
+  const ELENCO_HEADERS = ["nome","apelido","numeroCamisa","documento","dataNascimento","celular1","email","tipoAtleta","igrejaMembro","modalidades","time","logradouro","nomeVia","bairro","cep","nomeMae","ativo","goleiro"];
 
   const downloadModeloElenco = () => {
     const sample = {
@@ -6069,7 +6069,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       documento: "12.345.678-9", dataNascimento: "1995-06-15", celular1: "(11) 91234-5678",
       email: "joao@email.com", tipoAtleta: "Adventista", igrejaMembro: "Igreja Central",
       modalidades: "Futsal,Vôlei",
-      grupo: "Time A", logradouro: "Rua", nomeVia: "das Flores", bairro: "Centro",
+      time: "Time A", logradouro: "Rua", nomeVia: "das Flores", bairro: "Centro",
       cep: "01234-567", nomeMae: "Maria da Silva", ativo: "true", goleiro: "false"
     };
     downloadXls(`modelo-atletas-campeonato.xls`, ELENCO_HEADERS, [sample]);
@@ -6084,6 +6084,8 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       ELENCO_HEADERS.forEach(h => {
         if (h === "modalidades" && Array.isArray(a[h])) {
           obj[h] = a[h].join(",");
+        } else if (h === "time") {
+          obj[h] = a.grupo ?? "";
         } else {
           obj[h] = a[h] ?? "";
         }
@@ -6125,7 +6127,16 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
 
       dataRows.forEach((cells, idx) => {
         const item = {};
-        cells.forEach((value, i) => { const key = headers[i]; if (key) item[key] = String(value).trim(); });
+        cells.forEach((value, i) => {
+          const key = headers[i];
+          if (key) {
+            if (key === "time") {
+              item.grupo = String(value).trim();
+            } else {
+              item[key] = String(value).trim();
+            }
+          }
+        });
 
         if (!item.nome) return;
 
@@ -6162,17 +6173,19 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           adicionados++;
         }
 
-        // Escalar no time selecionado (se houver)
-        if (selTeamElenco) {
-          tc.rosters[selTeamElenco] = tc.rosters[selTeamElenco] || [];
-          if (!tc.rosters[selTeamElenco].includes(atletaId)) {
-            tc.rosters[selTeamElenco].push(atletaId);
+        // Escalar no time selecionado ou no time vindo da planilha
+        const timePlanilha = item.grupo || "";
+        const timeFinal = selTeamElenco || timePlanilha;
+        if (timeFinal) {
+          tc.rosters[timeFinal] = tc.rosters[timeFinal] || [];
+          if (!tc.rosters[timeFinal].includes(atletaId)) {
+            tc.rosters[timeFinal].push(atletaId);
           }
         }
       });
 
       onUpdate(tc);
-      alert(`Importação concluída! ${adicionados} atletas adicionados, ${atualizados} atualizados${selTeamElenco ? ` e escalados em "${selTeamElenco}"` : ""}.`);
+      alert(`Importação concluída! ${adicionados} atletas adicionados, ${atualizados} atualizados.`);
     } catch (err) {
       alert("Erro ao importar planilha: " + (err.message || err));
     } finally {
@@ -9681,7 +9694,7 @@ export default function App(){
   };
 
   const downloadAtletasCampeonatoTemplate = () => {
-    const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","grupo","celular1","celular2","foneResidencial","email","tipoAtleta","igrejaMembro","logradouro","nomeVia","cep","complemento","bairro","nomeMae","docFoto","customFields"];
+    const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","time","celular1","celular2","foneResidencial","email","tipoAtleta","igrejaMembro","logradouro","nomeVia","cep","complemento","bairro","nomeMae","docFoto","customFields"];
     const sample = {
       id: "",
       nome: "João Silva",
@@ -9693,7 +9706,7 @@ export default function App(){
       documento: "1234567",
       dataNascimento: "1990-01-01",
       numeroCamisa: "10",
-      grupo: "Time A",
+      time: "Time A",
       celular1: "11999999999",
       celular2: "",
       foneResidencial: "",
@@ -9723,9 +9736,9 @@ export default function App(){
   };
 
   const exportAtletasCampeonato = () => {
-    const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","grupo","celular1","celular2","foneResidencial","email","tipoAtleta","igrejaMembro","logradouro","nomeVia","cep","complemento","bairro","nomeMae","docFoto","customFields"];
+    const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","time","celular1","celular2","foneResidencial","email","tipoAtleta","igrejaMembro","logradouro","nomeVia","cep","complemento","bairro","nomeMae","docFoto","customFields"];
     const esc = (v) => { const s = String(v == null ? '' : v); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g,'""') + '"' : s; };
-    const rows = atletasCampeonato.map(a => headers.map(h => esc(h === "customFields" ? JSON.stringify(a.customFields || {}) : a[h])).join(','));
+    const rows = atletasCampeonato.map(a => headers.map(h => esc(h === "customFields" ? JSON.stringify(a.customFields || {}) : (h === "time" ? a.grupo : a[h]))).join(','));
     const csv = '\uFEFF' + [headers.map(esc).join(','), ...rows].join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const href = URL.createObjectURL(blob);
@@ -9783,6 +9796,10 @@ export default function App(){
           }
           if (key === "id") {
             item.id = value ? Number(value) : undefined;
+            return;
+          }
+          if (key === "time" || key === "grupo") {
+            item.grupo = value;
             return;
           }
           item[key] = value;
