@@ -5016,6 +5016,43 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[editScoreB,setEditScoreB]=useState("");
   const[editSumula,setEditSumula]=useState({});
 
+  const updateSumulaAndScore = (playerId, val, teamType) => {
+    const cleanVal = val.replace(/\D/g,"");
+    const numVal = parseInt(cleanVal) || 0;
+    const oldVal = parseInt(sumulaGols[playerId]) || 0;
+    const diff = numVal - oldVal;
+    setSumulaGols(prev => ({...prev, [playerId]: cleanVal}));
+    if (teamType === 'A') {
+      setScoreA(prev => {
+        const current = parseInt(prev) || 0;
+        return String(Math.max(0, current + diff));
+      });
+    } else {
+      setScoreB(prev => {
+        const current = parseInt(prev) || 0;
+        return String(Math.max(0, current + diff));
+      });
+    }
+  };
+
+  const updateEditSumulaAndScore = (playerId, val, teamType) => {
+    const numVal = parseInt(val) || 0;
+    const oldVal = parseInt(editSumula[playerId]) || 0;
+    const diff = numVal - oldVal;
+    setEditSumula(prev => ({...prev, [playerId]: numVal}));
+    if (teamType === 'A') {
+      setEditScoreA(prev => {
+        const current = parseInt(prev) || 0;
+        return String(Math.max(0, current + diff));
+      });
+    } else {
+      setEditScoreB(prev => {
+        const current = parseInt(prev) || 0;
+        return String(Math.max(0, current + diff));
+      });
+    }
+  };
+
   const[selDataSorteio,setSelDataSorteio]=useState(datas[0]?.id||"");
   useEffect(()=>{if(!selDataSorteio&&datas.length>0)setSelDataSorteio(datas[0].id);},[datas]);
   const[addBenchId,setAddBenchId]=useState("");
@@ -5409,11 +5446,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               {/* Cronômetro com Alarme da Pelada */}
               <MatchTimer t={t} defaultMinutes={10} timerKey={`pelada_${pelada.id}`} />
 
-              <div style={{display:"grid",gridTemplateColumns:"1.2fr auto 1.2fr",gap:4,alignItems:"start",width:"100%",overflow:"hidden",marginBottom:12}}>
-                <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamA)}55`,padding:6,textAlign:"right",minWidth:0,overflow:"hidden"}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,minWidth:0,overflow:"hidden"}}><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamA}</span><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamA),flexShrink:0}}/></div>
-                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}</span><input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>setSumulaGols(v=>({...v,[p.id]:e.target.value.replace(/\D/g,"")}))} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",height:18}}/><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button></div>)}</div>
-                </div>
+              <div style={{display:"flex", justifyContent:"center", marginBottom:12}}>
                 <div style={{textAlign:"center",padding:"0 2px",flexShrink:0}}>
                   <div style={{display:"flex",gap:4,alignItems:"center"}}>
                     <input type="number" min={0} max={99} value={scoreA} onChange={e=>setScoreA(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
@@ -5421,9 +5454,16 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     <input type="number" min={0} max={99} value={scoreB} onChange={e=>setScoreB(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
                   </div>
                 </div>
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,alignItems:"start",width:"100%",overflow:"hidden",marginBottom:12}}>
+                <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamA)}55`,padding:6,textAlign:"right",minWidth:0,overflow:"hidden"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,minWidth:0,overflow:"hidden"}}><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamA}</span><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamA),flexShrink:0}}/></div>
+                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}</span><input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'A')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",height:18}}/><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button></div>)}</div>
+                </div>
                 <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamB)}55`,padding:6,minWidth:0,overflow:"hidden"}}>
                   <div style={{display:"flex",alignItems:"center",gap:4,minWidth:0,overflow:"hidden"}}><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamB),flexShrink:0}}/><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamB}</span></div>
-                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button><input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>setSumulaGols(v=>({...v,[p.id]:e.target.value.replace(/\D/g,"")}))} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/><span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}</span></div>)}</div>
+                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button><input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'B')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/><span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}</span></div>)}</div>
                 </div>
               </div>
               <button onClick={saveMatchLocal} style={{...S.btn(),width:"100%",justifyContent:"center"}}>✓ Registrar</button>
@@ -5485,31 +5525,33 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     >
                       ✏️
                     </button>
-                    <div style={{display:"flex",justifyContent:"center",marginBottom:4}}><span style={{fontWeight:800,fontSize:15,color:"#378ADD"}}>{m.scoreA} × {m.scoreB}</span></div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:4}}>
-                      <div style={{flex:1,textAlign:"left"}}>
-                        <div style={{fontSize:13,fontWeight:m.winner===m.teamA?700:500,color:m.winner===m.teamA?"#1D9E75":t.text}}>{m.teamA}</div>
-                        <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>
-                          {(m.playersA||[]).map((p,pi)=>{
-                            const gols = m.sumula?.[p.id] ? ` ⚽(${m.sumula[p.id]})` : "";
-                            return <div key={pi}>{getPlayerName(p)}{gols}</div>;
-                          })}
-                        </div>
-                      </div>
-                      <div style={{padding:"0 6px",marginTop:2,textAlign:"center"}}>
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:8}}>
+                      <span style={{fontWeight:800,fontSize:15,color:"#378ADD"}}>{m.scoreA} × {m.scoreB}</span>
+                      <div style={{marginTop:2,textAlign:"center"}}>
                         <span style={{fontSize:10,color:"#1D9E75",fontWeight:600,display:"block"}}>🏆 {m.winner}</span>
                         {m.dataRealizacaoId && datas.find(d=>String(d.id)===String(m.dataRealizacaoId)) && (
-                          <span style={{fontSize:9,color:t.textSec,display:"block",marginTop:4}}>
+                          <span style={{fontSize:9,color:t.textSec,display:"block",marginTop:2}}>
                             📅 {formatarData(datas.find(d=>String(d.id)===String(m.dataRealizacaoId)).data)}
                           </span>
                         )}
                       </div>
-                      <div style={{flex:1,textAlign:"right"}}>
-                        <div style={{fontSize:13,fontWeight:m.winner===m.teamB?700:500,color:m.winner===m.teamB?"#1D9E75":t.text}}>{m.teamB}</div>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                      <div style={{flex:1,textAlign:"left",minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:m.winner===m.teamA?700:500,color:m.winner===m.teamA?"#1D9E75":t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.teamA}</div>
+                        <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>
+                          {(m.playersA||[]).map((p,pi)=>{
+                            const gols = m.sumula?.[p.id] ? ` ⚽(${m.sumula[p.id]})` : "";
+                            return <div key={pi} style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{gols}</div>;
+                          })}
+                        </div>
+                      </div>
+                      <div style={{flex:1,textAlign:"right",minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:m.winner===m.teamB?700:500,color:m.winner===m.teamB?"#1D9E75":t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.teamB}</div>
                         <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>
                           {(m.playersB||[]).map((p,pi)=>{
                             const gols = m.sumula?.[p.id] ? ` (${m.sumula[p.id]})⚽` : "";
-                            return <div key={pi}>{getPlayerName(p)}{gols}</div>;
+                            return <div key={pi} style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{gols}</div>;
                           })}
                         </div>
                       </div>
@@ -5584,7 +5626,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           min={0} 
                           placeholder="0"
                           value={editSumula[p.id] || ""} 
-                          onChange={e => setEditSumula(v => ({...v, [p.id]: parseInt(e.target.value) || 0}))} 
+                          onChange={e => updateEditSumulaAndScore(p.id, e.target.value, 'A')}
                           style={{...S.input,width:40,padding:"3px 6px",fontSize:11,textAlign:"center"}}
                         />
                         <span>⚽</span>
@@ -5607,7 +5649,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           min={0} 
                           placeholder="0"
                           value={editSumula[p.id] || ""} 
-                          onChange={e => setEditSumula(v => ({...v, [p.id]: parseInt(e.target.value) || 0}))} 
+                          onChange={e => updateEditSumulaAndScore(p.id, e.target.value, 'B')}
                           style={{...S.input,width:40,padding:"3px 6px",fontSize:11,textAlign:"center"}}
                         />
                         <span>⚽</span>
@@ -6934,7 +6976,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       <>
         {currentTab==="jogos"&&c.type==="pontos"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{(c.rounds || []).map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{(rd.matches || []).map((m,mi)=><MatchRow key={mi} m={m} eKey={"rr-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveRR(ri,mi,hs,as2,dt,nh,na,nr)} roundsList={(c.rounds || []).map(r=>r.round)} currentRound={rd.round} teamsList={c.teams || []}/>)}</div></Sec>)}</div>}
         {currentTab==="jogos"&&c.type==="mata"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{(c.knockout || []).map((phase,pi)=><Sec key={pi} title={phase.name} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{(phase.matches || []).map((m,mi)=><MatchRow key={mi} m={m} eKey={"ko-"+pi+"-"+mi} onSave={(hs,as2,dt,nh,na)=>saveKO(pi,mi,hs,as2,dt,nh,na)} teamsList={c.teams || []}/>)}</div></Sec>)}</div>}
-        {currentTab==="jogos"&&(c.type==="misto"||c.type==="liga")&&<div style={{display:"flex",flexDirection:"column",gap:24}}>{(c.groups || []).map((g,gi)=><div key={gi}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3>{(g.rounds || []).map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{(rd.matches || []).map((m,mi)=><MatchRow key={mi} m={m} eKey={"gr-"+gi+"-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveGroup(gi,ri,mi,hs,as2,dt,nh,na,nr)} roundsList={(g.rounds || []).map(r=>r.round)} currentRound={rd.round} teamsList={g.teams || []}/>)}</div></Sec>)}</div>)}</div>}
+        {currentTab==="jogos"&&(c.type==="misto"||c.type==="liga")&&<div style={{display:"flex",flexDirection:"column",gap:24}}>{(c.groups || []).map((g,gi)=><div key={gi}><h3 style={{fontSize:14,fontWeight:700,marginBottom:10,color:t.text}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3>{(g.rounds || []).map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{(rd.matches || []).map((m,mi)=><MatchRow key={mi} m={m} eKey={"gr-"+gi+"-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveGroup(gi,ri,mi,hs,as2,dt,nh,na,nr)} roundsList={(g.rounds || []).map(r=>r.round)} currentRound={rd.round} teamsList={g.teams || []} quadra={g.quadra||""}/>)}</div></Sec>)}</div>)}</div>}
       </>
     );
   }
@@ -7183,31 +7225,24 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
               setEditingTeams(false);
             }} style={S.btnSm("#1D9E75")}>Salvar Times</button>}
         </div>
-        <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:16,paddingBottom:8}}>
-          {(editingTeams?teamsDraft:c.teams).map((tm,i)=>(
-            <div key={tm+String(i)} style={{display:"inline-flex",alignItems:"center",gap:6}}>
-              <button 
-                onClick={()=>setSelTeamElenco(tm)} 
-                style={{
-                  ...S.btnSm(selTeamElenco===tm?colorOf(tm,c.teams):"transparent", selTeamElenco===tm?"#fff":t.textSec), 
-                  border:`1px solid ${selTeamElenco===tm?colorOf(tm,c.teams):t.cardBorder}`, 
-                  whiteSpace:"nowrap", 
-                  fontWeight:600,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6
-                }}
-              >
-                {c.emblems?.[tm] && <Avatar name={tm} size={14} src={c.emblems[tm]}/>}
-                {tm}
-              </button>
-              {editingTeams && (
-                <button onClick={()=>{ setTeamsDraft(d=>d.filter((_,j)=>j!==i)); }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer"}}>✕</button>
-              )}
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+          <label style={{fontSize:13,fontWeight:700,color:t.text,whiteSpace:"nowrap"}}>🏆 Time:</label>
+          <select
+            value={selTeamElenco}
+            onChange={e => setSelTeamElenco(e.target.value)}
+            style={{...S.select, flex:1, minWidth:180, maxWidth:320, fontWeight:600}}
+          >
+            {(editingTeams ? teamsDraft : c.teams).map((tm,i) => (
+              <option key={tm+String(i)} value={tm}>{tm}</option>
+            ))}
+          </select>
+          {editingTeams && (
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              <button onClick={() => setTeamsDraft(d => [...d,""])} style={{...S.btnSm("#1D9E7522","#1D9E75")}}>+ Time</button>
             </div>
-          ))}
-          {editingTeams&&<button onClick={()=>setTeamsDraft(d=>[...d,""])} style={{...S.btnSm("#1D9E7522","#1D9E75")}}>+ Time</button>}
+          )}
         </div>
+
         
         {selTeamElenco ? (
           <div style={S.card}>
@@ -7752,7 +7787,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     );
   }
 
-  function MatchRow({m,eKey,onSave,roundsList=[],currentRound=null,teamsList=[]}){
+  function MatchRow({m,eKey,onSave,roundsList=[],currentRound=null,teamsList=[],quadra=""}){
     const isEd=editing?.key===eKey;
     const[hs,setHs]=useState(m.homeScore||"");const[as2,setAs2]=useState(m.awayScore||"");const[dt,setDt]=useState(m.date||"");
     const[homeTeam,setHomeTeam]=useState(m.home);const[awayTeam,setAwayTeam]=useState(m.away);
@@ -7837,12 +7872,19 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     };
     return(
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,gap:8,flexWrap:"wrap"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-end",minWidth:100}}><span style={{fontSize:14,fontWeight:700,color:t.text,textAlign:"right"}}>{m.home}</span><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={32} src={c.emblems?.[m.home]}/></div>
-          <div style={{textAlign:"center",minWidth:80,flexShrink:0}}>{m.played?<span style={{fontWeight:900,fontSize:18,color:"#1D9E75"}}>{m.homeScore}×{m.awayScore}</span>:<span style={{color:t.textSec,fontSize:14}}>—×—</span>}</div>
-          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:100}}><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={32} src={c.emblems?.[m.away]}/><span style={{fontSize:14,fontWeight:700,color:t.text}}>{m.away}</span></div>
-          <div style={{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}>
-             <button onClick={()=>setSumulaModal({m, eKey, round: m.round || currentRound})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}} title="Súmula da Partida">📝</button>
+        <div style={{display:"flex",flexDirection:"column",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,overflow:"hidden"}}>
+          {quadra && (
+            <div style={{background:"#378ADD18",borderBottom:`1px solid ${t.cardBorder}`,padding:"4px 12px",display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:11,color:"#378ADD"}}>🏟️</span>
+              <span style={{fontSize:11,fontWeight:600,color:"#378ADD"}}>{quadra}</span>
+            </div>
+          )}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",gap:8,flexWrap:"wrap"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-end",minWidth:100}}><span style={{fontSize:14,fontWeight:700,color:t.text,textAlign:"right"}}>{m.home}</span><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={32} src={c.emblems?.[m.home]}/></div>
+            <div style={{textAlign:"center",minWidth:80,flexShrink:0}}>{m.played?<span style={{fontWeight:900,fontSize:18,color:"#1D9E75"}}>{m.homeScore}×{m.awayScore}</span>:<span style={{color:t.textSec,fontSize:14}}>—×—</span>}</div>
+            <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:100}}><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={32} src={c.emblems?.[m.away]}/><span style={{fontSize:14,fontWeight:700,color:t.text}}>{m.away}</span></div>
+            <div style={{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}>
+               <button onClick={()=>setSumulaModal({m, eKey, round: m.round || currentRound})} style={{...S.btnSm("#378ADD22","#378ADD"),padding:"6px"}} title="Súmula da Partida">📝</button>
              {/* Câmera — apenas em dispositivos móveis/tablet com câmera */}
              {isMobile && (
                <label style={{...S.btnSm("#D85A3022","#D85A30"),padding:"6px",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:10}} title="Tirar foto do jogo">
@@ -7863,7 +7905,8 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                  />
                </label>
              )}
-             <button onClick={()=>setEditing({key:eKey})} style={{...S.btnSm(),padding:"6px 12px"}}>{m.played?"✏️":"▶"}</button>
+               <button onClick={()=>setEditing({key:eKey})} style={{...S.btnSm(),padding:"6px 12px"}}>{m.played?"✏️":"▶"}</button>
+            </div>
           </div>
         </div>
         {(() => {
@@ -8604,6 +8647,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
           tpg = Math.ceil(totalTimes / gc);
         }
 
+        const activeQuadrasImport = quadras.filter(q => q.ativa);
         const newGroups = [];
         for (let i = 0; i < gc; i++) {
           const name = "Grupo " + (i + 1);
@@ -8612,10 +8656,13 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
             const timeIdx = i * tpg + j;
             teams.push(timesUnicos[timeIdx] || "");
           }
+          const autoQuadra = activeQuadrasImport.length > 0
+            ? (activeQuadrasImport[i % activeQuadrasImport.length]?.nome || "")
+            : "";
           newGroups.push({
             name: name,
             teams: teams,
-            quadra: ""
+            quadra: autoQuadra
           });
         }
 
