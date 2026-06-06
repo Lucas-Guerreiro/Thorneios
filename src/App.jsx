@@ -4997,6 +4997,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const parts=participacoes.filter(p=>p.pelada_id===pelada.id);
 
   /* sorteio / jogos */
+  /* sorteio / jogos */
   const[drawnTeams,setDrawnTeams]=useState(pelada.drawnTeams||null);
   const[peladaState,setPeladaStateLocal]=useState(pelada.peladaState||null);
   const[benchState,setBenchState]=useState(pelada.initialBench||[]);
@@ -5055,12 +5056,43 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
   const[selDataSorteio,setSelDataSorteio]=useState(datas[0]?.id||"");
   useEffect(()=>{if(!selDataSorteio&&datas.length>0)setSelDataSorteio(datas[0].id);},[datas]);
+
+  const lastLoadedDateIdRef = useRef(null);
+
+  const saveDateState = (updates) => {
+    if (!selDataSorteio) return;
+    onUpdateData(selDataSorteio, updates);
+  };
+
+  useEffect(() => {
+    if (!selDataSorteio) return;
+    if (lastLoadedDateIdRef.current === selDataSorteio) return;
+    const d = datas.find(x => String(x.id) === String(selDataSorteio));
+    if (d) {
+      setDrawnTeams(d.drawnTeams !== undefined ? d.drawnTeams : (pelada.drawnTeams || null));
+      setPeladaStateLocal(d.peladaState !== undefined ? d.peladaState : (pelada.peladaState || null));
+      setBenchState(d.initialBench !== undefined ? d.initialBench : (pelada.initialBench || []));
+      setPpt(d.playersPerTeam !== undefined ? d.playersPerTeam : (pelada.playersPerTeam || 7));
+      setNumTeams(d.numTeams !== undefined ? d.numTeams : 2);
+      setManualAssignments(d.manualAssignments !== undefined ? d.manualAssignments : {});
+      lastLoadedDateIdRef.current = selDataSorteio;
+    } else {
+      setDrawnTeams(null);
+      setPeladaStateLocal(null);
+      setBenchState([]);
+      setPpt(7);
+      setNumTeams(2);
+      setManualAssignments({});
+      lastLoadedDateIdRef.current = null;
+    }
+  }, [selDataSorteio, datas]);
+
   const[addBenchId,setAddBenchId]=useState("");
 
   const vinculadosIds=[...new Set(parts.map(p=>p.atleta_id))];
   const vinculados=atletas.filter(a=>vinculadosIds.includes(a.id));
 
-  const presentesIds = parts.filter(p=>p.data_realizacao_id===selDataSorteio&&p.compareceu).map(p=>p.atleta_id);
+  const presentesIds = parts.filter(p=>String(p.data_realizacao_id)===String(selDataSorteio)&&p.compareceu).map(p=>p.atleta_id);
   const presentes = vinculados.filter(a=>presentesIds.includes(a.id));
 
   function doDraw(){
@@ -5073,7 +5105,13 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const cleanLog = oldLog.filter(m => String(m.dataRealizacaoId) !== String(selDataSorteio));
     const ps=startNextMatch(buildInitialPeladaState(fullTeams,bench,cleanLog), selDataSorteio);
     setPeladaStateLocal(ps);
-    onUpdatePelada(pelada.id,{drawnTeams:fullTeams,initialBench:bench,peladaState:ps,playersPerTeam:ppt});
+    saveDateState({
+      drawnTeams: fullTeams,
+      initialBench: bench,
+      peladaState: ps,
+      playersPerTeam: ppt,
+      numTeams
+    });
   }
 
   function confirmManualFormation() {
@@ -5084,8 +5122,6 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const fullTeams = [];
     for(let i=1; i<=numTeams; i++) {
        const pIds = Object.keys(manualAssignments).filter(id => manualAssignments[id] === `t${i}`);
-       const teamPlayers = presentes.filter(p => pIds.includes(String(pIds)));
-       // Correção para usar presentes original
        const teamPlayersCorrect = presentes.filter(p => pIds.includes(String(p.id)));
        if (teamPlayersCorrect.length > 0) fullTeams.push({name: "Time "+i, players: teamPlayersCorrect});
     }
@@ -5099,12 +5135,21 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const cleanLog = oldLog.filter(m => String(m.dataRealizacaoId) !== String(selDataSorteio));
     const ps=startNextMatch(buildInitialPeladaState(fullTeams,bench,cleanLog), selDataSorteio);
     setPeladaStateLocal(ps);
-    onUpdatePelada(pelada.id,{drawnTeams:fullTeams,initialBench:bench,peladaState:ps,playersPerTeam:ppt});
-    setAba("jogos");
+    saveDateState({
+      drawnTeams: fullTeams,
+      initialBench: bench,
+      peladaState: ps,
+      playersPerTeam: ppt,
+      numTeams,
+      manualAssignments
+    });
+    currentSetAba("jogos");
   }
 
   function toggleManualAssignment(playerId, target) {
-    setManualAssignments(prev => ({...prev, [playerId]: target}));
+    const updatedAssignments = {...manualAssignments, [playerId]: target};
+    setManualAssignments(updatedAssignments);
+    saveDateState({ manualAssignments: updatedAssignments });
     setAssignModal(null);
   }
 
@@ -5122,6 +5167,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
        }
     });
     setManualAssignments(newAssig);
+    saveDateState({ manualAssignments: newAssig });
   }
 
   function addToBench(){
@@ -5132,7 +5178,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     setBenchState(newBench);
     let ps=peladaState;
     if(ps){ps={...ps,bench:[...ps.bench,newPlayer]};setPeladaStateLocal(ps);}
-    onUpdatePelada(pelada.id,{initialBench:newBench,peladaState:ps});
+    saveDateState({initialBench:newBench,peladaState:ps});
     const pExistente = parts.find(p=>String(p.atleta_id)===String(a.id) && String(p.data_realizacao_id)===String(selDataSorteio));
     if(pExistente){
       if(!pExistente.compareceu) onUpdatePart(pExistente.id, {compareceu:true});
@@ -5176,7 +5222,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     setBenchState(newBench);
     setDrawnTeams(newDrawnTeams);
     setPeladaStateLocal(ps);
-    onUpdatePelada(pelada.id,{drawnTeams:newDrawnTeams,initialBench:newBench,peladaState:ps});
+    saveDateState({drawnTeams:newDrawnTeams,initialBench:newBench,peladaState:ps});
   }
 
   function movePlayerInRotation(playerId, target) {
@@ -5241,9 +5287,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     setBenchState(newBench);
     setDrawnTeams(newDrawnTeams);
     setPeladaStateLocal(ps);
-    onUpdatePelada(pelada.id, { drawnTeams: newDrawnTeams, initialBench: newBench, peladaState: ps });
+    saveDateState({ drawnTeams: newDrawnTeams, initialBench: newBench, peladaState: ps });
     setSubModal(null);
   }
+
   function saveMatchLocal(){
     if(scoreA===""||scoreB==="")return;
     const ps2=resolveMatch({
@@ -5258,10 +5305,11 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     },scoreA,scoreB);
     const ps3=startNextMatch(ps2, selDataSorteio);
     setPeladaStateLocal(ps3);
-    onUpdatePelada(pelada.id,{peladaState:ps3});
+    saveDateState({peladaState:ps3});
     setScoreA("");setScoreB("");
     setSumulaGols({});
   }
+
   function saveEditedMatch() {
     if (editMatchId === null) return;
     let ps = peladaState ? deepClone(peladaState) : null;
@@ -5284,14 +5332,14 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       };
 
       setPeladaStateLocal(ps);
-      onUpdatePelada(pelada.id, { peladaState: ps });
+      saveDateState({ peladaState: ps });
     }
     setEditMatchId(null);
   }
   function peladaStandings(){
     if(!peladaState?.teams)return[];
     const st=peladaState.teams.map(t=>({name:t.name,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,pts:0}));
-    (peladaState.matchLog||[]).forEach(m=>{
+    (peladaState.matchLog||[]).filter(m => String(m.dataRealizacaoId) === String(selDataSorteio)).forEach(m=>{
       const h=st.find(x=>x.name===m.teamA),a=st.find(x=>x.name===m.teamB);if(!h||!a)return;
       const hs=parseInt(m.scoreA),as2=parseInt(m.scoreB);
       h.j++;a.j++;h.gp+=hs;h.gc+=as2;a.gp+=as2;a.gc+=hs;h.sg=h.gp-h.gc;a.sg=a.gp-a.gc;
@@ -5301,6 +5349,46 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   }
   const colorOfTeam=n=>{const i=(peladaState?.teams||[]).findIndex(x=>x.name===n);return COLORS[i%COLORS.length]||"#888";};
   const maxTeams=Math.floor(vinculados.length/ppt)||2;
+
+  const selectedDateObj = datas.find(d => String(d.id) === String(selDataSorteio));
+  const isRealizada = selectedDateObj?.status === "realizado";
+
+  const consolidatedPeladaState = React.useMemo(() => {
+    const allMatches = [];
+    const allTeamsMap = new Map();
+    datas.forEach(d => {
+      if (d.peladaState) {
+        if (Array.isArray(d.peladaState.matchLog)) {
+          allMatches.push(...d.peladaState.matchLog);
+        }
+        if (Array.isArray(d.peladaState.teams)) {
+          d.peladaState.teams.forEach(tm => {
+            allTeamsMap.set(tm.name, tm);
+          });
+        }
+      }
+    });
+    if (pelada.peladaState) {
+      if (Array.isArray(pelada.peladaState.matchLog)) {
+        pelada.peladaState.matchLog.forEach(m => {
+          if (!allMatches.some(am => am.id === m.id || (am.date === m.date && am.teamA === m.teamA && am.teamB === m.teamB))) {
+            allMatches.push(m);
+          }
+        });
+      }
+      if (Array.isArray(pelada.peladaState.teams)) {
+        pelada.peladaState.teams.forEach(tm => {
+          if (!allTeamsMap.has(tm.name)) {
+            allTeamsMap.set(tm.name, tm);
+          }
+        });
+      }
+    }
+    return {
+      teams: Array.from(allTeamsMap.values()),
+      matchLog: allMatches
+    };
+  }, [datas, pelada.peladaState]);
 
   return(
     <div style={S.page}>
@@ -5334,70 +5422,113 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       {currentAba==="participações"&&<AbaParticipacoes pelada={pelada} atletas={atletas} participacoes={participacoes} datasRealizacao={datasRealizacao} onAdd={onAddPart} onUpdate={onUpdatePart} onRemove={onRemovePart} onUpdateAtleta={onUpdateAtleta} onAddFinanceiro={onAddFinanceiro} t={t}/>}
       {currentAba==="sorteio"&&(
         <div>
-          <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px solid ${t.cardBorder}`}}>
-            <div style={{display:"flex",gap:10,marginBottom:14,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:14}}>
-              <button onClick={()=>setModoSorteio("auto")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="auto"?"#7F77DD":"transparent",color:modoSorteio==="auto"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="auto"?"#7F77DD":t.cardBorder}`,cursor:"pointer"}}>🎲 Sorteio Automático</button>
-              <button onClick={()=>setModoSorteio("manual")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="manual"?"#378ADD":"transparent",color:modoSorteio==="manual"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="manual"?"#378ADD":t.cardBorder}`,cursor:"pointer"}}>🖐️ Formação Manual</button>
+          {/* Se a data for realizada */}
+          {isRealizada && (
+            <div style={{...S.card, marginBottom: 14, background: "#1D9E7512", border: "1px solid #1D9E7533", color: "#1D9E75", display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 8}}>
+              <span>🔒</span>
+              <span style={{fontSize: 13, fontWeight: 700}}>Esta rodada foi realizada e as formações de times estão congeladas (sem alterações).</span>
             </div>
-            
-            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14}}>
-              <label style={{...S.label,margin:0}}>Atletas presentes na data:</label>
-              <select style={{...S.select,width:160}} value={selDataSorteio} onChange={e=>setSelDataSorteio(e.target.value)}>
-                {datas.map(d=><option key={d.id} value={d.id}>{formatarData(d.data)}</option>)}
-              </select>
-            </div>
-            <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:14}}>
-              <div style={{display:"flex",gap:6,alignItems:"center"}}><label style={{...S.label,margin:0}}>Jogadores/time:</label><input type="number" min={5} max={15} value={ppt} onChange={e=>setPpt(Math.max(5,Number(e.target.value)))} style={{...S.input,width:60}}/></div>
-              <div style={{display:"flex",gap:6,alignItems:"center"}}><label style={{...S.label,margin:0}}>Times (máx {maxTeams}):</label><input type="number" min={2} max={maxTeams} value={numTeams} onChange={e=>setNumTeams(Math.min(maxTeams,Math.max(2,Number(e.target.value))))} style={{...S.input,width:56}}/></div>
-            </div>
+          )}
 
-            {modoSorteio==="auto" && (
-              <button onClick={doDraw} style={S.btn("#7F77DD")}>🎲 Sortear Times Automaticamente</button>
-            )}
-            
-            {modoSorteio==="manual" && (
-              <div>
-                <div style={{display:"flex",gap:10,marginBottom:20}}>
-                  <button onClick={randomFillManual} style={{...S.btn(t.card,t.text),border:`1px solid ${t.cardBorder}`,flex:1,justifyContent:"center"}}>Preencher Aleatório</button>
-                  <button onClick={confirmManualFormation} style={{...S.btn("#378ADD"),flex:1,justifyContent:"center"}}>✓ Iniciar Pelada</button>
-                </div>
-                
-                <div style={{marginBottom:16}}>
-                  <div style={{fontWeight:700,fontSize:12,color:t.textSec,marginBottom:8}}>Sem Time ({presentes.filter(p=>!manualAssignments[p.id]||manualAssignments[p.id]==="none").length})</div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                    {presentes.filter(p=>!manualAssignments[p.id]||manualAssignments[p.id]==="none").map(p=>(
-                       <button key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,border:`1px solid ${t.cardBorder}`,background:t.card,color:t.text,cursor:"pointer"}}><PlayerAvatar atleta={p} size={18}/> {getPlayerName(p)}</button>
-                    ))}
+          {/* Se a data estiver agendada e os times ainda não foram gerados */}
+          {!isRealizada && !drawnTeams && (
+            <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px solid ${t.cardBorder}`}}>
+              <div style={{display:"flex",gap:10,marginBottom:14,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:14}}>
+                <button onClick={()=>setModoSorteio("auto")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="auto"?"#7F77DD":"transparent",color:modoSorteio==="auto"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="auto"?"#7F77DD":t.cardBorder}`,cursor:"pointer"}}>🎲 Sorteio Automático</button>
+                <button onClick={()=>setModoSorteio("manual")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="manual"?"#378ADD":"transparent",color:modoSorteio==="manual"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="manual"?"#378ADD":t.cardBorder}`,cursor:"pointer"}}>🖐️ Formação Manual</button>
+              </div>
+              
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14}}>
+                <label style={{...S.label,margin:0}}>Atletas presentes na data:</label>
+                <select style={{...S.select,width:160}} value={selDataSorteio} onChange={e=>setSelDataSorteio(e.target.value)}>
+                  {datas.map(d=><option key={d.id} value={d.id}>{formatarData(d.data)}</option>)}
+                </select>
+              </div>
+
+              <div style={{marginBottom: 14, fontSize: 13, color: t.textSec}}>
+                <b>Jogadores Presentes ({presentes.length}):</b> {presentes.map(p => getPlayerName(p)).join(", ") || "Nenhum jogador marcado como presente nesta data."}
+              </div>
+
+              <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:14}}>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}><label style={{...S.label,margin:0}}>Jogadores/time:</label><input type="number" min={5} max={15} value={ppt} onChange={e=>{const val=Math.max(5,Number(e.target.value));setPpt(val);saveDateState({playersPerTeam:val});}} style={{...S.input,width:60}}/></div>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}><label style={{...S.label,margin:0}}>Times (máx {maxTeams}):</label><input type="number" min={2} max={maxTeams} value={numTeams} onChange={e=>{const val=Math.min(maxTeams,Math.max(2,Number(e.target.value)));setNumTeams(val);saveDateState({numTeams:val});}} style={{...S.input,width:56}}/></div>
+              </div>
+
+              {modoSorteio==="auto" && (
+                <button onClick={doDraw} style={S.btn("#7F77DD")}>🎲 Sortear Times Automaticamente</button>
+              )}
+              
+              {modoSorteio==="manual" && (
+                <div>
+                  <div style={{display:"flex",gap:10,marginBottom:20}}>
+                    <button onClick={randomFillManual} style={{...S.btn(t.card,t.text),border:`1px solid ${t.cardBorder}`,flex:1,justifyContent:"center"}}>Preencher Aleatório</button>
+                    <button onClick={confirmManualFormation} style={{...S.btn("#378ADD"),flex:1,justifyContent:"center"}}>✓ Iniciar Pelada</button>
                   </div>
-                </div>
-
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
-                  {Array.from({length:numTeams}).map((_,i)=>{
-                    const tId = `t${i+1}`;
-                    const pInTeam = presentes.filter(p=>manualAssignments[p.id]===tId);
-                    return(
-                      <div key={tId} style={{...S.card,padding:10,borderColor:COLORS[i%COLORS.length]+"55"}}>
-                        <div style={{fontWeight:700,fontSize:13,color:COLORS[i%COLORS.length],marginBottom:8}}>Time {i+1} ({pInTeam.length})</div>
-                        <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                          {pInTeam.map(p=>(
-                             <div key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,cursor:"pointer",padding:"4px",borderRadius:4,background:t.inputBg}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)}</div>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                  <div style={{...S.card,padding:10,borderColor:"#BA751755"}}>
-                    <div style={{fontWeight:700,fontSize:13,color:"#BA7517",marginBottom:8}}>Banco ({presentes.filter(p=>manualAssignments[p.id]==="bench").length})</div>
-                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                      {presentes.filter(p=>manualAssignments[p.id]==="bench").map(p=>(
-                         <div key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,cursor:"pointer",padding:"4px",borderRadius:4,background:t.inputBg}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)}</div>
+                  
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontWeight:700,fontSize:12,color:t.textSec,marginBottom:8}}>Sem Time ({presentes.filter(p=>!manualAssignments[p.id]||manualAssignments[p.id]==="none").length})</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                      {presentes.filter(p=>!manualAssignments[p.id]||manualAssignments[p.id]==="none").map(p=>(
+                         <button key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,border:`1px solid ${t.cardBorder}`,background:t.card,color:t.text,cursor:"pointer"}}><PlayerAvatar atleta={p} size={18}/> {getPlayerName(p)}</button>
                       ))}
                     </div>
                   </div>
+
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
+                    {Array.from({length:numTeams}).map((_,i)=>{
+                      const tId = `t${i+1}`;
+                      const pInTeam = presentes.filter(p=>manualAssignments[p.id]===tId);
+                      return(
+                        <div key={tId} style={{...S.card,padding:10,borderColor:COLORS[i%COLORS.length]+"55"}}>
+                          <div style={{fontWeight:700,fontSize:13,color:COLORS[i%COLORS.length],marginBottom:8}}>Time {i+1} ({pInTeam.length})</div>
+                          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                            {pInTeam.map(p=>(
+                               <div key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,cursor:"pointer",padding:"4px",borderRadius:4,background:t.inputBg}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div style={{...S.card,padding:10,borderColor:"#BA751755"}}>
+                      <div style={{fontWeight:700,fontSize:13,color:"#BA7517",marginBottom:8}}>Banco ({presentes.filter(p=>manualAssignments[p.id]==="bench").length})</div>
+                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                        {presentes.filter(p=>manualAssignments[p.id]==="bench").map(p=>(
+                           <div key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,cursor:"pointer",padding:"4px",borderRadius:4,background:t.inputBg}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)}</div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Se a data estiver agendada e os times já foram gerados, permite "Refazer Sorteio" */}
+          {!isRealizada && drawnTeams && (
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 14, flexWrap:"wrap", gap: 10}}>
+              <div style={{fontSize: 13, color: t.textSec}}>
+                Os times foram gerados e o sorteio está ativo para esta data.
               </div>
-            )}
-          </div>
+              <button 
+                onClick={() => {
+                  if (confirm("Tem certeza que deseja refazer o sorteio desta data? Isso apagará as partidas e pontuações do dia!")) {
+                    setDrawnTeams(null);
+                    setBenchState([]);
+                    setPeladaStateLocal(null);
+                    saveDateState({
+                      drawnTeams: null,
+                      initialBench: [],
+                      peladaState: null,
+                      manualAssignments: {}
+                    });
+                  }
+                }} 
+                style={S.btnSm("#E24B4A22","#E24B4A")}
+              >
+                🔄 Refazer Sorteio
+              </button>
+            </div>
+          )}
           
           {assignModal && (
             <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
@@ -5416,20 +5547,22 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           )}
           {drawnTeams&&(
             <div>
-              <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px dashed ${t.cardBorder}`,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                <label style={{...S.label,margin:0}}>+ Retardatário:</label>
-                <select style={{...S.select,flex:1,minWidth:140}} value={addBenchId} onChange={e=>setAddBenchId(e.target.value)}>
-                  <option value="">Selecione quem chegou...</option>
-                  {vinculados.filter(a=>!benchState.some(b=>String(b.id)===String(a.id)) && !drawnTeams.some(t=>t.players.some(p=>String(p.id)===String(a.id)))).map(a=><option key={a.id} value={a.id}>{a.nome}</option>)}
-                </select>
-                <button onClick={addToBench} style={S.btn("#BA7517")}>Adicionar ao Banco</button>
-              </div>
-              {benchState.length>0&&<div style={{...S.card,border:"1px solid #BA751733",background:"#BA751710",marginBottom:12}}><div style={{fontWeight:700,color:"#BA7517",marginBottom:6}}>🪑 Banco ({benchState.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{benchState.map((b,i)=><span key={i} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12,padding:"3px 10px",borderRadius:16,background:"#BA751722",color:"#BA7517",fontWeight:600}}><PlayerAvatar atleta={b} size={16}/>{b.goleiro?"🧤":"⚽"} {getPlayerName(b)} <button onClick={()=>setSubModal(b.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:0,marginLeft:4,marginRight:2,fontSize:10,fontWeight:800}} title="Substituir / Mover">🔄</button><button onClick={()=>removeFromRotation(b.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,marginLeft:4,fontWeight:800}}>×</button></span>)}</div></div>}
+              {!isRealizada && (
+                <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px dashed ${t.cardBorder}`,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                  <label style={{...S.label,margin:0}}>+ Retardatário:</label>
+                  <select style={{...S.select,flex:1,minWidth:140}} value={addBenchId} onChange={e=>setAddBenchId(e.target.value)}>
+                    <option value="">Selecione quem chegou...</option>
+                    {vinculados.filter(a=>!benchState.some(b=>String(b.id)===String(a.id)) && !drawnTeams.some(t=>t.players.some(p=>String(p.id)===String(a.id)))).map(a=><option key={a.id} value={a.id}>{a.nome}</option>)}
+                  </select>
+                  <button onClick={addToBench} style={S.btn("#BA7517")}>Adicionar ao Banco</button>
+                </div>
+              )}
+              {benchState.length>0&&<div style={{...S.card,border:"1px solid #BA751733",background:"#BA751710",marginBottom:12}}><div style={{fontWeight:700,color:"#BA7517",marginBottom:6}}>🪑 Banco ({benchState.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{benchState.map((b,i)=><span key={i} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12,padding:"3px 10px",borderRadius:16,background:"#BA751722",color:"#BA7517",fontWeight:600}}><PlayerAvatar atleta={b} size={16}/>{b.goleiro?"🧤":"⚽"} {getPlayerName(b)} {!isRealizada && <button onClick={()=>setSubModal(b.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:0,marginLeft:4,marginRight:2,fontSize:10,fontWeight:800}} title="Substituir / Mover">🔄</button>} {!isRealizada && <button onClick={()=>removeFromRotation(b.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,marginLeft:4,fontWeight:800}}>×</button>}</span>)}</div></div>}
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
                 {drawnTeams.map((tm,ti)=>(
                   <div key={ti} style={{...S.card,borderColor:COLORS[ti%COLORS.length]+"55",padding:12}}>
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><div style={{width:10,height:10,borderRadius:"50%",background:COLORS[ti%COLORS.length]}}/><span style={{fontWeight:700,fontSize:13,color:t.text}}>{tm.name}</span></div>
-                    {tm.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,padding:"3px 0",borderBottom:`1px solid ${t.cardBorder}`}}><PlayerAvatar atleta={p} size={18}/><span>{(p.goleiro||p.isGoalkeeper)?"🧤":"⚽"}</span><span style={{flex:1,fontWeight:500,color:t.text}}>{getPlayerName(p)}</span><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:11,fontWeight:700,marginRight:4}} title="Substituir / Mover">🔄</button><button onClick={()=>removeFromRotation(p.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:12,fontWeight:700}}>×</button></div>)}
+                    {tm.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,padding:"3px 0",borderBottom:`1px solid ${t.cardBorder}`}}><PlayerAvatar atleta={p} size={18}/><span>{(p.goleiro||p.isGoalkeeper)?"🧤":"⚽"}</span><span style={{flex:1,fontWeight:500,color:t.text}}>{getPlayerName(p)}</span>{!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:11,fontWeight:700,marginRight:4}} title="Substituir / Mover">🔄</button>} {!isRealizada && <button onClick={()=>removeFromRotation(p.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:12,fontWeight:700}}>×</button>}</div>)}
                   </div>
                 ))}
               </div>
@@ -5439,9 +5572,16 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       )}
       {currentAba==="jogos"&&(
         <div>
-          {peladaState?.currentMatch&&!peladaState.currentMatch.played&&(
+          <div style={{...S.card, marginBottom: 14, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap"}}>
+            <label style={{...S.label, margin: 0}}>Ver jogos da data:</label>
+            <select style={{...S.select, width: 160}} value={selDataSorteio} onChange={e=>setSelDataSorteio(e.target.value)}>
+              {datas.map(d=><option key={d.id} value={d.id}>{formatarData(d.data)}</option>)}
+            </select>
+          </div>
+
+          {peladaState?.currentMatch&&!peladaState.currentMatch.played&&String(peladaState.currentMatch.dataRealizacaoId)===String(selDataSorteio)&&!isRealizada&&(
             <div style={{...S.card,border:"2px solid #1D9E7555",marginBottom:20}}>
-              <div style={{fontSize:11,fontWeight:700,color:"#1D9E75",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>⚽ Jogo {(peladaState.matchLog?.length||0)+1}</div>
+              <div style={{fontSize:11,fontWeight:700,color:"#1D9E75",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>⚽ Jogo {(peladaState.matchLog?.filter(m=>String(m.dataRealizacaoId)===String(selDataSorteio)).length||0)+1}</div>
               
               {/* Cronômetro com Alarme da Pelada */}
               <MatchTimer t={t} defaultMinutes={10} timerKey={`pelada_${pelada.id}`} />
@@ -5477,7 +5617,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               )}
             </div>
           )}
-          {!peladaState?.currentMatch&&peladaState?.queue?.length>=2&&(
+          {!peladaState?.currentMatch&&peladaState?.queue?.length>=2&&!isRealizada&&(
             <div style={{...S.card,textAlign:"center",marginBottom:16,border:"2px solid #7F77DD55"}}>
               <div style={{fontWeight:600,color:t.text,marginBottom:12}}>Próximo Jogo</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
@@ -5494,37 +5634,43 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                   </div>
                 </div>
               </div>
-              <button onClick={()=>{const ps=startNextMatch(peladaState, selDataSorteio);setPeladaStateLocal(ps);onUpdatePelada(pelada.id,{peladaState:ps});}} style={S.btn("#7F77DD")}>▶ Iniciar Próximo Jogo</button>
+              <button onClick={()=>{const ps=startNextMatch(peladaState, selDataSorteio);setPeladaStateLocal(ps);saveDateState({peladaState:ps});}} style={S.btn("#7F77DD")}>▶ Iniciar Próximo Jogo na data selecionada</button>
             </div>
           )}
-          {!peladaState&&<div style={{textAlign:"center",padding:40,color:t.textSec}}>Faça o sorteio primeiro.</div>}
-          {(peladaState?.matchLog||[]).length>0&&(
+          {(!peladaState || (!peladaState.currentMatch && (!peladaState.queue || peladaState.queue.length < 2))) && (
+            <div style={{textAlign:"center",padding:40,color:t.textSec}}>
+              {isRealizada ? "Todos os jogos desta data foram concluídos e registrados." : "Faça o sorteio primeiro para a data selecionada."}
+            </div>
+          )}
+          {(peladaState?.matchLog||[]).filter(m => String(m.dataRealizacaoId) === String(selDataSorteio)).length>0&&(
             <div>
-              <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>📜 Histórico</h3>
+              <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>📜 Histórico da Data</h3>
                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {(peladaState?.matchLog||[]).map((m, originalIndex) => ({m, originalIndex})).reverse().map(({m, originalIndex})=>(
+                {(peladaState?.matchLog||[]).map((m, originalIndex) => ({m, originalIndex})).filter(({m}) => String(m.dataRealizacaoId) === String(selDataSorteio)).reverse().map(({m, originalIndex})=>(
                   <div key={originalIndex} style={{...S.card,padding:"10px 12px",position:"relative"}}>
-                    <button 
-                      onClick={() => {
-                        setEditMatchId(originalIndex);
-                        setEditScoreA(m.scoreA);
-                        setEditScoreB(m.scoreB);
-                        setEditSumula(m.sumula || {});
-                      }}
-                      style={{
-                        position: "absolute",
-                        top: 8,
-                        right: 8,
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: 12,
-                        padding: 2
-                      }}
-                      title="Editar Partida e Súmula"
-                    >
-                      ✏️
-                    </button>
+                    {!isRealizada && (
+                      <button 
+                        onClick={() => {
+                          setEditMatchId(originalIndex);
+                          setEditScoreA(m.scoreA);
+                          setEditScoreB(m.scoreB);
+                          setEditSumula(m.sumula || {});
+                        }}
+                        style={{
+                          position: "absolute",
+                          top: 8,
+                          right: 8,
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          padding: 2
+                        }}
+                        title="Editar Partida e Súmula"
+                      >
+                        ✏️
+                      </button>
+                    )}
                     <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:8}}>
                       <span style={{fontWeight:800,fontSize:15,color:"#378ADD"}}>{m.scoreA} × {m.scoreB}</span>
                       <div style={{marginTop:2,textAlign:"center"}}>
@@ -5564,7 +5710,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         </div>
       )}
       {currentAba==="placar"&&<StandingsTable standings={peladaStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent="#378ADD" t={t}/>}
-      {currentAba==="relatório"&&<AbaRelatorioPelada peladaState={peladaState} datas={datas} atletas={atletas} repDataId={repDataId} setRepDataId={setRepDataId} repSortBy={repSortBy} setRepSortBy={setRepSortBy} formatarData={formatarData} t={t} />}
+      {currentAba==="relatório"&&<AbaRelatorioPelada peladaState={consolidatedPeladaState} datas={datas} atletas={atletas} repDataId={repDataId} setRepDataId={setRepDataId} repSortBy={repSortBy} setRepSortBy={setRepSortBy} formatarData={formatarData} t={t} />}
 
       {subModal && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
