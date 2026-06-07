@@ -1,0 +1,67 @@
+# Plano de Implementação - Substituição por Convidado e Retorno ao Rodízio com Vínculo
+
+Este plano detalha as alterações necessárias para permitir que, no momento em que um anfitrião saia do jogo, ele possa ser opcionalmente substituído de forma imediata por seu convidado. Além disso, adiciona a lista de atletas que saíram na aba de "Jogos", permitindo o retorno ao rodízio com ou sem o reestabelecimento do vínculo de revezamento.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> - **Substituição pelo Convidado**: No modal de saída (`sairModal`), se o atleta for anfitrião e possuir um convidado ativo, adicionaremos a opção de substituí-lo diretamente por esse convidado. Caso selecionado, o convidado entrará no jogo no time correspondente automaticamente.
+> - **Lista de Saídos em Jogos**: A lista de `jogadoresPausados` (atletas que saíram) será exibida na aba "Jogos", permitindo o retorno deles ao rodízio.
+> - **Retorno com Vínculo**: Ao retornar um anfitrião da lista de saídos, se o convidado estiver ativo na pelada, o organizador poderá marcar a opção "Retornar com vínculo". Se ativado:
+>   - O vínculo de revezamento entre eles é reestabelecido.
+>   - O anfitrião será colocado na mesma partição (time ou banco) em que o convidado estiver atualmente, de modo que voltem a revezar. Se o convidado também estiver na lista de pausados, ambos retornarão juntos ao banco de reservas.
+
+---
+
+## Proposed Changes
+
+### [Regras de Negócio e Rotação]
+
+#### [MODIFY] [App.jsx](file:///c:/Users/lucas/.gemini/antigravity/scratch/futebol-manager/src/App.jsx)
+
+##### 1. Atualização do Modal e Lógica de Saída (`sairModal` e `handleSairJogo`)
+- No estado de `App.jsx`, adicionar a variável `substituirPorConvidado` (booleano).
+- No render do `sairModal`:
+  - Se `convidadoEstaAtivo` for verdadeiro, exibir um checkbox: **"🔄 Ser substituído pelo convidado ([Nome do Convidado])"**.
+  - Se este checkbox for marcado, desabilitar/ocultar a seleção de outros substitutos do banco (`sairSubstitutoId`).
+- Na função `handleSairJogo`:
+  - Se `substituirPorConvidado` for verdadeiro, localizar o convidado ativo.
+  - Remover o convidado de onde ele estiver atualmente (banco de reservas `benchState`/`ps.bench` ou lista de pausados `jogadoresPausados`).
+  - Adicionar o convidado ao time do anfitrião (`newDrawnTeams` e `ps.teams` na chave `teamName`).
+  - Manter o vínculo ativo no objeto do jogador para permitir o reestabelecimento futuro.
+
+##### 2. Atualização da Função de Retorno (`retornarJogador`)
+- Modificar `retornarJogador(playerId, retornarComVinculo)` para suportar o reestabelecimento do vínculo:
+  - Se `retornarComVinculo` for verdadeiro, buscar o convidado do anfitrião.
+  - Identificar a localização atual do convidado (Time X, Banco de Reservas ou Pausado).
+  - Posicionar o anfitrião no mesmo local que o convidado e restabelecer as propriedades `{ isConvidado: true, convidadoDe: hostId }` no convidado no estado ativo da rodada.
+  - Se o convidado também estiver pausado, remover ambos da lista de pausados e inseri-los no banco de reservas.
+  - Se `retornarComVinculo` for falso, apenas retornar o jogador de forma independente ao banco.
+
+##### 3. Renderização da Lista de Atletas que Saíram na Aba "Jogos"
+- Na aba "Jogos" (`currentAba === "jogos"`), logo abaixo da seção de times do próximo jogo, renderizar a lista de `jogadoresPausados`.
+- Para cada jogador na lista:
+  - Exibir nome e avatar.
+  - Se for um anfitrião com convidado ativo na rodada, exibir um checkbox **"Retornar com vínculo com [Nome do Convidado]"** (pré-selecionado).
+  - Adicionar o botão **"Retornar"** chamando `retornarJogador` com o ID correspondente e o estado do checkbox.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Executar build de produção do Vite:
+  ```powershell
+  npm run build
+  ```
+
+### Manual Verification
+- Iniciar uma Pelada e realizar o sorteio com um anfitrião e um convidado em modo de revezamento.
+- Clicar no ícone de saída (`🚑`) do anfitrião durante o jogo atual.
+- No modal de saída, marcar a opção **"Ser substituído pelo convidado"** e confirmar.
+- Validar se o convidado entra automaticamente no time do anfitrião no jogo em andamento.
+- Ir até a aba "Jogos" e localizar o anfitrião na seção "Atletas que Saíram / Descansando".
+- Marcar a opção **"Retornar com vínculo"** e clicar em **"Retornar"**.
+- Validar se o anfitrião retorna ao mesmo time onde o convidado está jogando e se o ícone de revezamento `🔄` é reexibido para ambos.
