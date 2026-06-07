@@ -177,6 +177,88 @@ const getAtletaById = (atletas,id) => atletas.find(a=>a.id===id);
 const getParticipacoesByAtleta = (participacoes,aid) => participacoes.filter(p=>p.atleta_id===aid);
 const getParticipacoesByData = (participacoes,did) => participacoes.filter(p=>p.data_realizacao_id===did);
 
+const calcularEstatisticasData = (matchLog) => {
+  const stats = {};
+  const playedMatches = (matchLog || []).filter(m => m.played);
+  
+  playedMatches.forEach(m => {
+    const scoreA = parseInt(m.scoreA) || 0;
+    const scoreB = parseInt(m.scoreB) || 0;
+    const sumula = m.sumula || {};
+
+    (m.playersA || []).forEach(p => {
+      const pId = p.id || p.atleta_id;
+      if (!pId) return;
+      if (!stats[pId]) {
+        stats[pId] = { id: pId, nome: p.apelido || p.nome || `Atleta #${pId}`, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0 };
+      }
+      const s = stats[pId];
+      s.j++;
+      s.gp += parseInt(sumula[pId]) || 0;
+      s.gc += scoreB;
+      if (scoreA > scoreB) {
+        s.v++;
+        s.pts += 3;
+      } else if (scoreA === scoreB) {
+        s.e++;
+        s.pts += 1;
+      } else {
+        s.d++;
+      }
+    });
+
+    (m.playersB || []).forEach(p => {
+      const pId = p.id || p.atleta_id;
+      if (!pId) return;
+      if (!stats[pId]) {
+        stats[pId] = { id: pId, nome: p.apelido || p.nome || `Atleta #${pId}`, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0 };
+      }
+      const s = stats[pId];
+      s.j++;
+      s.gp += parseInt(sumula[pId]) || 0;
+      s.gc += scoreA;
+      if (scoreB > scoreA) {
+        s.v++;
+        s.pts += 3;
+      } else if (scoreB === scoreA) {
+        s.e++;
+        s.pts += 1;
+      } else {
+        s.d++;
+      }
+    });
+  });
+  
+  return Object.values(stats);
+};
+
+const calcularClassificacaoData = (teams, matchLog) => {
+  if (!teams) return [];
+  const st = teams.map(t => ({ name: t.name, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, pts: 0 }));
+  const playedMatches = (matchLog || []).filter(m => m.played);
+  
+  playedMatches.forEach(m => {
+    const h = st.find(x => x.name === m.teamA);
+    const a = st.find(x => x.name === m.teamB);
+    if (!h || !a) return;
+    const hs = parseInt(m.scoreA) || 0;
+    const as2 = parseInt(m.scoreB) || 0;
+    h.j++; a.j++;
+    h.gp += hs; h.gc += as2;
+    a.gp += as2; a.gc += hs;
+    h.sg = h.gp - h.gc;
+    a.sg = a.gp - a.gc;
+    if (hs > as2) {
+      h.v++; h.pts += 3; a.d++;
+    } else if (hs === as2) {
+      h.e++; h.pts++; a.e++; a.pts++;
+    } else {
+      a.v++; a.pts += 3; h.d++;
+    }
+  });
+  return st.sort((a, b) => b.pts - a.pts || b.sg - a.sg || b.gp - a.gp);
+};
+
 function resizeImage(file, maxSize, callback) {
   const reader = new FileReader();
   reader.onload = function(e) {
@@ -1165,6 +1247,60 @@ function generateKO(teams, noShuffle = false){
   }
   return phases;
 }
+
+function separarAtletasSorteio(presentes, numTeams, ppt) {
+  const normais = presentes.filter(a => !a.isConvidado);
+  const convidados = presentes.filter(a => a.isConvidado);
+  const vagasNecessarias = numTeams * ppt;
+  
+  if (normais.length >= vagasNecessarias) {
+    return {
+      sorteaveis: normais,
+      revezadores: convidados
+    };
+  } else {
+    const numAvulsos = vagasNecessarias - normais.length;
+    const avulsos = convidados.slice(0, numAvulsos);
+    const revezadores = convidados.slice(numAvulsos);
+    return {
+      sorteaveis: [...normais, ...avulsos],
+      revezadores: revezadores
+    };
+  }
+}
+
+function agruparUnidades(players) {
+  const unidades = [];
+  const visitados = new Set();
+  
+  players.forEach(p => {
+    if (visitados.has(p.id)) return;
+    
+    if (p.isConvidado && p.convidadoDe) {
+      const host = players.find(x => x.id === p.convidadoDe);
+      if (host && !visitados.has(host.id)) {
+        unidades.push([host, p]);
+        visitados.add(host.id);
+        visitados.add(p.id);
+        return;
+      }
+    }
+    
+    const guest = players.find(x => x.isConvidado && x.convidadoDe === p.id);
+    if (guest && !visitados.has(guest.id)) {
+      unidades.push([p, guest]);
+      visitados.add(p.id);
+      visitados.add(guest.id);
+      return;
+    }
+    
+    unidades.push([p]);
+    visitados.add(p.id);
+  });
+  
+  return unidades;
+}
+
 function drawBalancedTeams(athletes,numTeams,ppt){
   const shuffled=cryptoShuffle(athletes);
   const teams=Array.from({length:numTeams},(_,i)=>({name:"Time "+(i+1),players:[],skillSum:0}));
@@ -1196,13 +1332,17 @@ function resolveMatch(ps,scoreA,scoreB){
   const loserObj = newTeams.find(t=>t.name===loser);
   
   if(loserObj && newBench.length > 0) {
-    const swapCount = Math.min(newBench.length, loserObj.players.length);
-    const leaving = loserObj.players.slice(-swapCount);
-    const remaining = loserObj.players.slice(0, loserObj.players.length - swapCount);
-    const incoming = newBench.slice(0, swapCount);
+    const timeUnidades = agruparUnidades(loserObj.players);
+    const bancoUnidades = agruparUnidades(newBench);
     
-    const newLoserPlayers = [...incoming, ...remaining];
-    newBench = [...newBench.slice(swapCount), ...leaving];
+    const swapCount = Math.min(bancoUnidades.length, timeUnidades.length);
+    
+    const leavingUnidades = timeUnidades.slice(-swapCount);
+    const remainingUnidades = timeUnidades.slice(0, timeUnidades.length - swapCount);
+    const incomingUnidades = bancoUnidades.slice(0, swapCount);
+    
+    const newLoserPlayers = [...incomingUnidades, ...remainingUnidades].flat();
+    newBench = [...bancoUnidades.slice(swapCount), ...leavingUnidades].flat();
     
     newTeams = newTeams.map(t=>t.name===loser ? {...t, players: newLoserPlayers} : t);
   }
@@ -1421,7 +1561,7 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey }) {
 
   return (
     <div style={{
-      background: t.bg === "#000000" ? "#121212" : t.bg === "#0f1117" ? "#1f2335" : "#f1f5f9",
+      background: t.inputBg,
       border: `1.5px solid ${isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : t.cardBorder}`,
       borderRadius: 14,
       padding: 12,
@@ -3826,25 +3966,23 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
 function CRUDAtletas({
   atletas, onAdd, onUpdate, onRemove, onExport, onImport, onDownloadTemplate,
   atletasCampeonato, onAddCamp, onUpdateCamp, onRemoveCamp, onExportCamp, onImportCamp, onDownloadTemplateCamp,
-  t
+  campeonatos, peladas, t
 }){
   const S=makeStyles(t);
-  const[abaAtletas,setAbaAtletas]=useState("pelada"); // "pelada" ou "campeonato"
-  const[modal,setModal]=useState(false);
-  const[editId,setEditId]=useState(null);
+  const [modal, setModal] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [filtroVinculo, setFiltroVinculo] = useState("todos"); // "todos", "campeonato_ID", "pelada_ID"
   
-  // Form estendido para campeonato e simplificado para pelada
-  const defaultCampForm = {
+  const defaultForm = {
     nome: "",
     apelido: "",
     foto: "",
     habilidade: 3,
     goleiro: false,
     ativo: true,
-    documento: "", // RG
+    documento: "", // RG/CPF
     dataNascimento: "",
     numeroCamisa: "",
-    grupo: "", // Time
     celular1: "",
     celular2: "",
     foneResidencial: "",
@@ -3859,112 +3997,124 @@ function CRUDAtletas({
     nomeMae: "",
     docFoto: "",
     modalidades: [],
+    vinculos: [], // Array de strings formatadas: "campeonato_${id}" ou "pelada_${id}"
     customFields: {}
   };
 
+  const [form, setForm] = useState(defaultForm);
+  const [filtro, setFiltro] = useState("");
+  const [expandMenu, setExpandMenu] = useState(false);
 
-  const[form,setForm]=useState({nome:"",apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true,documento:"",dataNascimento:"",numeroCamisa:"",grupo:"",customFields:{}});
-  const[filtro,setFiltro]=useState("");
-  const[expandMenu,setExpandMenu]=useState(false);
-
-  // Mapeamento dinâmico com base na aba ativa
-  const atletasAtuais = abaAtletas === "pelada" ? atletas : atletasCampeonato;
-  const handleAdd = abaAtletas === "pelada" ? onAdd : onAddCamp;
-  const handleUpdate = abaAtletas === "pelada" ? onUpdate : onUpdateCamp;
-  const handleRemove = abaAtletas === "pelada" ? onRemove : onRemoveCamp;
-  const handleExport = abaAtletas === "pelada" ? onExport : onExportCamp;
-  const handleImport = abaAtletas === "pelada" ? onImport : onImportCamp;
-  const handleDownloadTemplate = abaAtletas === "pelada" ? onDownloadTemplate : onDownloadTemplateCamp;
+  // No modelo unificado, usamos sempre as ações gerais de Atleta
+  const handleAdd = onAdd;
+  const handleUpdate = onUpdate;
+  const handleRemove = onRemove;
+  const handleExport = onExport;
+  const handleImport = onImport;
+  const handleDownloadTemplate = onDownloadTemplate;
 
   function abrirNovo(){
     setEditId(null);
-    if (abaAtletas === "pelada") {
-      setForm({nome:filtro.trim(),apelido:"",foto:"",habilidade:3,goleiro:false,ativo:true,documento:"",dataNascimento:"",numeroCamisa:"",grupo:"",customFields:{}});
-    } else {
-      setForm({...defaultCampForm, nome:filtro.trim()});
+    const vinculosIniciais = [];
+    if (filtroVinculo !== "todos") {
+      vinculosIniciais.push(filtroVinculo);
     }
+    setForm({
+      ...defaultForm,
+      nome: filtro.trim(),
+      vinculos: vinculosIniciais
+    });
     setModal(true);
   }
 
   function abrirEdicao(a){
     setEditId(a.id);
-    if (abaAtletas === "pelada") {
-      setForm({nome:a.nome,apelido:a.apelido||"",foto:a.foto||"",habilidade:a.habilidade,goleiro:a.goleiro,ativo:a.ativo !== false,documento:a.documento||"",dataNascimento:a.dataNascimento||"",numeroCamisa:a.numeroCamisa||"",grupo:a.grupo||"",customFields:a.customFields||{}});
-    } else {
-      setForm({
-        nome: a.nome,
-        apelido: a.apelido || "",
-        foto: a.foto || "",
-        habilidade: a.habilidade || 3,
-        goleiro: a.goleiro || false,
-        ativo: a.ativo !== false,
-        documento: a.documento || "",
-        dataNascimento: a.dataNascimento || "",
-        numeroCamisa: a.numeroCamisa || "",
-        grupo: a.grupo || "",
-        celular1: a.celular1 || "",
-        celular2: a.celular2 || "",
-        foneResidencial: a.foneResidencial || "",
-        email: a.email || "",
-        tipoAtleta: a.tipoAtleta || "Adventista",
-        igrejaMembro: a.igrejaMembro || "",
-        logradouro: a.logradouro || "Rua",
-        nomeVia: a.nomeVia || "",
-        cep: a.cep || "",
-        complemento: a.complemento || "",
-        bairro: a.bairro || "",
-        nomeMae: a.nomeMae || "",
-        docFoto: a.docFoto || "",
-        modalidades: Array.isArray(a.modalidades) ? a.modalidades : [],
-        customFields: a.customFields || {}
-      });
-    }
+    setForm({
+      nome: a.nome || "",
+      apelido: a.apelido || "",
+      foto: a.foto || "",
+      habilidade: a.habilidade || 3,
+      goleiro: a.goleiro || false,
+      ativo: a.ativo !== false,
+      documento: a.documento || "",
+      dataNascimento: a.dataNascimento || "",
+      numeroCamisa: a.numeroCamisa || "",
+      celular1: a.celular1 || "",
+      celular2: a.celular2 || "",
+      foneResidencial: a.foneResidencial || "",
+      email: a.email || "",
+      tipoAtleta: a.tipoAtleta || "Adventista",
+      igrejaMembro: a.igrejaMembro || "",
+      logradouro: a.logradouro || "Rua",
+      nomeVia: a.nomeVia || "",
+      cep: a.cep || "",
+      complemento: a.complemento || "",
+      bairro: a.bairro || "",
+      nomeMae: a.nomeMae || "",
+      docFoto: a.docFoto || "",
+      modalidades: Array.isArray(a.modalidades) ? a.modalidades : [],
+      vinculos: Array.isArray(a.vinculos) ? a.vinculos : [],
+      customFields: a.customFields || {}
+    });
     setModal(true);
   }
 
   function salvar(){
     if(!form.nome.trim())return;
+    // O cadastro de atletas depende de ter ao menos um vínculo (ou de ter Ligas/Peladas criadas no sistema)
+    if (form.vinculos.length === 0) {
+      alert("Por favor, selecione ao menos uma Liga ou Pelada para vincular o atleta!");
+      return;
+    }
     if(editId) handleUpdate(editId, form);
     else handleAdd(form);
     setModal(false);
   }
   
-  const lista = atletasAtuais.filter(a => a.nome.toLowerCase().includes(filtro.toLowerCase()) || (a.apelido && a.apelido.toLowerCase().includes(filtro.toLowerCase())));
-  const ativos = atletasAtuais.filter(a => a.ativo).length;
+  const lista = atletas.filter(a => {
+    const matchesTexto = a.nome.toLowerCase().includes(filtro.toLowerCase()) || 
+                         (a.apelido && a.apelido.toLowerCase().includes(filtro.toLowerCase()));
+    let matchesVinculo = true;
+    if (filtroVinculo !== "todos") {
+      matchesVinculo = Array.isArray(a.vinculos) && a.vinculos.includes(filtroVinculo);
+    }
+    return matchesTexto && matchesVinculo;
+  });
+  const ativos = lista.filter(a => a.ativo).length;
 
   return(
     <div>
-      {/* Abas Peladas / Campeonatos */}
-      <div style={{display:"flex",gap:8,marginBottom:16,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:8}}>
-        <button 
-          onClick={() => { setAbaAtletas("pelada"); setFiltro(""); }} 
-          style={{
-            ...S.btn(abaAtletas === "pelada" ? "#378ADD" : t.card, abaAtletas === "pelada" ? "#fff" : t.textSec),
-            flex: 1, justifyContent: "center", fontSize: 13, fontWeight: 700, borderRadius: 10
-          }}
+      {/* Filtro Dropdown de Vínculos (Ligas/Peladas) */}
+      <div style={{display:"flex", flexDirection:"column", gap:6, marginBottom:16}}>
+        <label style={{...S.label, margin:0, fontWeight:700}}>Filtrar Atletas por Liga ou Pelada:</label>
+        <select 
+          style={{...S.select, margin:0, width:"100%"}} 
+          value={filtroVinculo} 
+          onChange={e=>{ setFiltroVinculo(e.target.value); setFiltro(""); }}
         >
-          👟 Peladas
-        </button>
-        <button 
-          onClick={() => { setAbaAtletas("campeonato"); setFiltro(""); }} 
-          style={{
-            ...S.btn(abaAtletas === "campeonato" ? "#1D9E75" : t.card, abaAtletas === "campeonato" ? "#fff" : t.textSec),
-            flex: 1, justifyContent: "center", fontSize: 13, fontWeight: 700, borderRadius: 10
-          }}
-        >
-          🏆 Campeonatos (Liga)
-        </button>
+          <option value="todos">🌍 Todos os Atletas (Sem Filtro)</option>
+          {campeonatos && campeonatos.length > 0 && (
+            <optgroup label="🏆 Ligas / Campeonatos">
+              {campeonatos.map(c => <option key={c.id} value={"campeonato_" + c.id}>{c.name}</option>)}
+            </optgroup>
+          )}
+          {peladas && peladas.length > 0 && (
+            <optgroup label="👟 Peladas">
+              {peladas.map(p => <option key={p.id} value={"pelada_" + p.id}>{p.nome}</option>)}
+            </optgroup>
+          )}
+        </select>
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
-        {[["Total",atletasAtuais.length,"#378ADD"],["Ativos",ativos,"#1D9E75"],["Inativos",atletasAtuais.length-ativos,"#E24B4A"]].map(([l,v,c])=>(
+        {[["Total",lista.length,"#378ADD"],["Ativos",ativos,"#1D9E75"],["Inativos",lista.length-ativos,"#E24B4A"]].map(([l,v,c])=>(
           <div key={l} style={{...S.card,textAlign:"center",padding:10}}><div style={{fontSize:9,fontWeight:700,color:t.textSec,marginBottom:3}}>{l}</div><div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div></div>
         ))}
       </div>
 
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <input style={{...S.input,flex:1,minWidth:120}} placeholder="🔍 Buscar atleta por nome/apelido..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
-        <button onClick={abrirNovo} style={S.btn(abaAtletas === "pelada" ? "#378ADD" : "#1D9E75")}>+ Novo Atleta ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</button>
+        <button onClick={abrirNovo} style={S.btn("#1D9E75")}>+ Novo Atleta</button>
         <button onClick={()=>setExpandMenu(!expandMenu)} style={{...S.btn("#a0a0a0"),display:"inline-flex",gap:6}}>
           <span>⚙️ Importar/Exportar</span>
           <span style={{transform:expandMenu?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.3s",display:"inline-block"}}>▼</span>
@@ -3976,15 +4126,15 @@ function CRUDAtletas({
           <div style={{display:"flex",flexDirection:"column",gap:0}}>
             <button onClick={()=>{handleExport();setExpandMenu(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.target.style.background=t.card} onMouseLeave={e=>e.target.style.background="transparent"}>
               <span>📤</span>
-              <div><div style={{fontWeight:600}}>Exportar Atletas ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</div><div style={{fontSize:11,color:t.textSec}}>Baixar lista em XLS</div></div>
+              <div><div style={{fontWeight:600}}>Exportar Atletas</div><div style={{fontSize:11,color:t.textSec}}>Baixar lista em XLS</div></div>
             </button>
             <button onClick={()=>{handleDownloadTemplate();setExpandMenu(false);}} style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}} onMouseEnter={e=>e.target.style.background=t.card} onMouseLeave={e=>e.target.style.background="transparent"}>
               <span>📄</span>
-              <div><div style={{fontWeight:600}}>Baixar Modelo ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</div><div style={{fontSize:11,color:t.textSec}}>Planilha em branco</div></div>
+              <div><div style={{fontWeight:600}}>Baixar Modelo</div><div style={{fontSize:11,color:t.textSec}}>Planilha em branco</div></div>
             </button>
             <label style={{textAlign:"left",padding:"12px 14px",border:"none",background:"transparent",color:t.text,cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s",margin:0}} onMouseEnter={e=>e.currentTarget.style.background=t.card} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <span>📥</span>
-              <div><div style={{fontWeight:600}}>Importar Atletas ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</div><div style={{fontSize:11,color:t.textSec}}>Carregar arquivo XLS</div></div>
+              <div><div style={{fontWeight:600}}>Importar Atletas</div><div style={{fontSize:11,color:t.textSec}}>Carregar arquivo XLS</div></div>
               <input type="file" accept=".csv,.xls" style={{display:"none"}} onChange={(e)=>{handleImport(e);setExpandMenu(false);}} />
             </label>
           </div>
@@ -4002,47 +4152,71 @@ function CRUDAtletas({
                   {getPlayerName(a)}
                   {a.apelido?<span style={{fontSize:11,color:t.textSec,marginLeft:6}}>({a.apelido})</span>:null}
                   {a.numeroCamisa && <span style={{fontSize:11,fontWeight:800,color:"#378ADD",background:"#378ADD15",padding:"1px 5px",borderRadius:4,marginLeft:6}}>#{a.numeroCamisa}</span>}
-                  {a.grupo && <span style={{fontSize:11,fontWeight:700,color:"#9C27B0",background:"#9C27B015",padding:"1px 5px",borderRadius:4,marginLeft:6}}>👥 {a.grupo}</span>}
                   {!a.ativo&&<span style={{marginLeft:8,fontSize:10,background:"#E24B4A22",color:"#E24B4A",padding:"1px 7px",borderRadius:8}}>Inativo</span>}
                 </div>
                 
-                {abaAtletas === "pelada" ? (
-                  <div style={{fontSize:11,color:SKILL_COLORS[a.habilidade-1],fontWeight:600}}>
-                    {"⭐".repeat(a.habilidade)} · {SKILL_NAMES[a.habilidade-1]}
-                    {a.dataNascimento && ` · Nasc: ${a.dataNascimento.split("-").reverse().join("/")}`}
-                    {a.documento && ` · RG/CPF: ${a.documento}`}
-                  </div>
-                ) : (
-                  <div style={{fontSize:11,color:t.textSec,marginTop:4,display:"flex",flexDirection:"column",gap:2}}>
-                    <div>
-                      <span style={{fontWeight:700,color:a.tipoAtleta === "Adventista" ? "#1D9E75" : "#BA7517"}}>
-                        ⛪ {a.tipoAtleta || "Adventista"} {a.igrejaMembro ? `(${a.igrejaMembro})` : ""}
-                      </span>
-                      {a.celular1 && ` · 📞 ${a.celular1}`}
-                      {a.email && ` · ✉️ ${a.email}`}
-                    </div>
-                    <div>
-                      👤 Mãe: {a.nomeMae || "—"} · 📍 Endereço: {a.logradouro || ""} {a.nomeVia || ""}, {a.bairro || ""}
-                    </div>
-                    {Array.isArray(a.modalidades) && a.modalidades.length > 0 && (
-                      <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:3}}>
-                        {a.modalidades.map(mid => {
-                          const mod = MODALIDADES_ESPORTIVAS.find(x => x.id === mid);
-                          if (!mod) return null;
-                          return (
-                            <span key={mid} style={{fontSize:10,fontWeight:700,color:mod.color,background:mod.color+"22",padding:"1px 7px",borderRadius:10,border:`1px solid ${mod.color}44`}}>
-                              {mod.icon} {mod.label}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <div style={{display:"flex",gap:8,marginTop:4}}>
-                      {a.foto ? <span style={{color:"#1D9E75"}}>✓ Foto Perfil 👤</span> : <span style={{color:"#E24B4A"}}>✕ Sem Foto 👤</span>}
-                      {a.docFoto ? <span style={{color:"#1D9E75"}}>✓ Doc. Anexado 🪪</span> : <span style={{color:"#E24B4A"}}>✕ Sem Doc. 🪪</span>}
-                    </div>
+                {/* Badges de Ligas / Peladas Vinculadas */}
+                {Array.isArray(a.vinculos) && a.vinculos.length > 0 && (
+                  <div style={{display:"flex", flexWrap:"wrap", gap:4, marginTop:4, marginBottom:6}}>
+                    {a.vinculos.map(vId => {
+                      if (vId.startsWith("campeonato_")) {
+                        const id = Number(vId.replace("campeonato_", ""));
+                        const c = campeonatos.find(x => x.id === id);
+                        if (!c) return null;
+                        return (
+                          <span key={vId} style={{fontSize:9, fontWeight:700, color:"#06AA48", background:"#06AA4812", padding:"2px 6px", borderRadius:4, border: "1px solid #06AA4822"}}>
+                            🏆 {c.name}
+                          </span>
+                        );
+                      } else if (vId.startsWith("pelada_")) {
+                        const id = Number(vId.replace("pelada_", ""));
+                        const p = peladas.find(x => x.id === id);
+                        if (!p) return null;
+                        return (
+                          <span key={vId} style={{fontSize:9, fontWeight:700, color:"#378ADD", background:"#378ADD12", padding:"2px 6px", borderRadius:4, border: "1px solid #378ADD22"}}>
+                            👟 {p.nome}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
                   </div>
                 )}
+
+                <div style={{fontSize:11,color:t.textSec,marginTop:4,display:"flex",flexDirection:"column",gap:2}}>
+                  <div style={{color:SKILL_COLORS[a.habilidade-1],fontWeight:700}}>
+                    {"⭐".repeat(a.habilidade)} · {SKILL_NAMES[a.habilidade-1]}
+                    {a.dataNascimento && ` · 🎂 Nasc: ${a.dataNascimento.split("-").reverse().join("/")}`}
+                    {a.documento && ` · 🪪 RG/CPF: ${a.documento}`}
+                  </div>
+                  <div>
+                    <span style={{fontWeight:700,color:a.tipoAtleta === "Adventista" ? "#1D9E75" : "#BA7517"}}>
+                      ⛪ {a.tipoAtleta || "Adventista"} {a.igrejaMembro ? `(${a.igrejaMembro})` : ""}
+                    </span>
+                    {a.celular1 && ` · 📞 ${a.celular1}`}
+                    {a.email && ` · ✉️ ${a.email}`}
+                  </div>
+                  {a.nomeMae && <div>👤 Mãe: {a.nomeMae}</div>}
+                  {(a.nomeVia || a.bairro) && <div>📍 Endereço: {a.logradouro || ""} {a.nomeVia || ""}, {a.bairro || ""}</div>}
+                  
+                  {Array.isArray(a.modalidades) && a.modalidades.length > 0 && (
+                    <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:3}}>
+                      {a.modalidades.map(mid => {
+                        const mod = MODALIDADES_ESPORTIVAS.find(x => x.id === mid);
+                        if (!mod) return null;
+                        return (
+                          <span key={mid} style={{fontSize:10,fontWeight:700,color:mod.color,background:mod.color+"22",padding:"1px 7px",borderRadius:10,border:`1px solid ${mod.color}44`}}>
+                            {mod.icon} {mod.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div style={{display:"flex",gap:8,marginTop:4}}>
+                    {a.foto ? <span style={{color:"#1D9E75", fontSize: 10.5}}>✓ Foto Perfil 👤</span> : <span style={{color:"#E24B4A", fontSize: 10.5}}>✕ Sem Foto 👤</span>}
+                    {a.docFoto ? <span style={{color:"#1D9E75", fontSize: 10.5}}>✓ Doc. Anexado 🪪</span> : <span style={{color:"#E24B4A", fontSize: 10.5}}>✕ Sem Doc. 🪪</span>}
+                  </div>
+                </div>
 
                 {a.customFields && Object.keys(a.customFields).length > 0 && (
                   <div style={{fontSize:11,color:t.textSec,marginTop:3,display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -4063,276 +4237,261 @@ function CRUDAtletas({
 
       {modal&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
-          <div style={{...S.card,width:"100%",maxWidth:abaAtletas === "campeonato" ? 480 : 420,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editId ? "✏️ Editar Atleta" : "🆕 Novo Atleta"} ({abaAtletas === "pelada" ? "Pelada" : "Camp."})</div>
+          <div style={{...S.card,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editId ? "✏️ Editar Atleta" : "🆕 Novo Atleta"}</div>
             
-            {abaAtletas === "campeonato" ? (
-              <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                {/* 1. Identificação Básica */}
-                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>1. Identificação do Atleta</div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome Completo</label><input style={S.input} value={form.nome} onChange={e=>setForm(v=>({...v,nome:e.target.value}))} placeholder="Nome completo"/></div>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Apelido</label><input style={S.input} value={form.apelido} onChange={e=>setForm(v=>({...v,apelido:e.target.value}))} placeholder="Nome de camisa"/></div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {/* 1. Identificação Básica */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>1. Identificação do Atleta</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome Completo</label><input style={S.input} value={form.nome} onChange={e=>setForm(v=>({...v,nome:e.target.value}))} placeholder="Nome completo"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Apelido</label><input style={S.input} value={form.apelido} onChange={e=>setForm(v=>({...v,apelido:e.target.value}))} placeholder="Nome de camisa"/></div>
+              </div>
+              
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:100}}>
+                  <label style={S.label}>Número da Camisa</label>
+                  <input type="text" style={S.input} value={form.numeroCamisa || ""} onChange={e=>setForm(v=>({...v,numeroCamisa:e.target.value}))} placeholder="Ex: 10"/>
                 </div>
-                
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:100}}>
-                    <label style={S.label}>Número da Camisa</label>
-                    <input type="text" style={S.input} value={form.numeroCamisa || ""} onChange={e=>setForm(v=>({...v,numeroCamisa:e.target.value}))} placeholder="Ex: 10"/>
-                  </div>
-                  <div style={{flex:1,minWidth:140}}>
-                    <label style={S.label}>Grupo / Time</label>
-                    {(() => {
-                      const gruposDisponiveis = Array.from(new Set(atletasCampeonato.map(a => a.grupo).filter(Boolean)));
-                      if (form.grupo && !gruposDisponiveis.includes(form.grupo)) {
-                        gruposDisponiveis.push(form.grupo);
-                      }
-                      return (
-                        <select 
-                          style={S.select} 
-                          value={form.grupo || ""} 
-                          onChange={e => {
-                            const val = e.target.value;
-                            if (val === "__novo__") {
-                              const novo = window.prompt("Digite o nome do novo grupo/time:");
-                              if (novo && novo.trim()) {
-                                setForm(v => ({ ...v, grupo: novo.trim() }));
-                              }
-                            } else {
-                              setForm(v => ({ ...v, grupo: val }));
-                            }
-                          }}
-                        >
-                          <option value="">Nenhum Grupo</option>
-                          {gruposDisponiveis.map(g => (
-                            <option key={g} value={g}>{g}</option>
-                          ))}
-                          <option value="__novo__">➕ Adicionar novo time...</option>
-                        </select>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:100,display:"flex",alignItems:"center",marginTop:16}}>
                   <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.goleiro} onChange={e=>setForm(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
+                </div>
+                <div style={{flex:1,minWidth:100,display:"flex",alignItems:"center",marginTop:16}}>
                   <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.ativo} onChange={e=>setForm(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
                 </div>
+              </div>
 
-                <div>
-                  <label style={S.label}>Habilidade (Nível técnico)</label>
-                  <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setForm(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${form.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:form.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:form.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:form.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
-                </div>
+              <div>
+                <label style={S.label}>Habilidade (Nível técnico)</label>
+                <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setForm(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${form.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:form.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:form.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:form.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
+              </div>
 
-                {/* 2. Dados de Contato e Pessoais */}
-                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>2. Dados Pessoais e de Contato</div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG)</label><input style={S.input} value={form.documento || ""} onChange={e=>setForm(v=>({...v,documento:e.target.value}))} placeholder="Apenas números do RG"/></div>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={form.dataNascimento || ""} onChange={e=>setForm(v=>({...v,dataNascimento:e.target.value}))}/></div>
-                </div>
-                
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome da Mãe</label><input style={S.input} value={form.nomeMae || ""} onChange={e=>setForm(v=>({...v,nomeMae:e.target.value}))} placeholder="Nome completo da mãe"/></div>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>E-mail</label><input type="email" style={S.input} value={form.email || ""} onChange={e=>setForm(v=>({...v,email:e.target.value}))} placeholder="exemplo@email.com"/></div>
-                </div>
-
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:100}}><label style={S.label}>Celular 1 (WhatsApp)</label><input style={S.input} value={form.celular1 || ""} onChange={e=>setForm(v=>({...v,celular1:e.target.value}))} placeholder="Ex: 11999999999"/></div>
-                  <div style={{flex:1,minWidth:100}}><label style={S.label}>Celular 2</label><input style={S.input} value={form.celular2 || ""} onChange={e=>setForm(v=>({...v,celular2:e.target.value}))} placeholder="Ex: 11999999998"/></div>
-                  <div style={{flex:1,minWidth:100}}><label style={S.label}>Fone Fixo</label><input style={S.input} value={form.foneResidencial || ""} onChange={e=>setForm(v=>({...v,foneResidencial:e.target.value}))} placeholder="Ex: 1136123456"/></div>
-                </div>
-
-                {/* 3. Modalidades de Inscrição */}
-                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>3. Modalidades de Inscrição</div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>
-                  {MODALIDADES_ESPORTIVAS.map(m => {
-                    const mods = Array.isArray(form.modalidades) ? form.modalidades : [];
-                    const selected = mods.includes(m.id);
-                    return (
-                      <label key={m.id} style={{
-                        display:"flex",alignItems:"center",gap:6,cursor:"pointer",
-                        padding:"6px 12px",borderRadius:20,border:`2px solid ${selected ? m.color : t.cardBorder}`,
-                        background:selected ? m.color + "22" : t.inputBg,
-                        color:selected ? m.color : t.textSec,fontWeight:selected ? 700 : 500,fontSize:13,
-                        transition:"all 0.15s",userSelect:"none"
-                      }}>
-                        <input type="checkbox" style={{display:"none"}} checked={selected}
-                          onChange={() => setForm(v => {
-                            const cur = Array.isArray(v.modalidades) ? v.modalidades : [];
-                            return {...v, modalidades: selected ? cur.filter(x => x !== m.id) : [...cur, m.id]};
-                          })}
-                        />
-                        {m.icon} {m.label}
-                      </label>
-                    );
-                  })}
-                </div>
-                {Array.isArray(form.modalidades) && form.modalidades.length === 0 && (
-                  <div style={{fontSize:11,color:"#E24B4A",marginTop:4}}>⚠️ Selecione ao menos uma modalidade.</div>
-                )}
-
-                {/* 4. Vínculo Religioso */}
-                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>4. Vínculo Religioso</div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:140}}>
-                    <label style={S.label}>Tipo de Atleta</label>
-                    <select style={S.select} value={form.tipoAtleta || "Adventista"} onChange={e=>setForm(v=>({...v,tipoAtleta:e.target.value}))}>
-                      <option value="Adventista">Atleta Adventista</option>
-                      <option value="Não Adventista">Atleta Não Adventista</option>
-                    </select>
-                  </div>
-                  {form.tipoAtleta === "Adventista" && (
-                    <div style={{flex:1,minWidth:140}}>
-                      <label style={S.label}>Igreja da Carta de Membro</label>
-                      <input style={S.input} value={form.igrejaMembro || ""} onChange={e=>setForm(v=>({...v,igrejaMembro:e.target.value}))} placeholder="IASD a qual é membro"/>
+              {/* Vínculo de Ligas e Peladas */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>Vínculos de Ligas e Peladas</div>
+              <div>
+                <div style={{
+                  maxHeight: 140,
+                  overflowY: "auto",
+                  border: `1px solid ${t.cardBorder}`,
+                  borderRadius: 8,
+                  padding: 10,
+                  background: t.inputBg,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8
+                }}>
+                  {campeonatos && campeonatos.length > 0 && (
+                    <div>
+                      <div style={{fontSize: 10, fontWeight: 700, color: t.accent, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4}}>Ligas / Campeonatos</div>
+                      {campeonatos.map(c => {
+                        const vinculoId = "campeonato_" + c.id;
+                        const checked = (form.vinculos || []).includes(vinculoId);
+                        return (
+                          <label key={c.id} style={{display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", color: t.text, padding: "2px 0"}}>
+                            <input 
+                              type="checkbox" 
+                              checked={checked} 
+                              onChange={() => {
+                                setForm(v => {
+                                  const cur = Array.isArray(v.vinculos) ? v.vinculos : [];
+                                  return {
+                                    ...v,
+                                    vinculos: checked ? cur.filter(x => x !== vinculoId) : [...cur, vinculoId]
+                                  };
+                                });
+                              }}
+                            />
+                            🏆 {c.name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {peladas && peladas.length > 0 && (
+                    <div style={{marginTop: 6}}>
+                      <div style={{fontSize: 10, fontWeight: 700, color: "#378ADD", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4}}>Peladas</div>
+                      {peladas.map(p => {
+                        const vinculoId = "pelada_" + p.id;
+                        const checked = (form.vinculos || []).includes(vinculoId);
+                        return (
+                          <label key={p.id} style={{display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", color: t.text, padding: "2px 0"}}>
+                            <input 
+                              type="checkbox" 
+                              checked={checked} 
+                              onChange={() => {
+                                setForm(v => {
+                                  const cur = Array.isArray(v.vinculos) ? v.vinculos : [];
+                                  return {
+                                    ...v,
+                                    vinculos: checked ? cur.filter(x => x !== vinculoId) : [...cur, vinculoId]
+                                  };
+                                });
+                              }}
+                            />
+                            👟 {p.nome}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {(!campeonatos || campeonatos.length === 0) && (!peladas || peladas.length === 0) && (
+                    <div style={{fontSize: 12, color: t.textSec, fontStyle: "italic"}}>
+                      Nenhuma Liga ou Pelada criada no sistema. Crie ao menos uma antes de cadastrar atletas.
                     </div>
                   )}
                 </div>
-
-                {/* 4. Endereço Residencial */}
-                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>4. Endereço Residencial</div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:100}}><label style={S.label}>CEP</label><input style={S.input} value={form.cep || ""} onChange={e=>setForm(v=>({...v,cep:e.target.value}))} placeholder="Ex: 69000-000"/></div>
-                  <div style={{flex:1,minWidth:100}}>
-                    <label style={S.label}>Logradouro</label>
-                    <select style={S.select} value={form.logradouro || "Rua"} onChange={e=>setForm(v=>({...v,logradouro:e.target.value}))}>
-                      <option value="Rua">Rua</option>
-                      <option value="Avenida">Avenida</option>
-                      <option value="Travessa">Travessa</option>
-                      <option value="Beco">Beco</option>
-                    </select>
-                  </div>
-                  <div style={{flex:2,minWidth:140}}><label style={S.label}>Nome da Via</label><input style={S.input} value={form.nomeVia || ""} onChange={e=>setForm(v=>({...v,nomeVia:e.target.value}))} placeholder="Nome da rua/avenida"/></div>
-                </div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Bairro</label><input style={S.input} value={form.bairro || ""} onChange={e=>setForm(v=>({...v,bairro:e.target.value}))} placeholder="Bairro"/></div>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Complemento</label><input style={S.input} value={form.complemento || ""} onChange={e=>setForm(v=>({...v,complemento:e.target.value}))} placeholder="Ex: Casa, Apto, Fundos"/></div>
-                </div>
-
-                {/* 5. Documentos e Fotos */}
-                <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>5. Uploads de Arquivos / Fotos</div>
-                <div>
-                  <label style={S.label}>Foto de Rosto (Perfil)</label>
-                  <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                    {form.foto&&<img src={form.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
-                    <input style={{...S.input,flex:1}} value={form.foto} onChange={e=>setForm(v=>({...v,foto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
-                    <label style={{...S.btn("#378ADD22","#378ADD"),margin:0}}>
-                      📁 Rosto
-                      <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setForm(v=>({...v,foto:b64})))}}/>
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label style={S.label}>Documento Oficial com Foto (Frente e Verso)</label>
-                  <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                    {form.docFoto&&<img src={form.docFoto} style={{width:40,height:40,borderRadius:4,objectFit:"cover"}}/>}
-                    <input style={{...S.input,flex:1}} value={form.docFoto} onChange={e=>setForm(v=>({...v,docFoto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
-                    <label style={{...S.btn("#1D9E7522","#1D9E75"),margin:0}}>
-                      📁 Doc. Foto
-                      <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],600,(b64)=>setForm(v=>({...v,docFoto:b64})))}}/>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome</label><input style={S.input} value={form.nome} onChange={e=>setForm(v=>({...v,nome:e.target.value}))} placeholder="Nome completo"/></div>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Apelido</label><input style={S.input} value={form.apelido} onChange={e=>setForm(v=>({...v,apelido:e.target.value}))} placeholder="Como é chamado"/></div>
-                </div>
-                <div>
-                  <label style={S.label}>Foto</label>
-                  <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                    {form.foto&&<img src={form.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
-                    <input style={{...S.input,flex:1}} value={form.foto} onChange={e=>setForm(v=>({...v,foto:e.target.value}))} placeholder="Cole URL da foto..."/>
-                    <label style={{...S.btn("#378ADD22","#378ADD"),margin:0}}>
-                      📁 Arquivo
-                      <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setForm(v=>({...v,foto:b64})))}}/>
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <label style={S.label}>Habilidade</label>
-                  <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setForm(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${form.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:form.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:form.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:form.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
-                </div>
-                <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-                  <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.goleiro} onChange={e=>setForm(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
-                  <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.ativo} onChange={e=>setForm(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
-                </div>
-
-                <div style={{display:"flex",gap:8,flexWrap:"wrap",borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG/CPF)</label><input style={S.input} value={form.documento || ""} onChange={e=>setForm(v=>({...v,documento:e.target.value}))} placeholder="RG ou CPF"/></div>
-                  <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={form.dataNascimento || ""} onChange={e=>setForm(v=>({...v,dataNascimento:e.target.value}))}/></div>
-                </div>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  <div style={{flex:1,minWidth:140}}>
-                    <label style={S.label}>Número da Camisa</label>
-                    <input type="text" style={S.input} value={form.numeroCamisa || ""} onChange={e=>setForm(v=>({...v,numeroCamisa:e.target.value}))} placeholder="Ex: 10"/>
-                  </div>
-                  <div style={{flex:1,minWidth:140}}>
-                    <label style={S.label}>Grupo</label>
-                    {(() => {
-                      const gruposDisponiveis = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
-                      if (form.grupo && !gruposDisponiveis.includes(form.grupo)) {
-                        gruposDisponiveis.push(form.grupo);
-                      }
-                      return (
-                        <select 
-                          style={S.select} 
-                          value={form.grupo || ""} 
-                          onChange={e => {
-                            const val = e.target.value;
-                            if (val === "__novo__") {
-                              const novo = window.prompt("Digite o nome do novo grupo:");
-                              if (novo && novo.trim()) {
-                                setForm(v => ({ ...v, grupo: novo.trim() }));
-                              }
-                            } else {
-                              setForm(v => ({ ...v, grupo: val }));
-                            }
-                          }}
-                        >
-                          <option value="">Nenhum Grupo</option>
-                          {gruposDisponiveis.map(g => (
-                            <option key={g} value={g}>{g}</option>
-                          ))}
-                          <option value="__novo__">➕ Adicionar novo grupo...</option>
-                        </select>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                {form.customFields && Object.keys(form.customFields).length > 0 && (
-                  <div style={{display:"flex",flexDirection:"column",gap:10,borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
-                    <div style={{fontSize:11,fontWeight:700,color:t.textSec}}>Campos Customizados Existentes:</div>
-                    {Object.entries(form.customFields).map(([k,v]) => (
-                      <div key={k}>
-                        <label style={S.label}>{k}</label>
-                        <input 
-                          style={S.input} 
-                          value={v || ""} 
-                          onChange={e => {
-                            const val = e.target.value;
-                            setForm(prev => ({
-                              ...prev,
-                              customFields: {
-                                ...prev.customFields,
-                                [k]: val
-                              }
-                            }));
-                          }} 
-                        />
-                      </div>
-                    ))}
+                {(!campeonatos || campeonatos.length === 0) && (!peladas || peladas.length === 0) && (
+                  <div style={{fontSize:11, color:"#E24B4A", marginTop:4}}>
+                    ⚠️ Impossível salvar: cadastre uma Liga ou Pelada primeiro.
                   </div>
                 )}
               </div>
-            )}
+
+              {/* 2. Dados de Contato e Pessoais */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>2. Dados Pessoais e de Contato</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Documento (RG/CPF)</label><input style={S.input} value={form.documento || ""} onChange={e=>setForm(v=>({...v,documento:e.target.value}))} placeholder="RG ou CPF"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Data de Nascimento</label><input type="date" style={S.input} value={form.dataNascimento || ""} onChange={e=>setForm(v=>({...v,dataNascimento:e.target.value}))}/></div>
+              </div>
+              
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Nome da Mãe</label><input style={S.input} value={form.nomeMae || ""} onChange={e=>setForm(v=>({...v,nomeMae:e.target.value}))} placeholder="Nome completo da mãe"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>E-mail</label><input type="email" style={S.input} value={form.email || ""} onChange={e=>setForm(v=>({...v,email:e.target.value}))} placeholder="exemplo@email.com"/></div>
+              </div>
+
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:100}}><label style={S.label}>Celular 1 (WhatsApp)</label><input style={S.input} value={form.celular1 || ""} onChange={e=>setForm(v=>({...v,celular1:e.target.value}))} placeholder="Ex: 11999999999"/></div>
+                <div style={{flex:1,minWidth:100}}><label style={S.label}>Celular 2</label><input style={S.input} value={form.celular2 || ""} onChange={e=>setForm(v=>({...v,celular2:e.target.value}))} placeholder="Ex: 11999999998"/></div>
+                <div style={{flex:1,minWidth:100}}><label style={S.label}>Fone Fixo</label><input style={S.input} value={form.foneResidencial || ""} onChange={e=>setForm(v=>({...v,foneResidencial:e.target.value}))} placeholder="Ex: 1136123456"/></div>
+              </div>
+
+              {/* 3. Modalidades de Inscrição */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>3. Modalidades de Inscrição</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>
+                {MODALIDADES_ESPORTIVAS.map(m => {
+                  const mods = Array.isArray(form.modalidades) ? form.modalidades : [];
+                  const selected = mods.includes(m.id);
+                  return (
+                    <label key={m.id} style={{
+                      display:"flex",alignItems:"center",gap:6,cursor:"pointer",
+                      padding:"6px 12px",borderRadius:20,border:`2px solid ${selected ? m.color : t.cardBorder}`,
+                      background:selected ? m.color + "22" : t.inputBg,
+                      color:selected ? m.color : t.textSec,fontWeight:selected ? 700 : 500,fontSize:13,
+                      transition:"all 0.15s",userSelect:"none"
+                    }}>
+                      <input type="checkbox" style={{display:"none"}} checked={selected}
+                        onChange={() => setForm(v => {
+                          const cur = Array.isArray(v.modalidades) ? v.modalidades : [];
+                          return {...v, modalidades: selected ? cur.filter(x => x !== m.id) : [...cur, m.id]};
+                        })}
+                      />
+                      {m.icon} {m.label}
+                    </label>
+                  );
+                })}
+              </div>
+              {Array.isArray(form.modalidades) && form.modalidades.length === 0 && (
+                <div style={{fontSize:11,color:"#E24B4A",marginTop:4}}>⚠️ Selecione ao menos uma modalidade.</div>
+              )}
+
+              {/* 4. Vínculo Religioso */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>4. Vínculo Religioso</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:140}}>
+                  <label style={S.label}>Tipo de Atleta</label>
+                  <select style={S.select} value={form.tipoAtleta || "Adventista"} onChange={e=>setForm(v=>({...v,tipoAtleta:e.target.value}))}>
+                    <option value="Adventista">Atleta Adventista</option>
+                    <option value="Não Adventista">Atleta Não Adventista</option>
+                  </select>
+                </div>
+                {form.tipoAtleta === "Adventista" && (
+                  <div style={{flex:1,minWidth:140}}>
+                    <label style={S.label}>Igreja da Carta de Membro</label>
+                    <input style={S.input} value={form.igrejaMembro || ""} onChange={e=>setForm(v=>({...v,igrejaMembro:e.target.value}))} placeholder="IASD a qual é membro"/>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. Endereço Residencial */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>5. Endereço Residencial</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:100}}><label style={S.label}>CEP</label><input style={S.input} value={form.cep || ""} onChange={e=>setForm(v=>({...v,cep:e.target.value}))} placeholder="Ex: 69000-000"/></div>
+                <div style={{flex:1,minWidth:100}}>
+                  <label style={{...S.label}}>Logradouro</label>
+                  <select style={S.select} value={form.logradouro || "Rua"} onChange={e=>setForm(v=>({...v,logradouro:e.target.value}))}>
+                    <option value="Rua">Rua</option>
+                    <option value="Avenida">Avenida</option>
+                    <option value="Travessa">Travessa</option>
+                    <option value="Beco">Beco</option>
+                  </select>
+                </div>
+                <div style={{flex:2,minWidth:140}}><label style={S.label}>Nome da Via</label><input style={S.input} value={form.nomeVia || ""} onChange={e=>setForm(v=>({...v,nomeVia:e.target.value}))} placeholder="Nome da rua/avenida"/></div>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Bairro</label><input style={S.input} value={form.bairro || ""} onChange={e=>setForm(v=>({...v,bairro:e.target.value}))} placeholder="Bairro"/></div>
+                <div style={{flex:1,minWidth:140}}><label style={S.label}>Complemento</label><input style={S.input} value={form.complemento || ""} onChange={e=>setForm(v=>({...v,complemento:e.target.value}))} placeholder="Ex: Casa, Apto, Fundos"/></div>
+              </div>
+
+              {/* 6. Documentos e Fotos */}
+              <div style={{fontSize:12,fontWeight:800,color:t.accent,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4,marginTop:6}}>6. Uploads de Arquivos / Fotos</div>
+              <div>
+                <label style={S.label}>Foto de Rosto (Perfil)</label>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                  {form.foto&&<img src={form.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
+                  <input style={{...S.input,flex:1}} value={form.foto} onChange={e=>setForm(v=>({...v,foto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
+                  <label style={{...S.btn("#378ADD22","#378ADD"),margin:0}}>
+                    📁 Rosto
+                    <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setForm(v=>({...v,foto:b64})))}}/>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label style={S.label}>Documento Oficial com Foto (Frente e Verso)</label>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                  {form.docFoto&&<img src={form.docFoto} style={{width:40,height:40,borderRadius:4,objectFit:"cover"}}/>}
+                  <input style={{...S.input,flex:1}} value={form.docFoto} onChange={e=>setForm(v=>({...v,docFoto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
+                  <label style={{...S.btn("#1D9E7522","#1D9E75"),margin:0}}>
+                    📁 Doc. Foto
+                    <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],600,(b64)=>setForm(v=>({...v,docFoto:b64})))}}/>
+                  </label>
+                </div>
+              </div>
+
+              {form.customFields && Object.keys(form.customFields).length > 0 && (
+                <div style={{display:"flex",flexDirection:"column",gap:10,borderTop:`1px dashed ${t.cardBorder}`,paddingTop:10}}>
+                  <div style={{fontSize:11,fontWeight:700,color:t.textSec}}>Campos Customizados Existentes:</div>
+                  {Object.entries(form.customFields).map(([k,v]) => (
+                    <div key={k}>
+                      <label style={S.label}>{k}</label>
+                      <input 
+                        style={S.input} 
+                        value={v || ""} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          setForm(prev => ({
+                            ...prev,
+                            customFields: {
+                              ...prev.customFields,
+                              [k]: val
+                            }
+                          }));
+                        }} 
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div style={{display:"flex",gap:8,marginTop:16}}>
-              <button onClick={salvar} style={S.btn(abaAtletas === "pelada" ? "#378ADD" : "#1D9E75")}>Salvar</button>
+              <button 
+                onClick={salvar} 
+                style={S.btn("#1D9E75")}
+                disabled={(!campeonatos || campeonatos.length === 0) && (!peladas || peladas.length === 0)}
+              >
+                Salvar
+              </button>
               <button onClick={()=>setModal(false)} style={S.btn(t.card,t.textSec)}>Cancelar</button>
             </div>
           </div>
@@ -4497,7 +4656,7 @@ function CriarPelada({onSave,initial,t}){
 }
 
 /* ─────────────────────────── ABA DATAS ──────────────────────────── */
-function AbaDatas({peladaId,datasRealizacao,onAdd,onUpdate,onRemove,t}){
+function AbaDatas({peladaId,datasRealizacao,onAdd,onUpdate,onRemove,t,quadras=[]}){
   const S=makeStyles(t);
   const datas=datasRealizacao.filter(d=>d.pelada_id===peladaId);
   const[novaData,setNovaData]=useState("");
@@ -4510,13 +4669,20 @@ function AbaDatas({peladaId,datasRealizacao,onAdd,onUpdate,onRemove,t}){
   function adicionar(){if(!novaData)return;onAdd({pelada_id:peladaId,data:novaData,local:novoLocal,valor:novoValor,status:"agendado"});setNovaData("");setNovoLocal("");setNovoValor("");}
   function salvarEdicao(){onUpdate(editId,{data:editData,local:editLocal,valor:editValor});setEditId(null);}
   const STATUS_COLORS={"agendado":"#378ADD","realizado":"#1D9E75","cancelado":"#E24B4A"};
+  const quadrasAtivas = Array.isArray(quadras) ? quadras.filter(q => q.ativa) : [];
+
   return(
     <div>
       <div style={{...S.card,marginBottom:14,border:"1px solid #378ADD33",padding:"12px 14px"}}>
         <div style={{fontWeight:700,fontSize:13,color:"#378ADD",marginBottom:10}}>📅 Agendar Data</div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
           <input style={{...S.input,flex:1,minWidth:120}} type="date" value={novaData} onChange={e=>setNovaData(e.target.value)}/>
-          <input style={{...S.input,flex:2,minWidth:140}} placeholder="Local (opcional)" value={novoLocal} onChange={e=>setNovoLocal(e.target.value)}/>
+          <select style={{...S.select,flex:2,minWidth:140}} value={novoLocal} onChange={e=>setNovoLocal(e.target.value)}>
+            <option value="">Selecionar Quadra/Campo (opcional)</option>
+            {quadrasAtivas.map(q => (
+              <option key={q.id} value={q.nome}>{q.nome}</option>
+            ))}
+          </select>
           <input style={{...S.input,flex:1,minWidth:100}} type="number" step="0.01" min="0" placeholder="Valor (R$)" value={novoValor} onChange={e=>setNovoValor(e.target.value)}/>
         </div>
         <button onClick={adicionar} style={S.btn("#378ADD")}>+ Adicionar Data</button>
@@ -4529,7 +4695,12 @@ function AbaDatas({peladaId,datasRealizacao,onAdd,onUpdate,onRemove,t}){
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   <input style={{...S.input,flex:1}} type="date" value={editData} onChange={e=>setEditData(e.target.value)}/>
-                  <input style={{...S.input,flex:2}} value={editLocal} onChange={e=>setEditLocal(e.target.value)}/>
+                  <select style={{...S.select,flex:2}} value={editLocal} onChange={e=>setEditLocal(e.target.value)}>
+                    <option value="">Sem local</option>
+                    {quadrasAtivas.map(q => (
+                      <option key={q.id} value={q.nome}>{q.nome}</option>
+                    ))}
+                  </select>
                   <input style={{...S.input,flex:1}} type="number" step="0.01" min="0" placeholder="Valor (R$)" value={editValor} onChange={e=>setEditValor(e.target.value)}/>
                 </div>
                 <div style={{display:"flex",gap:8}}>
@@ -4562,23 +4733,104 @@ function AbaDatas({peladaId,datasRealizacao,onAdd,onUpdate,onRemove,t}){
 }
 
 /* ─────────────────────────── ABA ATLETAS PELADA ─────────────────── */
-function AbaAtletasPelada({pelada,atletas,participacoes,onAddPart,onRemovePart,onUpdatePart,onAddFinanceiro,onAddAtleta,t}){
+function AbaAtletasPelada({
+  pelada,
+  atletas,
+  participacoes,
+  onSavePartsLote,
+  onAddFinanceiro,
+  onAddAtleta,
+  t,
+  isRealizada,
+  selDataSorteio,
+  onUnsavedChangesChange,
+  triggerSaveRef,
+  onAddPart
+}){
   const peladaId=pelada.id;
   const S=makeStyles(t);
-  const partsPelada=participacoes.filter(p=>p.pelada_id===peladaId);
-  const idsVinculados=new Set(partsPelada.map(p=>p.atleta_id));
-  const vinculados=atletas.filter(a=>idsVinculados.has(a.id));
-  const disponiveis=atletas.filter(a=>a.ativo&&!idsVinculados.has(a.id));
-  const[filtro,setFiltro]=useState("");
-  const[filtroGrupo,setFiltroGrupo]=useState("");
 
-  const gruposUnicos = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
+  // Filtra as participações originais vinculadas à pelada na data selecionada
+  const partsOriginais = React.useMemo(() => {
+    const targetDataId = selDataSorteio || null;
+    const partsMembros = participacoes.filter(p => p.pelada_id === peladaId && String(p.data_realizacao_id) === String(targetDataId));
+    return partsMembros;
+  }, [participacoes, peladaId, selDataSorteio]);
 
-  const dispFiltrados=disponiveis.filter(a=>{
-    const matchesNome = a.nome.toLowerCase().includes(filtro.toLowerCase()) || (a.apelido && a.apelido.toLowerCase().includes(filtro.toLowerCase()));
-    const matchesGrupo = !filtroGrupo || a.grupo === filtroGrupo;
-    return matchesNome && matchesGrupo;
-  });
+  // Estado local para gerenciar os vínculos da pelada
+  const [localParts, setLocalParts] = useState([]);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Inicializa o estado local quando os vínculos originais mudam
+  useEffect(() => {
+    setLocalParts(partsOriginais);
+    setHasChanges(false);
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(false);
+    }
+  }, [partsOriginais]);
+
+  // Monitora alterações para atualizar o estado de modificações pendentes
+  useEffect(() => {
+    const mudou = JSON.stringify(localParts) !== JSON.stringify(partsOriginais);
+    setHasChanges(mudou);
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(mudou);
+    }
+  }, [localParts, partsOriginais, onUnsavedChangesChange]);
+
+  const handleSalvar = React.useCallback(() => {
+    onSavePartsLote(peladaId, selDataSorteio || null, localParts);
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(false);
+    }
+  }, [onSavePartsLote, peladaId, selDataSorteio, localParts, onUnsavedChangesChange]);
+
+  useEffect(() => {
+    if (triggerSaveRef) {
+      triggerSaveRef.current = handleSalvar;
+    }
+    return () => {
+      if (triggerSaveRef) {
+        triggerSaveRef.current = null;
+      }
+    };
+  }, [triggerSaveRef, handleSalvar]);
+
+  const idsVinculadosData = React.useMemo(() => new Set(localParts.map(p => p.atleta_id)), [localParts]);
+
+  // Lista de atletas vinculados à data selecionada, ordenada por nome
+  const vinculados = React.useMemo(() => {
+    const list = atletas.filter(a => idsVinculadosData.has(a.id));
+    return [...list].sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [atletas, idsVinculadosData]);
+
+  // Lista dos demais atletas que não estão vinculados à data da pelada selecionada, mas que estão no cadastro vinculados à pelada
+  const disponiveis = React.useMemo(() => {
+    const list = atletas.filter(a => 
+      a.ativo && 
+      Array.isArray(a.vinculos) && 
+      a.vinculos.includes("pelada_" + peladaId) && 
+      !idsVinculadosData.has(a.id)
+    );
+    return [...list].sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [atletas, peladaId, idsVinculadosData]);
+
+  const [filtro, setFiltro] = useState("");
+
+  const vinculadosFiltrados = React.useMemo(() => {
+    return vinculados.filter(a => 
+      a.nome.toLowerCase().includes(filtro.toLowerCase()) || 
+      (a.apelido && a.apelido.toLowerCase().includes(filtro.toLowerCase()))
+    );
+  }, [vinculados, filtro]);
+
+  const disponiveisFiltrados = React.useMemo(() => {
+    return disponiveis.filter(a => 
+      a.nome.toLowerCase().includes(filtro.toLowerCase()) || 
+      (a.apelido && a.apelido.toLowerCase().includes(filtro.toLowerCase()))
+    );
+  }, [disponiveis, filtro]);
 
   const [modalAjustar, setModalAjustar] = useState(null);
   const [formTipo, setFormTipo] = useState("diarista");
@@ -4589,49 +4841,189 @@ function AbaAtletasPelada({pelada,atletas,participacoes,onAddPart,onRemovePart,o
   const [modalRelatorio, setModalRelatorio] = useState(false);
 
   const [modalNovoAtleta, setModalNovoAtleta] = useState(false);
-  const [formAtleta, setFormAtleta] = useState({nome:"", apelido:"", foto:"", habilidade:3, goleiro:false, ativo:true, grupo:""});
+  const [formAtleta, setFormAtleta] = useState({nome:"", apelido:"", foto:"", habilidade:3, goleiro:false, ativo:true});
 
+  // Estado para modal de convidado
+  const [modalConvidado, setModalConvidado] = useState(false);
+  const [formConvidado, setFormConvidado] = useState({ nome: "", anfitriaoId: "", valor: "" });
+ 
   function abrirNovoAtleta() {
-    setFormAtleta({nome: filtro.trim(), apelido:"", foto:"", habilidade:3, goleiro:false, ativo:true, grupo:filtroGrupo});
+    setFormAtleta({nome: filtro.trim(), apelido:"", foto:"", habilidade:3, goleiro:false, ativo:true});
     setModalNovoAtleta(true);
   }
 
+  function abrirModalConvidado() {
+    // Pré-seleciona o primeiro atleta vinculado não-convidado como anfitrião
+    const anfitrioes = vinculados.filter(a => !a.isConvidado);
+    setFormConvidado({
+      nome: "",
+      anfitriaoId: anfitrioes[0]?.id || "",
+      valor: String(pelada.valor_contribuicao || 15)
+    });
+    setModalConvidado(true);
+  }
+
+  function salvarConvidado() {
+    if (!formConvidado.nome.trim()) { alert("Informe o nome do convidado!"); return; }
+    if (!formConvidado.anfitriaoId) { alert("Selecione o anfitrião!"); return; }
+    const anfitriao = atletas.find(a => String(a.id) === String(formConvidado.anfitriaoId));
+    const novoId = Date.now();
+    const novoConvidado = {
+      id: novoId,
+      nome: formConvidado.nome.trim(),
+      apelido: "",
+      foto: "",
+      habilidade: anfitriao?.habilidade || 3,
+      goleiro: false,
+      ativo: true,
+      isConvidado: true,
+      convidadoDe: Number(formConvidado.anfitriaoId),
+      vinculos: ["pelada_" + peladaId]
+    };
+    onAddAtleta(novoConvidado);
+    if (onAddPart) {
+      onAddPart({
+        atleta_id: novoId,
+        pelada_id: peladaId,
+        data_realizacao_id: null,
+        pagou: false,
+        compareceu: false,
+        tipo_pagamento: "diarista",
+        valor_padrao: Number(formConvidado.valor) || pelada.valor_contribuicao || 15,
+        saldo: 0
+      });
+    }
+    const novoVinculoData = {
+      id: "temp_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+      atleta_id: novoId,
+      pelada_id: peladaId,
+      data_realizacao_id: selDataSorteio || null,
+      pagou: false,
+      compareceu: true,
+      tipo_pagamento: "diarista",
+      valor_padrao: Number(formConvidado.valor) || pelada.valor_contribuicao || 15,
+      saldo: 0
+    };
+    setLocalParts(prev => [...prev, novoVinculoData]);
+    setModalConvidado(false);
+  }
+ 
+  const atualizarVinculoLocal = (partId, novosCampos) => {
+    setLocalParts(prev => prev.map(p => p.id === partId ? { ...p, ...novosCampos } : p));
+  };
+ 
   function salvarNovoAtleta() {
     if(!formAtleta.nome.trim()) return;
     const novoId = Date.now();
-    const novoAtleta = {id: novoId, ...formAtleta};
+    const novoAtleta = {id: novoId, ...formAtleta, vinculos: ["pelada_" + peladaId]};
     onAddAtleta(novoAtleta);
-    onAddPart({atleta_id:novoId,pelada_id:peladaId,data_realizacao_id:null,pagou:false,compareceu:false,tipo_pagamento:"diarista",valor_padrao:pelada.valor_contribuicao||15,saldo:0});
+
+    // Cria o vínculo permanente geral (data_realizacao_id === null) no estado global
+    if (onAddPart) {
+      onAddPart({
+        atleta_id: novoId,
+        pelada_id: peladaId,
+        data_realizacao_id: null,
+        pagou: false,
+        compareceu: false,
+        tipo_pagamento: "diarista",
+        valor_padrao: pelada.valor_contribuicao || 15,
+        saldo: 0
+      });
+    }
+
+    // Adiciona a participação local na data selecionada
+    const novoVinculoData = {
+      id: "temp_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+      atleta_id: novoId,
+      pelada_id: peladaId,
+      data_realizacao_id: selDataSorteio || null,
+      pagou: false,
+      compareceu: true,
+      tipo_pagamento: "diarista",
+      valor_padrao: pelada.valor_contribuicao || 15,
+      saldo: 0
+    };
+    setLocalParts(prev => [...prev, novoVinculoData]);
     setModalNovoAtleta(false);
     setFiltro("");
   }
 
   function vincular(id){
-    onAddPart({atleta_id:id,pelada_id:peladaId,data_realizacao_id:null,pagou:false,compareceu:false,tipo_pagamento:"diarista",valor_padrao:pelada.valor_contribuicao||15,saldo:0});
+    // Busca se existe um vínculo geral (data_realizacao_id === null) para este atleta nesta pelada
+    const vinculoGeral = participacoes.find(p => p.atleta_id === id && p.pelada_id === peladaId && p.data_realizacao_id === null);
+
+    const novoVinculo = {
+      id: "temp_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+      atleta_id: id,
+      pelada_id: peladaId,
+      data_realizacao_id: selDataSorteio || null,
+      pagou: false,
+      compareceu: true,
+      tipo_pagamento: vinculoGeral?.tipo_pagamento || "diarista",
+      valor_padrao: vinculoGeral?.valor_padrao || pelada.valor_contribuicao || 15,
+      saldo: vinculoGeral?.saldo || 0
+    };
+    setLocalParts(prev => [...prev, novoVinculo]);
   }
-  function desvincular(atletaId){const p=partsPelada.find(x=>x.atleta_id===atletaId&&x.data_realizacao_id===null);if(p)onRemovePart(p.id);}
+
+  function desvincular(atletaId){
+    setLocalParts(prev => prev.filter(p => p.atleta_id !== atletaId));
+  }
+
+  // Lista de anfitriões disponíveis para seleção no modal de convidado
+  const anfitrioes = React.useMemo(() => vinculados.filter(a => !a.isConvidado), [vinculados]);
+
   return(
     <div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
-        <div style={{...S.card,textAlign:"center",padding:10}}><div style={{fontSize:9,fontWeight:700,color:t.textSec,marginBottom:3}}>Vinculados</div><div style={{fontSize:18,fontWeight:800,color:"#1D9E75"}}>{vinculados.length}</div></div>
-        <div style={{...S.card,textAlign:"center",padding:10}}><div style={{fontSize:9,fontWeight:700,color:t.textSec,marginBottom:3}}>Disponíveis</div><div style={{fontSize:18,fontWeight:800,color:"#378ADD"}}>{disponiveis.length}</div></div>
+      <div style={{marginBottom: 16, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap"}}>
+        <input 
+          style={{...S.input, flex: 1, minWidth: 160}} 
+          placeholder="🔍 Buscar atleta por nome ou apelido..." 
+          value={filtro} 
+          onChange={e=>setFiltro(e.target.value)}
+          disabled={isRealizada}
+        />
+        <button onClick={abrirNovoAtleta} style={S.btnSm(t.accent, "#fff")} disabled={isRealizada}>🆕 Novo Atleta</button>
+        <button onClick={abrirModalConvidado} style={S.btnSm("#7F77DD22", "#7F77DD")} disabled={isRealizada} title="Adicionar convidado vinculado a um anfitrião">👤 Convidado</button>
       </div>
-      {vinculados.length>0&&(
-        <div style={{marginBottom:16}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div style={{fontWeight:700,fontSize:13,color:"#1D9E75"}}>✅ Atletas Vinculados ({vinculados.length})</div>
-            <button onClick={()=>setModalRelatorio(true)} style={S.btnSm(t.cardBorder,t.text)}>📋 Mensalistas</button>
+
+      <div style={{marginBottom: 14}}>
+        <div style={{...S.card,textAlign:"center",padding:10}}><div style={{fontSize:9,fontWeight:700,color:t.textSec,marginBottom:3}}>Atletas Vinculados à Data</div><div style={{fontSize:20,fontWeight:800,color:"#1D9E75"}}>{vinculados.length}</div></div>
+      </div>
+
+      <div style={{marginBottom: 16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#1D9E75"}}>✅ Atletas Vinculados à Data ({vinculadosFiltrados.length})</div>
+          <button onClick={()=>setModalRelatorio(true)} style={S.btnSm(t.cardBorder,t.text)}>📋 Mensalistas</button>
+        </div>
+        
+        {vinculadosFiltrados.length===0 ? (
+          <div style={{...S.card,color:t.textSec,fontSize:13,textAlign:"center",padding:24}}>
+            {filtro ? "Nenhum atleta correspondente vinculado à data." : "Nenhum atleta vinculado a esta data da pelada."}
           </div>
+        ) : (
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {vinculados.map(a=>{
-              const vinculo = partsPelada.find(p=>p.atleta_id===a.id && p.data_realizacao_id===null);
+            {vinculadosFiltrados.map(a=>{
+              const vinculo = localParts.find(p=>p.atleta_id===a.id);
               const infoPag = vinculo?.tipo_pagamento === "mensalista" 
                 ? `Mensalista (Saldo: ${fmtCur(vinculo.saldo||0)})`
                 : `Diarista (Diária: ${fmtCur(vinculo?.valor_padrao||0)})`;
+              const anfitriao = a.isConvidado && a.convidadoDe ? atletas.find(x => x.id === a.convidadoDe) : null;
               return(
-                <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:12,background:"#1D9E7510",border:"1px solid #1D9E7533",flexWrap:"wrap"}}>
+                <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:12,background: a.isConvidado ? "#7F77DD10" : "#1D9E7510",border: a.isConvidado ? "1px solid #7F77DD33" : "1px solid #1D9E7533",flexWrap:"wrap"}}>
                   <span style={{fontSize:16}}>{a.goleiro?"🧤":"⚽"}</span>
-                  <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,color:t.text}}>{a.nome}</div><div style={{fontSize:11,color:t.textSec}}>{infoPag}</div></div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:13,color:t.text,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                      {a.nome}{a.apelido ? ` (${a.apelido})` : ""}
+                      {a.isConvidado && (
+                        <span style={{fontSize:10,fontWeight:700,background:"#7F77DD22",color:"#7F77DD",padding:"1px 7px",borderRadius:20,whiteSpace:"nowrap"}}>
+                          👤 Convidado de {anfitriao ? (anfitriao.apelido || anfitriao.nome) : "?"}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{fontSize:11,color:t.textSec}}>{infoPag}</div>
+                  </div>
                   <div style={{display:"flex",gap:6}}>
                     <button onClick={()=>{
                       setModalAjustar(vinculo);
@@ -4640,52 +5032,41 @@ function AbaAtletasPelada({pelada,atletas,participacoes,onAddPart,onRemovePart,o
                       setFormSaldo(vinculo?.saldo || 0);
                       setRecargaVal("");
                       setSaldoOp("add");
-                    }} style={S.btnSm("#BA751722","#BA7517")}>⚙️ Ajustar</button>
-                    <button onClick={()=>desvincular(a.id)} style={S.btnSm("#E24B4A22","#E24B4A")}>Remover</button>
+                    }} style={S.btnSm("#BA751722","#BA7517")} disabled={isRealizada}>⚙️ Ajustar</button>
+                    <button onClick={()=>desvincular(a.id)} style={S.btnSm("#E24B4A22","#E24B4A")} disabled={isRealizada}>Remover</button>
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
-      <div>
-        <div style={{fontWeight:700,fontSize:13,color:"#378ADD",marginBottom:8}}>🔗 Vincular Atleta</div>
-        <div style={{display:"flex",gap:8,marginBottom:10,flexDirection:"column"}}>
-          <div style={{display:"flex",gap:8}}>
-            <input style={{...S.input,flex:1,margin:0}} placeholder="🔍 Buscar atleta disponível..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
-            {filtro.trim() && (
-              <button onClick={abrirNovoAtleta} style={S.btn("#378ADD")}>+ Novo Atleta</button>
-            )}
+        )}
+      </div>
+
+      <div style={{marginBottom: 16}}>
+        <div style={{fontWeight:700,fontSize:13,color:t.textSec,marginBottom:8}}>➕ Disponíveis no Cadastro ({disponiveisFiltrados.length})</div>
+        {disponiveisFiltrados.length===0 ? (
+          <div style={{...S.card,color:t.textSec,fontSize:13,textAlign:"center",padding:24}}>
+            {filtro ? "Nenhum atleta correspondente disponível." : "Todos os atletas do cadastro já estão vinculados a esta data."}
           </div>
-          {gruposUnicos.length > 0 && (
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:12,color:t.textSec,fontWeight:600}}>Filtrar por Grupo:</span>
-              <select style={{...S.select,flex:1,margin:0,padding:"6px 10px",height:36}} value={filtroGrupo} onChange={e=>setFiltroGrupo(e.target.value)}>
-                <option value="">Todos os Grupos</option>
-                {gruposUnicos.map(g => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-        {dispFiltrados.length===0&&<div style={{color:t.textSec,fontSize:13,textAlign:"center",padding:16}}>{atletas.filter(a=>a.ativo).length===0?"Cadastre atletas na seção Atletas primeiro ou crie um acima.":"Nenhum atleta disponível correspondente ou crie um acima."}</div>}
-        <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {dispFiltrados.map(a=>(
-            <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:12,background:t.inputBg,border:`1px solid ${t.inputBorder}`,flexWrap:"wrap"}}>
-              <span style={{fontSize:16}}>{a.goleiro?"🧤":"⚽"}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:600,fontSize:13,color:t.text}}>
-                  {a.nome}
-                  {a.grupo && <span style={{fontSize:10,fontWeight:700,color:"#9C27B0",background:"#9C27B015",padding:"1px 4px",borderRadius:4,marginLeft:6}}>👥 {a.grupo}</span>}
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {disponiveisFiltrados.map(a=>{
+              const vinculoGeral = participacoes.find(p=>p.atleta_id===a.id && p.pelada_id===peladaId && p.data_realizacao_id === null);
+              const infoPag = vinculoGeral?.tipo_pagamento === "mensalista" 
+                ? `Mensalista (Saldo: ${fmtCur(vinculoGeral.saldo||0)})`
+                : `Diarista (Diária: ${fmtCur(vinculoGeral?.valor_padrao||0)})`;
+              return(
+                <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:12,background:t.card,border:`1px solid ${t.cardBorder}`,flexWrap:"wrap"}}>
+                  <span style={{fontSize:16}}>{a.goleiro?"🧤":"⚽"}</span>
+                  <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,color:t.text}}>{a.nome}{a.apelido ? ` (${a.apelido})` : ""}</div><div style={{fontSize:11,color:t.textSec}}>{infoPag}</div></div>
+                  <div>
+                    <button onClick={()=>vincular(a.id)} style={S.btnSm("#1D9E7522","#1D9E75")} disabled={isRealizada}>➕ Vincular à Data</button>
+                  </div>
                 </div>
-                <div style={{fontSize:11,color:t.textSec}}>{SKILL_NAMES[a.habilidade-1]}</div>
-              </div>
-              <button onClick={()=>vincular(a.id)} style={S.btn("#1D9E75")}>+ Vincular</button>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {modalAjustar && (
@@ -4726,13 +5107,15 @@ function AbaAtletasPelada({pelada,atletas,participacoes,onAddPart,onRemovePart,o
                       const a = atletas.find(x=>x.id===modalAjustar.atleta_id);
                       if(saldoOp === "add") {
                         const novo = (modalAjustar.saldo||0) + val;
-                        onUpdatePart(modalAjustar.id, {saldo: novo});
+                        atualizarVinculoLocal(modalAjustar.id, {saldo: novo});
                         setFormSaldo(novo);
+                        setModalAjustar(prev => ({ ...prev, saldo: novo }));
                         if(onAddFinanceiro) onAddFinanceiro(`Recarga Saldo Pelada - ${getPlayerName(a)}`, val);
                         alert("Recarga realizada com sucesso!");
                       } else {
-                        onUpdatePart(modalAjustar.id, {saldo: val});
+                        atualizarVinculoLocal(modalAjustar.id, {saldo: val});
                         setFormSaldo(val);
+                        setModalAjustar(prev => ({ ...prev, saldo: val }));
                         alert("Saldo atualizado com sucesso!");
                       }
                       setRecargaVal("");
@@ -4744,7 +5127,7 @@ function AbaAtletasPelada({pelada,atletas,participacoes,onAddPart,onRemovePart,o
 
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>{
-                onUpdatePart(modalAjustar.id, {
+                atualizarVinculoLocal(modalAjustar.id, {
                   tipo_pagamento: formTipo,
                   valor_padrao: Number(formValor),
                   saldo: Number(formSaldo)
@@ -4766,7 +5149,7 @@ function AbaAtletasPelada({pelada,atletas,participacoes,onAddPart,onRemovePart,o
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:6,flex:1,overflowY:"auto"}}>
               {vinculados.map(a => {
-                const vinc = partsPelada.find(p => p.atleta_id === a.id && p.data_realizacao_id === null);
+                const vinc = localParts.find(p => p.atleta_id === a.id);
                 if (vinc?.tipo_pagamento !== "mensalista") return null;
                 const s = vinc.saldo || 0;
                 return (
@@ -4782,7 +5165,7 @@ function AbaAtletasPelada({pelada,atletas,participacoes,onAddPart,onRemovePart,o
                 );
               }).filter(Boolean)}
               {vinculados.filter(a => {
-                const vinc = partsPelada.find(p => p.atleta_id === a.id && p.data_realizacao_id === null);
+                const vinc = localParts.find(p => p.atleta_id === a.id);
                 return vinc?.tipo_pagamento === "mensalista";
               }).length === 0 && <div style={{fontSize:12,color:t.textSec,textAlign:"center",padding:20}}>Nenhum mensalista vinculado.</div>}
             </div>
@@ -4817,38 +5200,7 @@ function AbaAtletasPelada({pelada,atletas,participacoes,onAddPart,onRemovePart,o
                 <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.goleiro} onChange={e=>setFormAtleta(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
                 <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.ativo} onChange={e=>setFormAtleta(v=>({...v,ativo:e.target.checked}))}/>✓ Ativo</label>
               </div>
-              <div>
-                <label style={S.label}>Grupo</label>
-                {(() => {
-                  const gruposDisponiveis = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
-                  if (formAtleta.grupo && !gruposDisponiveis.includes(formAtleta.grupo)) {
-                    gruposDisponiveis.push(formAtleta.grupo);
-                  }
-                  return (
-                    <select 
-                      style={S.select} 
-                      value={formAtleta.grupo || ""} 
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val === "__novo__") {
-                          const novo = window.prompt("Digite o nome do novo grupo:");
-                          if (novo && novo.trim()) {
-                            setFormAtleta(v => ({ ...v, grupo: novo.trim() }));
-                          }
-                        } else {
-                          setFormAtleta(v => ({ ...v, grupo: val }));
-                        }
-                      }}
-                    >
-                      <option value="">Nenhum Grupo</option>
-                      {gruposDisponiveis.map(g => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                      <option value="__novo__">➕ Adicionar novo grupo...</option>
-                    </select>
-                  );
-                })()}
-              </div>
+
             </div>
             <div style={{display:"flex",gap:8,marginTop:16}}>
               <button onClick={salvarNovoAtleta} style={S.btn("#378ADD")}>Salvar e Vincular</button>
@@ -4857,97 +5209,292 @@ function AbaAtletasPelada({pelada,atletas,participacoes,onAddPart,onRemovePart,o
           </div>
         </div>
       )}
+
+      {/* Modal de Cadastro de Convidado */}
+      {modalConvidado && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1002,padding:16}}>
+          <div style={{...S.card,width:"100%",maxWidth:400,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontWeight:800,fontSize:16,color:"#7F77DD"}}>👤 Adicionar Convidado</div>
+              <button onClick={()=>setModalConvidado(false)} style={{background:"none",border:"none",color:t.textSec,cursor:"pointer",fontSize:20,padding:0}}>×</button>
+            </div>
+            <div style={{fontSize:12,color:t.textSec,marginBottom:16,background:"#7F77DD10",border:"1px solid #7F77DD30",borderRadius:8,padding:"8px 12px"}}>
+              🔄 Convidados de revezamento entram no mesmo time do anfitrião e se revezam com ele durante a pelada.
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div>
+                <label style={S.label}>Nome do Convidado</label>
+                <input
+                  style={S.input}
+                  value={formConvidado.nome}
+                  onChange={e=>setFormConvidado(v=>({...v,nome:e.target.value}))}
+                  placeholder="Nome completo do convidado"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label style={S.label}>Anfitrião (quem trouxe)</label>
+                <select
+                  style={S.select}
+                  value={formConvidado.anfitriaoId}
+                  onChange={e=>setFormConvidado(v=>({...v,anfitriaoId:e.target.value}))}
+                >
+                  <option value="">Selecione o anfitrião...</option>
+                  {anfitrioes.map(a=>(
+                    <option key={a.id} value={a.id}>{a.apelido || a.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={S.label}>Valor da Diária (R$)</label>
+                <input
+                  style={S.input}
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={formConvidado.valor}
+                  onChange={e=>setFormConvidado(v=>({...v,valor:e.target.value}))}
+                  placeholder={String(pelada.valor_contribuicao || 15)}
+                />
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:20}}>
+              <button onClick={salvarConvidado} style={{...S.btn("#7F77DD"),flex:1,justifyContent:"center"}}>✓ Adicionar Convidado</button>
+              <button onClick={()=>setModalConvidado(false)} style={{...S.btn(t.card,t.textSec),border:`1px solid ${t.cardBorder}`,justifyContent:"center"}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {hasChanges && (
+        <div style={{
+          position: "sticky",
+          bottom: 10,
+          background: t.card,
+          border: `1px solid ${t.cardBorder}`,
+          padding: "10px 14px",
+          borderRadius: 12,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+          zIndex: 10,
+          marginTop: 16
+        }}>
+          <span style={{ fontSize: 13, color: t.text, fontWeight: 600 }}>⚠️ Alterações não salvas!</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button 
+              onClick={() => {
+                setLocalParts(partsOriginais);
+              }} 
+              style={S.btnSm(t.card, t.textSec)}
+            >
+              Descartar
+            </button>
+            <button 
+              onClick={handleSalvar} 
+              style={S.btnSm("#1D9E75", "#fff")}
+            >
+              💾 Salvar Vínculos
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ─────────────────────────── ABA PARTICIPAÇÕES ──────────────────── */
-function AbaParticipacoes({pelada,atletas,participacoes,datasRealizacao,onAdd,onUpdate,onRemove,onUpdateAtleta,onAddFinanceiro,t}){
+function AbaParticipacoes({
+  pelada,
+  atletas,
+  participacoes,
+  datasRealizacao,
+  onAdd,
+  onUpdate,
+  onRemove,
+  onUpdateAtleta,
+  onAddFinanceiro,
+  t,
+  selDataSorteio,
+  onUnsavedChangesChange,
+  triggerSaveRef,
+  onSavePartsLote
+}){
   const peladaId=pelada.id;
   const S=makeStyles(t);
   const datas=datasRealizacao.filter(d=>d.pelada_id===peladaId&&d.status!=="cancelado");
-  const partsPelada=participacoes.filter(p=>p.pelada_id===peladaId);
-  const vinculados=[...new Set(partsPelada.map(p=>p.atleta_id))];
-  const[selData,setSelData]=useState(datas[0]?.id||null);
 
-  useEffect(()=>{if(!selData&&datas.length>0)setSelData(datas[0].id);},[datas]);
+  const partsOriginais = React.useMemo(() => {
+    const targetDataId = selDataSorteio || null;
+    return participacoes.filter(p => p.pelada_id === peladaId && String(p.data_realizacao_id) === String(targetDataId));
+  }, [participacoes, peladaId, selDataSorteio]);
 
-  function registrarPresenca(atletaId,dataId){
-    const existe=participacoes.find(p=>p.atleta_id===atletaId&&p.data_realizacao_id===dataId&&p.pelada_id===peladaId);
-    const dataObj=datasRealizacao.find(d=>d.id===dataId);
-    if(!existe){
-      const vinculo = participacoes.find(x=>x.atleta_id===atletaId && x.pelada_id===peladaId && x.data_realizacao_id===null);
-      const valorCobrado = dataObj?.valor || pelada.valor_contribuicao || vinculo?.valor_padrao || 0;
-      onAdd({atleta_id:atletaId,pelada_id:peladaId,data_realizacao_id:dataId,pagou:false,compareceu:true,valor:valorCobrado});
+  const [localParts, setLocalParts] = useState([]);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    setLocalParts(partsOriginais);
+    setHasChanges(false);
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(false);
     }
-    else{onUpdate(existe.id,{compareceu:!existe.compareceu});}
+  }, [partsOriginais]);
+
+  useEffect(() => {
+    const mudou = JSON.stringify(localParts) !== JSON.stringify(partsOriginais);
+    setHasChanges(mudou);
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(mudou);
+    }
+  }, [localParts, partsOriginais, onUnsavedChangesChange]);
+
+  const handleSalvar = React.useCallback(() => {
+    localParts.forEach(pLocal => {
+      const pOrig = partsOriginais.find(o => o.atleta_id === pLocal.atleta_id);
+      const vinculoGeral = participacoes.find(x => x.atleta_id === pLocal.atleta_id && x.pelada_id === peladaId && x.data_realizacao_id === null);
+      
+      if (vinculoGeral) {
+        let saldoAtual = Number(vinculoGeral.saldo || 0);
+        let mudou = false;
+
+        const origUsouSaldo = pOrig?.pagou && pOrig?.usou_saldo;
+        const localUsouSaldo = pLocal.pagou && pLocal.usou_saldo;
+
+        if (localUsouSaldo && !origUsouSaldo) {
+          saldoAtual -= Number(pLocal.valor || 0);
+          mudou = true;
+        } else if (!localUsouSaldo && origUsouSaldo) {
+          saldoAtual += Number(pOrig.valor || pLocal.valor || 0);
+          mudou = true;
+        }
+
+        if (mudou) {
+          onUpdate(vinculoGeral.id, { saldo: saldoAtual });
+        }
+      }
+    });
+
+    onSavePartsLote(peladaId, selDataSorteio || null, localParts);
+    if (onUnsavedChangesChange) {
+      onUnsavedChangesChange(false);
+    }
+  }, [onSavePartsLote, peladaId, selDataSorteio, localParts, partsOriginais, participacoes, onUpdate, onUnsavedChangesChange]);
+
+  useEffect(() => {
+    if (triggerSaveRef) {
+      triggerSaveRef.current = handleSalvar;
+    }
+    return () => {
+      if (triggerSaveRef) {
+        triggerSaveRef.current = null;
+      }
+    };
+  }, [triggerSaveRef, handleSalvar]);
+
+  const vinculadosIds = React.useMemo(() => {
+    return localParts.map(p => p.atleta_id);
+  }, [localParts]);
+
+  const vinculadosAtletas = React.useMemo(() => {
+    const list = atletas.filter(a => vinculadosIds.includes(a.id));
+    return [...list].sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [atletas, vinculadosIds]);
+
+  function registrarPresenca(atletaId){
+    setLocalParts(prev => prev.map(p => {
+      if (p.atleta_id === atletaId) {
+        return { ...p, compareceu: !p.compareceu };
+      }
+      return p;
+    }));
   }
-  const[absentModal,setAbsentModal]=useState(null);
 
-  function togglePagou(atletaId,dataId){
-    const p=participacoes.find(x=>x.atleta_id===atletaId&&x.data_realizacao_id===dataId&&x.pelada_id===peladaId);
-    const dataObj=datasRealizacao.find(d=>d.id===dataId);
-    const vinculo = participacoes.find(x=>x.atleta_id===atletaId && x.pelada_id===peladaId && x.data_realizacao_id===null);
-    const valorCobrado = dataObj?.valor||pelada.valor_contribuicao||vinculo?.valor_padrao||0;
+  const [absentModal, setAbsentModal] = useState(null);
 
-    const vaiPagar = p ? !p.pagou : true;
-    const isAusente = p ? !p.compareceu : true;
+  function togglePagou(atletaId){
+    const p = localParts.find(x => x.atleta_id === atletaId);
+    if (!p) return;
+    const dataObj = datasRealizacao.find(d => d.id === selDataSorteio);
+    const vinculo = participacoes.find(x => x.atleta_id === atletaId && x.pelada_id === peladaId && x.data_realizacao_id === null);
+    const valorCobrado = dataObj?.valor || pelada.valor_contribuicao || vinculo?.valor_padrao || 0;
+
+    const vaiPagar = !p.pagou;
+    const isAusente = !p.compareceu;
 
     if(vaiPagar && isAusente){
-      setAbsentModal({aid:atletaId, dataId, pId:p?.id, valor:valorCobrado});
+      setAbsentModal({aid: atletaId, dataId: selDataSorteio, pId: p.id, valor: valorCobrado});
       return;
     }
 
     if(vaiPagar){
       if(vinculo && vinculo.tipo_pagamento === "mensalista" && (vinculo.saldo||0) >= Number(valorCobrado)){
-        onUpdate(vinculo.id, {saldo: (vinculo.saldo||0) - Number(valorCobrado)});
-        if(p) onUpdate(p.id,{pagou:true, usou_saldo:true, valor:valorCobrado});
-        else onAdd({atleta_id:atletaId,pelada_id:peladaId,data_realizacao_id:dataId,pagou:true,compareceu:false,valor:valorCobrado,usou_saldo:true});
+        setLocalParts(prev => prev.map(x => {
+          if (x.atleta_id === atletaId) {
+            return { ...x, pagou: true, usou_saldo: true, valor: valorCobrado };
+          }
+          return x;
+        }));
       } else {
-        if(p) onUpdate(p.id,{pagou:true, usou_saldo:false, valor:valorCobrado});
-        else onAdd({atleta_id:atletaId,pelada_id:peladaId,data_realizacao_id:dataId,pagou:true,compareceu:false,valor:valorCobrado,usou_saldo:false});
+        setLocalParts(prev => prev.map(x => {
+          if (x.atleta_id === atletaId) {
+            return { ...x, pagou: true, usou_saldo: false, valor: valorCobrado };
+          }
+          return x;
+        }));
       }
     } else {
-      if(p?.usou_saldo && vinculo) onUpdate(vinculo.id, {saldo: (vinculo.saldo||0) + Number(p.valor||valorCobrado)});
-      if(p) onUpdate(p.id,{pagou:false, usou_saldo:false});
+      setLocalParts(prev => prev.map(x => {
+        if (x.atleta_id === atletaId) {
+          return { ...x, pagou: false, usou_saldo: false };
+        }
+        return x;
+      }));
     }
   }
 
   if(datas.length===0)return<div style={{color:t.textSec,fontSize:13,textAlign:"center",padding:24}}>Nenhuma data agendada ou realizada. Crie datas na aba Datas.</div>;
-  if(vinculados.length===0)return<div style={{color:t.textSec,fontSize:13,textAlign:"center",padding:24}}>Nenhum atleta vinculado. Vincule atletas na aba Atletas.</div>;
+  if(vinculadosAtletas.length===0)return<div style={{color:t.textSec,fontSize:13,textAlign:"center",padding:24}}>Nenhum atleta vinculado. Vincule atletas na aba Atletas.</div>;
 
-  const dataAtual=datas.find(d=>d.id===selData)||datas[0];
-  const presentes=vinculados.filter(aid=>{const p=participacoes.find(x=>x.atleta_id===aid&&x.data_realizacao_id===dataAtual?.id&&x.pelada_id===peladaId);return p?.compareceu;});
-  const pagaram=vinculados.filter(aid=>{const p=participacoes.find(x=>x.atleta_id===aid&&x.data_realizacao_id===dataAtual?.id&&x.pelada_id===peladaId);return p?.pagou;});
-  const totalArrecadado=pagaram.reduce((s,aid)=>{const p=participacoes.find(x=>x.atleta_id===aid&&x.data_realizacao_id===dataAtual?.id&&x.pelada_id===peladaId);return s+((p?.usou_saldo)?0:Number(p?.valor||0));},0);
+  const dataAtual=datas.find(d=>d.id===selDataSorteio)||datas[0];
+  const presentes=vinculadosAtletas.filter(a=>{const p=localParts.find(x=>x.atleta_id===a.id);return p?.compareceu;});
+  const pagaram=vinculadosAtletas.filter(a=>{const p=localParts.find(x=>x.atleta_id===a.id);return p?.pagou;});
+  const totalArrecadado=pagaram.reduce((s,a)=>{const p=localParts.find(x=>x.atleta_id===a.id);return s+((p?.usou_saldo)?0:Number(p?.valor||0));},0);
 
   return(
     <div>
-      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-        {datas.map(d=><button key={d.id} onClick={()=>setSelData(d.id)} style={{padding:"6px 12px",borderRadius:20,fontSize:12,border:`1px solid ${selData===d.id?"#7F77DD":t.cardBorder}`,background:selData===d.id?"#7F77DD":t.card,color:selData===d.id?"#fff":t.textSec,cursor:"pointer",fontWeight:selData===d.id?700:400}}>{formatarData(d.data)}</button>)}
-      </div>
       {dataAtual&&(
         <div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
-            {[["Presentes",presentes.length+"/"+ vinculados.length,"#1D9E75"],["Pagaram",pagaram.length+"/"+presentes.length,"#378ADD"],["Arrecadado",fmtCur(totalArrecadado),"#BA7517"]].map(([l,v,c])=>(
+            {[["Presentes",presentes.length+"/"+ vinculadosAtletas.length,"#1D9E75"],["Pagaram",pagaram.length+"/"+presentes.length,"#378ADD"],["Arrecadado",fmtCur(totalArrecadado),"#BA7517"]].map(([l,v,c])=>(
               <div key={l} style={{...S.card,textAlign:"center",padding:10}}><div style={{fontSize:9,fontWeight:700,color:t.textSec,marginBottom:3}}>{l}</div><div style={{fontSize:13,fontWeight:800,color:c}}>{v}</div></div>
             ))}
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {vinculados.map(aid=>{
-              const atleta=atletas.find(a=>a.id===aid);if(!atleta)return null;
-              const part=participacoes.find(p=>p.atleta_id===aid&&p.data_realizacao_id===dataAtual.id&&p.pelada_id===peladaId);
+            {vinculadosAtletas.map(atleta=>{
+              const aid=atleta.id;
+              const part=localParts.find(p=>p.atleta_id===aid);
               const compareceu=part?.compareceu||false;
               const pagou=part?.pagou||false;
               const vinculo = participacoes.find(x=>x.atleta_id===aid && x.pelada_id===peladaId && x.data_realizacao_id===null);
+              const anfitriao = atleta.isConvidado && atleta.convidadoDe ? atletas.find(x => x.id === atleta.convidadoDe) : null;
               return(
-                <div key={aid} style={{...S.card,padding:"10px 14px",border:`1px solid ${compareceu?"#1D9E7533":t.cardBorder}`,background:compareceu?"#1D9E7508":t.card}}>
+                <div key={aid} style={{...S.card,padding:"10px 14px",border:`1px solid ${compareceu?(atleta.isConvidado?"#7F77DD44":"#1D9E7533"):t.cardBorder}`,background:compareceu?(atleta.isConvidado?"#7F77DD08":"#1D9E7508"):t.card}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                     <PlayerAvatar atleta={atleta} size={30}/>
-                    <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,color:t.text}}>{getPlayerName(atleta)}</div></div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:600,fontSize:13,color:t.text,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                        {getPlayerName(atleta)}
+                        {atleta.isConvidado && (
+                          <span style={{fontSize:10,fontWeight:700,background:"#7F77DD22",color:"#7F77DD",padding:"1px 7px",borderRadius:20,whiteSpace:"nowrap"}}>
+                            👤 Convidado de {anfitriao ? (anfitriao.apelido || anfitriao.nome) : "?"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                     <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-                      <button onClick={()=>registrarPresenca(aid,dataAtual.id)} style={{padding:"5px 12px",borderRadius:20,fontSize:12,border:`1px solid ${compareceu?"#1D9E75":"#ccc"}`,background:compareceu?"#1D9E75":"transparent",color:compareceu?"#fff":t.textSec,cursor:"pointer",fontWeight:600}}>{compareceu?"✓ Presente":"Ausente"}</button>
-                      <button onClick={()=>togglePagou(aid,dataAtual.id)} style={{padding:"5px 12px",borderRadius:20,fontSize:12,border:`1px solid ${pagou?(part?.usou_saldo?"#BA7517":"#378ADD"):"#ccc"}`,background:pagou?(part?.usou_saldo?"#BA7517":"#378ADD"):"transparent",color:pagou?"#fff":t.textSec,cursor:"pointer",fontWeight:600}}>{pagou?(part?.usou_saldo?"💳 Pago (Saldo)":"💰 Pago"):(vinculo?.tipo_pagamento==="mensalista" ? ((vinculo?.saldo||0)>=Number(dataAtual?.valor||pelada.valor_contribuicao||vinculo?.valor_padrao||0)?"💳 Debitar Saldo":"Pendente") : "Pendente")}</button>
+                      <button onClick={()=>registrarPresenca(aid)} style={{padding:"5px 12px",borderRadius:20,fontSize:12,border:`1px solid ${compareceu?"#1D9E75":"#ccc"}`,background:compareceu?"#1D9E75":"transparent",color:compareceu?"#fff":t.textSec,cursor:"pointer",fontWeight:600}}>{compareceu?"✓ Presente":"Ausente"}</button>
+                      <button onClick={()=>togglePagou(aid)} style={{padding:"5px 12px",borderRadius:20,fontSize:12,border:`1px solid ${pagou?(part?.usou_saldo?"#BA7517":"#378ADD"):"#ccc"}`,background:pagou?(part?.usou_saldo?"#BA7517":"#378ADD"):"transparent",color:pagou?"#fff":t.textSec,cursor:"pointer",fontWeight:600}}>{pagou?(part?.usou_saldo?"💳 Pago (Saldo)":"💰 Pago"):(vinculo?.tipo_pagamento==="mensalista" ? ((vinculo?.saldo||0)>=Number(dataAtual?.valor||pelada.valor_contribuicao||vinculo?.valor_padrao||0)?"💳 Debitar Saldo":"Pendente") : "Pendente")}</button>
                     </div>
                   </div>
                 </div>
@@ -4963,8 +5510,12 @@ function AbaParticipacoes({pelada,atletas,participacoes,datasRealizacao,onAdd,on
             <div style={{fontSize:13,color:t.textSec,marginBottom:16}}>O atleta não compareceu, mas está pagando {fmtCur(absentModal.valor)}. Onde deseja registrar esse valor?</div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               <button onClick={()=>{
-                if(absentModal.pId) onUpdate(absentModal.pId, {pagou:true, usou_saldo:false, valor:absentModal.valor});
-                else onAdd({atleta_id:absentModal.aid,pelada_id:peladaId,data_realizacao_id:absentModal.dataId,pagou:true,compareceu:false,valor:absentModal.valor,usou_saldo:false});
+                setLocalParts(prev => prev.map(p => {
+                  if (p.atleta_id === absentModal.aid) {
+                    return { ...p, pagou: true, usou_saldo: false, valor: absentModal.valor };
+                  }
+                  return p;
+                }));
                 setAbsentModal(null);
               }} style={{...S.btn("#1D9E75"),justifyContent:"center"}}>💰 Ir para Caixa da Pelada</button>
               <button onClick={()=>{
@@ -4974,11 +5525,50 @@ function AbaParticipacoes({pelada,atletas,participacoes,datasRealizacao,onAdd,on
                   onUpdate(vinculo.id, {saldo: (vinculo.saldo||0) + Number(absentModal.valor)});
                 }
                 if(onAddFinanceiro) onAddFinanceiro(`Recarga de Saldo (Ausente) - ${getPlayerName(atleta)}`, absentModal.valor);
-                if(absentModal.pId) onUpdate(absentModal.pId, {pagou:false, usou_saldo:false});
+                setLocalParts(prev => prev.map(p => {
+                  if (p.atleta_id === absentModal.aid) {
+                    return { ...p, pagou: false, usou_saldo: false };
+                  }
+                  return p;
+                }));
                 setAbsentModal(null);
               }} style={{...S.btn("#BA7517"),justifyContent:"center"}}>💳 Converter em Saldo do Atleta</button>
               <button onClick={()=>setAbsentModal(null)} style={{...S.btn(t.card,t.textSec),justifyContent:"center",marginTop:8}}>Cancelar</button>
             </div>
+          </div>
+        </div>
+      )}
+      {hasChanges && (
+        <div style={{
+          position: "sticky",
+          bottom: 0,
+          background: t.card,
+          border: `1px solid ${t.cardBorder}`,
+          boxShadow: "0 -4px 20px rgba(0,0,0,0.1)",
+          padding: "12px 16px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderRadius: "12px 12px 0 0",
+          zIndex: 10,
+          marginTop: 16
+        }}>
+          <span style={{ fontSize: 13, color: t.text, fontWeight: 600 }}>⚠️ Alterações não salvas!</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button 
+              onClick={() => {
+                setLocalParts(partsOriginais);
+              }} 
+              style={S.btnSm(t.card, t.textSec)}
+            >
+              Descartar
+            </button>
+            <button 
+              onClick={handleSalvar} 
+              style={S.btnSm("#1D9E75", "#fff")}
+            >
+              💾 Salvar Presenças
+            </button>
           </div>
         </div>
       )}
@@ -4987,14 +5577,37 @@ function AbaParticipacoes({pelada,atletas,participacoes,datasRealizacao,onAdd,on
 }
 
 /* ─────────────────────────── GERENCIAR PELADA ───────────────────── */
-function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdatePelada,onRemovePelada,onAddData,onUpdateData,onRemoveData,onAddPart,onUpdatePart,onRemovePart,onUpdateAtleta,onAddFinanceiro,onAddAtleta,onBack,t,aba,setAba}){
+function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdatePelada,onRemovePelada,onAddData,onUpdateData,onRemoveData,onAddPart,onUpdatePart,onRemovePart,onUpdateAtleta,onAddFinanceiro,onAddAtleta,onBack,t,aba,setAba, auth, managers, assegurarManagerColaborador, onSavePartsLote, quadras}){
   const S=makeStyles(t);
-  const [localAba, setLocalAba] = useState("info");
+  const [localAba, setLocalAba] = useState("datas");
   const currentAba = aba || localAba;
   const currentSetAba = setAba || setLocalAba;
-  const ABAS=["info","datas","atletas","participações"];
+  const isDonoOuAdmin = auth.role === "adm" || (auth.role === "manager" && pelada.manager_id === auth.manager_id);
+  const ABAS=["datas","atletas","participações","sorteio","jogos","placar","relatório"];
+  if (isDonoOuAdmin) {
+    ABAS.push("colaboradores");
+  }
   const datas=datasRealizacao.filter(d=>d.pelada_id===pelada.id);
   const parts=participacoes.filter(p=>p.pelada_id===pelada.id);
+
+  const [hasUnsavedChangesAtletas, setHasUnsavedChangesAtletas] = useState(false);
+  const [modalConfirmacaoNavegacao, setModalConfirmacaoNavegacao] = useState(null);
+  const triggerSaveRef = useRef(null);
+
+  const executarNavegacaoDestino = (dest) => {
+    if (!dest) return;
+    if (dest.type === "aba") {
+      currentSetAba(dest.target);
+    } else if (dest.type === "data") {
+      setIsCarregandoDados(true);
+      setTimeout(() => {
+        setSelDataSorteio(dest.target);
+        setIsCarregandoDados(false);
+      }, 450);
+    } else if (dest.type === "voltar") {
+      onBack();
+    }
+  };
 
   /* sorteio / jogos */
   /* sorteio / jogos */
@@ -5016,6 +5629,14 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[editScoreA,setEditScoreA]=useState("");
   const[editScoreB,setEditScoreB]=useState("");
   const[editSumula,setEditSumula]=useState({});
+
+  // Estado para modal de "Sair do Jogo"
+  const[sairModal,setSairModal]=useState(null); // {playerId, playerName, teamName}
+  const[sairMotivo,setSairMotivo]=useState("cansaco"); // cansaco | lesao | outro
+  const[sairSubstitutoId,setSairSubstitutoId]=useState("");
+  const[sairComConvidado,setSairComConvidado]=useState(false);
+  const[substituirPorConvidado,setSubstituirPorConvidado]=useState(false);
+  const[jogadoresPausados,setJogadoresPausados]=useState([]); // descansando — podem retornar
 
   const updateSumulaAndScore = (playerId, val, teamType) => {
     const cleanVal = val.replace(/\D/g,"");
@@ -5055,7 +5676,73 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   };
 
   const[selDataSorteio,setSelDataSorteio]=useState(datas[0]?.id||"");
-  useEffect(()=>{if(!selDataSorteio&&datas.length>0)setSelDataSorteio(datas[0].id);},[datas]);
+  
+  // Filtros de Ano, Mês e Dia
+  const [filtroAno, setFiltroAno] = useState("");
+  const [filtroMes, setFiltroMes] = useState("");
+
+  const NOMES_MESES = {
+    "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
+    "05": "Maio", "06": "Junho", "07": "Julho", "08": "Agosto",
+    "09": "Setembro", "10": "Outubro", "11": "Novembro", "12": "Dezembro"
+  };
+
+  const datasComAnoMes = React.useMemo(() => {
+    return datas.map(d => {
+      if (!d.data) return { ...d, ano: "", mes: "" };
+      const parts = d.data.split("-");
+      const ano = parts[0] || "";
+      const mes = parts[1] || "";
+      return { ...d, ano, mes };
+    }).sort((a, b) => b.data.localeCompare(a.data));
+  }, [datas]);
+
+  const anosDisponiveis = React.useMemo(() => {
+    const anosSet = new Set(datasComAnoMes.map(d => d.ano).filter(Boolean));
+    return Array.from(anosSet).sort((a, b) => b.localeCompare(a));
+  }, [datasComAnoMes]);
+
+  useEffect(() => {
+    if (anosDisponiveis.length > 0) {
+      if (!filtroAno || !anosDisponiveis.includes(filtroAno)) {
+        setFiltroAno(anosDisponiveis[0]);
+      }
+    } else {
+      setFiltroAno("");
+    }
+  }, [anosDisponiveis, filtroAno]);
+
+  const mesesDisponiveis = React.useMemo(() => {
+    if (!filtroAno) return [];
+    const mesesSet = new Set(datasComAnoMes.filter(d => d.ano === filtroAno).map(d => d.mes).filter(Boolean));
+    return Array.from(mesesSet).sort((a, b) => a.localeCompare(b));
+  }, [datasComAnoMes, filtroAno]);
+
+  useEffect(() => {
+    if (mesesDisponiveis.length > 0) {
+      if (!filtroMes || !mesesDisponiveis.includes(filtroMes)) {
+        setFiltroMes(mesesDisponiveis[0]);
+      }
+    } else {
+      setFiltroMes("");
+    }
+  }, [mesesDisponiveis, filtroMes]);
+
+  const diasDisponiveis = React.useMemo(() => {
+    if (!filtroAno || !filtroMes) return [];
+    return datasComAnoMes.filter(d => d.ano === filtroAno && d.mes === filtroMes);
+  }, [datasComAnoMes, filtroAno, filtroMes]);
+
+  useEffect(() => {
+    if (diasDisponiveis.length > 0) {
+      const match = diasDisponiveis.find(d => String(d.id) === String(selDataSorteio));
+      if (!match) {
+        setSelDataSorteio(diasDisponiveis[0].id);
+      }
+    } else if (datas.length > 0 && !selDataSorteio) {
+      setSelDataSorteio(datas[0].id);
+    }
+  }, [diasDisponiveis, selDataSorteio, datas]);
 
   const lastLoadedDateIdRef = useRef(null);
 
@@ -5072,6 +5759,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       setDrawnTeams(d.drawnTeams !== undefined ? d.drawnTeams : (pelada.drawnTeams || null));
       setPeladaStateLocal(d.peladaState !== undefined ? d.peladaState : (pelada.peladaState || null));
       setBenchState(d.initialBench !== undefined ? d.initialBench : (pelada.initialBench || []));
+      setJogadoresPausados(d.jogadoresPausados !== undefined ? d.jogadoresPausados : []);
       setPpt(d.playersPerTeam !== undefined ? d.playersPerTeam : (pelada.playersPerTeam || 7));
       setNumTeams(d.numTeams !== undefined ? d.numTeams : 2);
       setManualAssignments(d.manualAssignments !== undefined ? d.manualAssignments : {});
@@ -5080,6 +5768,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       setDrawnTeams(null);
       setPeladaStateLocal(null);
       setBenchState([]);
+      setJogadoresPausados([]);
       setPpt(7);
       setNumTeams(2);
       setManualAssignments({});
@@ -5089,17 +5778,48 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
   const[addBenchId,setAddBenchId]=useState("");
 
-  const vinculadosIds=[...new Set(parts.map(p=>p.atleta_id))];
-  const vinculados=atletas.filter(a=>vinculadosIds.includes(a.id));
+  const vinculados = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("pelada_" + pelada.id));
+  const vinculadosIds = vinculados.map(a => a.id);
 
   const presentesIds = parts.filter(p=>String(p.data_realizacao_id)===String(selDataSorteio)&&p.compareceu).map(p=>p.atleta_id);
   const presentes = vinculados.filter(a=>presentesIds.includes(a.id));
 
   function doDraw(){
     if(!selDataSorteio){alert("Selecione uma data para realizar o sorteio!");return;}
-    if(presentes.length<ppt){alert(`Você precisa de ao menos ${ppt} atletas presentes na data! (Atuais: ${presentes.length})`);return;}
-    const nt=Math.min(numTeams,Math.floor(presentes.length/ppt));
-    const{fullTeams,bench}=drawBalancedTeams(presentes,nt,ppt);
+    
+    // Separa os presentes em sorteáveis (independentes) e revezadores
+    const { sorteaveis, revezadores } = separarAtletasSorteio(presentes, numTeams, ppt);
+    
+    if(sorteaveis.length<ppt){alert(`Você precisa de ao menos ${ppt} atletas independentes presentes na data! (Atuais: ${sorteaveis.length})`);return;}
+    const nt=Math.min(numTeams,Math.floor(sorteaveis.length/ppt));
+    
+    const { fullTeams, bench } = drawBalancedTeams(sorteaveis, nt, ppt);
+    
+    // Aloca os convidados de revezamento no mesmo time/banco que seus respectivos anfitriões
+    revezadores.forEach(rev => {
+      const hostId = rev.convidadoDe;
+      
+      // Procura o anfitrião nos times sorteados
+      let alocado = false;
+      fullTeams.forEach(t => {
+        if (t.players.some(p => p.id === hostId)) {
+          t.players.push(rev);
+          alocado = true;
+        }
+      });
+      
+      // Se não encontrou nos times, coloca no banco logo atrás do anfitrião
+      if (!alocado) {
+        const hostIndex = bench.findIndex(p => p.id === hostId);
+        if (hostIndex > -1) {
+          bench.splice(hostIndex + 1, 0, rev);
+        } else {
+          // Fallback se o anfitrião por algum motivo não está sorteado
+          bench.push(rev);
+        }
+      }
+    });
+
     setDrawnTeams(fullTeams);setBenchState(bench);
     const oldLog = peladaState?.matchLog || [];
     const cleanLog = oldLog.filter(m => String(m.dataRealizacaoId) !== String(selDataSorteio));
@@ -5116,16 +5836,29 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
   function confirmManualFormation() {
     if(!selDataSorteio){alert("Selecione uma data!");return;}
-    const unassignedCount = presentes.filter(p => !manualAssignments[p.id] || manualAssignments[p.id]==="none").length;
+    
+    // Auto-aloca convidados de revezamento que ficaram "Sem Time" na mesma partição do anfitrião
+    const updatedAssignments = { ...manualAssignments };
+    presentes.filter(p => p.isConvidado && p.convidadoDe).forEach(rev => {
+      const assignment = updatedAssignments[rev.id];
+      if (!assignment || assignment === "none") {
+        const hostAssignment = updatedAssignments[rev.convidadoDe];
+        if (hostAssignment && hostAssignment !== "none") {
+          updatedAssignments[rev.id] = hostAssignment;
+        }
+      }
+    });
+
+    const unassignedCount = presentes.filter(p => !updatedAssignments[p.id] || updatedAssignments[p.id]==="none").length;
     if(unassignedCount > 0 && !confirm(`Existem ${unassignedCount} atletas sem time. Deseja iniciar assim mesmo? (Eles não entrarão no jogo)`)) return;
     
     const fullTeams = [];
     for(let i=1; i<=numTeams; i++) {
-       const pIds = Object.keys(manualAssignments).filter(id => manualAssignments[id] === `t${i}`);
+       const pIds = Object.keys(updatedAssignments).filter(id => updatedAssignments[id] === `t${i}`);
        const teamPlayersCorrect = presentes.filter(p => pIds.includes(String(p.id)));
        if (teamPlayersCorrect.length > 0) fullTeams.push({name: "Time "+i, players: teamPlayersCorrect});
     }
-    const benchIds = Object.keys(manualAssignments).filter(id => manualAssignments[id] === "bench");
+    const benchIds = Object.keys(updatedAssignments).filter(id => updatedAssignments[id] === "bench");
     const bench = presentes.filter(p => benchIds.includes(String(p.id)));
 
     if(fullTeams.length < 2) { alert("Você precisa formar pelo menos 2 times!"); return; }
@@ -5141,7 +5874,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       peladaState: ps,
       playersPerTeam: ppt,
       numTeams,
-      manualAssignments
+      manualAssignments: updatedAssignments
     });
     currentSetAba("jogos");
   }
@@ -5195,6 +5928,52 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     let newDrawnTeams=drawnTeams?deepClone(drawnTeams):null;
     let ps=peladaState?deepClone(peladaState):null;
 
+    // Achar se esse jogador é um anfitrião e se o seu convidado correspondente está ativo
+    const atleta = atletas.find(x => String(x.id) === String(playerId));
+    const isHost = atleta && !atleta.isConvidado;
+    let convidadoPromovido = null;
+    
+    if (isHost) {
+      const guestAtleta = atletas.find(x => x.isConvidado && String(x.convidadoDe) === String(playerId));
+      if (guestAtleta) {
+        const inTeams = newDrawnTeams?.some(t => t.players.some(p => String(p.id) === String(guestAtleta.id)));
+        const inBench = newBench.some(b => String(b.id) === String(guestAtleta.id));
+        const inPsTeams = ps?.teams?.some(t => t.players.some(p => String(p.id) === String(guestAtleta.id)));
+        const inPsBench = ps?.bench?.some(b => String(b.id) === String(guestAtleta.id));
+        
+        if (inTeams || inBench || inPsTeams || inPsBench) {
+          convidadoPromovido = guestAtleta;
+        }
+      }
+    }
+
+    if (convidadoPromovido && confirm(`O atleta é anfitrião do convidado "${getPlayerName(convidadoPromovido)}". Deseja que este convidado assuma a vaga dele na pelada (como substituto permanente)?`)) {
+      // Remove o anfitrião, e o convidado permanece no mesmo local como substituto permanente e independente
+      const promoteGuest = (p) => {
+        if (String(p.id) === String(convidadoPromovido.id)) {
+          return { ...p, isConvidado: false, convidadoDe: undefined };
+        }
+        return p;
+      };
+      newBench = newBench.filter(b => String(b.id) !== String(playerId)).map(promoteGuest);
+      if (newDrawnTeams) {
+        newDrawnTeams.forEach(t => {
+          t.players = t.players.filter(p => String(p.id) !== String(playerId)).map(promoteGuest);
+        });
+      }
+      if (ps) {
+        ps.bench = ps.bench.filter(b => String(b.id) !== String(playerId)).map(promoteGuest);
+        ps.teams.forEach(t => {
+          t.players = t.players.filter(p => String(p.id) !== String(playerId)).map(promoteGuest);
+        });
+      }
+      setBenchState(newBench);
+      setDrawnTeams(newDrawnTeams);
+      setPeladaStateLocal(ps);
+      saveDateState({drawnTeams:newDrawnTeams,initialBench:newBench,peladaState:ps});
+      return;
+    }
+
     const inBenchIndex=newBench.findIndex(b=>String(b.id)===String(playerId));
     if(inBenchIndex>-1){
       newBench.splice(inBenchIndex,1);
@@ -5230,56 +6009,94 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     let newDrawnTeams = drawnTeams ? deepClone(drawnTeams) : [];
     let ps = peladaState ? deepClone(peladaState) : null;
 
-    let playerObj = null;
-    
-    // Procura e remove do banco
-    const inBenchIndex = newBench.findIndex(b => String(b.id) === String(playerId));
-    if (inBenchIndex > -1) {
-      playerObj = newBench[inBenchIndex];
-      newBench.splice(inBenchIndex, 1);
-    } else {
-      // Procura e remove dos times
-      newDrawnTeams.forEach(t => {
-        const pIdx = t.players.findIndex(p => String(p.id) === String(playerId));
-        if (pIdx > -1) {
-          playerObj = t.players[pIdx];
-          t.players.splice(pIdx, 1);
-        }
-      });
+    // Achar o parceiro de revezamento (se houver)
+    const atletaObj = atletas.find(x => String(x.id) === String(playerId));
+    let partnerId = null;
+    if (atletaObj) {
+      if (atletaObj.isConvidado && atletaObj.convidadoDe) {
+        partnerId = atletaObj.convidadoDe;
+      } else {
+        const guest = atletas.find(x => x.isConvidado && String(x.convidadoDe) === String(playerId));
+        if (guest) partnerId = guest.id;
+      }
     }
 
-    if (!playerObj) {
+    const idsToMove = [playerId];
+    
+    // Verifica se o parceiro está no mesmo local de origem
+    if (partnerId) {
+      const isHostInBench = newBench.some(b => String(b.id) === String(playerId));
+      const isPartnerInBench = newBench.some(b => String(b.id) === String(partnerId));
+      
+      if (isHostInBench && isPartnerInBench) {
+        idsToMove.push(partnerId);
+      } else {
+        newDrawnTeams.forEach(t => {
+          const isHostInTeam = t.players.some(p => String(p.id) === String(playerId));
+          const isPartnerInTeam = t.players.some(p => String(p.id) === String(partnerId));
+          if (isHostInTeam && isPartnerInTeam) {
+            idsToMove.push(partnerId);
+          }
+        });
+      }
+    }
+
+    let playersObjList = [];
+
+    // Remove do banco todos os IDs a serem movidos
+    idsToMove.forEach(id => {
+      const idx = newBench.findIndex(b => String(b.id) === String(id));
+      if (idx > -1) {
+        playersObjList.push(newBench[idx]);
+        newBench.splice(idx, 1);
+      }
+    });
+
+    // Remove dos times todos os IDs a serem movidos
+    idsToMove.forEach(id => {
+      newDrawnTeams.forEach(t => {
+        const idx = t.players.findIndex(p => String(p.id) === String(id));
+        if (idx > -1) {
+          playersObjList.push(t.players[idx]);
+          t.players.splice(idx, 1);
+        }
+      });
+    });
+
+    if (playersObjList.length === 0) {
       setSubModal(null);
       return;
     }
 
     // Adiciona ao destino
     if (target === "bench") {
-      newBench.push(playerObj);
+      newBench.push(...playersObjList);
     } else if (target.startsWith("t")) {
       const teamIndex = parseInt(target.replace("t", "")) - 1;
       if (newDrawnTeams[teamIndex]) {
-        newDrawnTeams[teamIndex].players.push(playerObj);
+        newDrawnTeams[teamIndex].players.push(...playersObjList);
       }
     }
 
     // Sincroniza peladaState
     if (ps) {
-      ps.bench = ps.bench.filter(b => String(b.id) !== String(playerId));
-      ps.teams.forEach(t => {
-        t.players = t.players.filter(p => String(p.id) !== String(playerId));
+      idsToMove.forEach(id => {
+        ps.bench = ps.bench.filter(b => String(b.id) !== String(id));
+        ps.teams.forEach(t => {
+          t.players = t.players.filter(p => String(p.id) !== String(id));
+        });
       });
 
       if (target === "bench") {
-        ps.bench.push(playerObj);
+        ps.bench.push(...playersObjList);
       } else if (target.startsWith("t")) {
         const teamIndex = parseInt(target.replace("t", "")) - 1;
         const teamName = newDrawnTeams[teamIndex]?.name || `Time ${teamIndex + 1}`;
         const targetTeam = ps.teams.find(t => t.name === teamName);
         if (targetTeam) {
-          targetTeam.players.push(playerObj);
+          targetTeam.players.push(...playersObjList);
         } else {
-          ps.teams.push({ name: teamName, players: [playerObj] });
+          ps.teams.push({ name: teamName, players: playersObjList });
         }
       }
     }
@@ -5335,6 +6152,276 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       saveDateState({ peladaState: ps });
     }
     setEditMatchId(null);
+  }
+
+  function handleSairJogo() {
+    if (!sairModal) return;
+    const { playerId, teamName } = sairModal;
+
+    let newBench = deepClone(benchState);
+    let newDrawnTeams = drawnTeams ? deepClone(drawnTeams) : [];
+    let newPausados = deepClone(jogadoresPausados);
+    let ps = peladaState ? deepClone(peladaState) : null;
+    if (!ps) { setSairModal(null); return; }
+
+    // Helper: remove um jogador dos times e do drawn, retorna o objeto dele
+    function removerDaPartida(pid) {
+      let obj = null;
+      ps.teams.forEach(t => {
+        const idx = t.players.findIndex(p => String(p.id) === String(pid));
+        if (idx > -1) { [obj] = t.players.splice(idx, 1); }
+      });
+      // também do banco interno do ps
+      if (!obj) {
+        const bIdx = ps.bench.findIndex(b => String(b.id) === String(pid));
+        if (bIdx > -1) { [obj] = ps.bench.splice(bIdx, 1); }
+      }
+      newDrawnTeams.forEach(t => {
+        const idx = t.players.findIndex(p => String(p.id) === String(pid));
+        if (idx > -1) t.players.splice(idx, 1);
+      });
+      newBench = newBench.filter(b => String(b.id) !== String(pid));
+      return obj;
+    }
+
+    // Passo 1: Remove o jogador principal
+    const playerObj = removerDaPartida(playerId);
+
+    // Passo 2: Remove convidado junto se o anfitriao escolheu levar o convidado
+    let convidadoObj = null;
+    const convidado = atletas.find(x => x.isConvidado && String(x.convidadoDe) === String(playerId));
+    if (sairComConvidado) {
+      if (convidado) {
+        const emJogo = ps.teams.some(t => t.players.some(p => String(p.id) === String(convidado.id)))
+          || ps.bench.some(b => String(b.id) === String(convidado.id))
+          || newBench.some(b => String(b.id) === String(convidado.id))
+          || newPausados.some(j => String(j.id) === String(convidado.id));
+        if (emJogo) convidadoObj = removerDaPartida(convidado.id);
+      }
+    } else if (convidado && sairMotivo === "lesao") {
+      // Se o anfitrião saiu por lesão (permanente) e o convidado ficou, promove o convidado a independente
+      const promoteGuest = (p) => {
+        if (String(p.id) === String(convidado.id)) {
+          return { ...p, isConvidado: false, convidadoDe: undefined };
+        }
+        return p;
+      };
+      newBench = newBench.map(promoteGuest);
+      newDrawnTeams.forEach(t => {
+        t.players = t.players.map(promoteGuest);
+      });
+      ps.bench = ps.bench.map(promoteGuest);
+      ps.teams.forEach(t => {
+        t.players = t.players.map(promoteGuest);
+      });
+    }
+
+    // Passo 3: Aplica substituto do banco (se escolhido) ou pelo convidado (se configurado)
+    if (substituirPorConvidado && convidado) {
+      // Localiza e remove o convidado do banco ou da lista de pausados
+      const inBenchIdx = newBench.findIndex(b => String(b.id) === String(convidado.id));
+      let subObj = null;
+      if (inBenchIdx > -1) {
+        subObj = newBench[inBenchIdx];
+        newBench.splice(inBenchIdx, 1);
+        ps.bench = ps.bench.filter(b => String(b.id) !== String(convidado.id));
+      } else {
+        const inPausadosIdx = newPausados.findIndex(j => String(j.id) === String(convidado.id));
+        if (inPausadosIdx > -1) {
+          subObj = newPausados[inPausadosIdx];
+          newPausados.splice(inPausadosIdx, 1);
+        }
+      }
+
+      // Fallback
+      if (!subObj) {
+        const aObj = atletas.find(x => String(x.id) === String(convidado.id));
+        if (aObj) {
+          subObj = { id: aObj.id, nome: aObj.nome, name: aObj.nome, habilidade: aObj.habilidade, skill: aObj.habilidade, goleiro: aObj.goleiro, isGoalkeeper: aObj.goleiro, isConvidado: true, convidadoDe: Number(playerId) };
+        }
+      }
+
+      if (subObj) {
+        const psTeam = ps.teams.find(t => t.name === teamName);
+        if (psTeam && !psTeam.players.some(p => String(p.id) === String(convidado.id))) {
+          psTeam.players.push(subObj);
+        }
+        const dtTeam = newDrawnTeams.find(t => t.name === teamName);
+        if (dtTeam && !dtTeam.players.some(p => String(p.id) === String(convidado.id))) {
+          dtTeam.players.push(subObj);
+        }
+      }
+    } else if (sairSubstitutoId) {
+      const subInBench = benchState.find(b => String(b.id) === String(sairSubstitutoId));
+      ps.bench = ps.bench.filter(b => String(b.id) !== String(sairSubstitutoId));
+      newBench = newBench.filter(b => String(b.id) !== String(sairSubstitutoId));
+      if (subInBench) {
+        const psTeam = ps.teams.find(t => t.name === teamName);
+        if (psTeam) psTeam.players.push(subInBench);
+        const dtTeam = newDrawnTeams.find(t => t.name === teamName);
+        if (dtTeam) dtTeam.players.push(subInBench);
+      }
+    }
+
+    // Passo 4: Destino conforme motivo
+    const adicionarAoPausados = (obj) => {
+      if (obj && !newPausados.some(j => String(j.id) === String(obj.id))) {
+        newPausados.push(obj);
+      }
+      // Garante que não fica no bench do ps
+      if (obj) ps.bench = ps.bench.filter(b => String(b.id) !== String(obj.id));
+    };
+    const removerCompletamente = (obj, pid) => {
+      if (obj) ps.bench = ps.bench.filter(b => String(b.id) !== String(pid));
+      newBench = newBench.filter(b => String(b.id) !== String(pid));
+      newPausados = newPausados.filter(j => String(j.id) !== String(pid));
+    };
+
+    if (sairMotivo === "lesao") {
+      removerCompletamente(playerObj, playerId);
+      if (convidadoObj) removerCompletamente(convidadoObj, convidadoObj.id);
+    } else {
+      // Cansaço / Outro: vai para 'Descansando' (pode retornar depois)
+      adicionarAoPausados(playerObj);
+      if (convidadoObj) adicionarAoPausados(convidadoObj);
+    }
+
+    setJogadoresPausados(newPausados);
+    setBenchState(newBench);
+    setDrawnTeams(newDrawnTeams);
+    setPeladaStateLocal(ps);
+    saveDateState({ drawnTeams: newDrawnTeams, initialBench: newBench, peladaState: ps, jogadoresPausados: newPausados });
+    setSairModal(null);
+    setSairSubstitutoId("");
+    setSairComConvidado(false);
+  }
+
+  function retornarJogador(playerId, retornarComVinculo) {
+    const player = jogadoresPausados.find(j => String(j.id) === String(playerId));
+    if (!player) return;
+
+    let newPausados = jogadoresPausados.filter(j => String(j.id) !== String(playerId));
+    let newBench = [...benchState];
+    let newDrawnTeams = drawnTeams ? deepClone(drawnTeams) : [];
+    let ps = peladaState ? deepClone(peladaState) : null;
+
+    if (retornarComVinculo) {
+      // Procura o convidado deste anfitrião
+      const guest = atletas.find(x => x.isConvidado && String(x.convidadoDe) === String(playerId));
+      if (guest) {
+        // Função auxiliar para reestabelecer o vínculo de revezamento no jogador mapeado
+        const updatePlayerVinculo = (p) => {
+          if (String(p.id) === String(guest.id)) {
+            return { ...p, isConvidado: true, convidadoDe: Number(playerId) };
+          }
+          if (String(p.id) === String(playerId)) {
+            return { ...p, isConvidado: false, convidadoDe: undefined };
+          }
+          return p;
+        };
+
+        const hostPlayerObj = { ...player, isConvidado: false, convidadoDe: undefined };
+
+        // Onde o convidado está atualmente na escalação ativa?
+        let inTeamName = null;
+        newDrawnTeams.forEach(t => {
+          if (t.players.some(p => String(p.id) === String(guest.id))) {
+            inTeamName = t.name;
+          }
+        });
+
+        let inPsTeamName = null;
+        if (ps) {
+          ps.teams.forEach(t => {
+            if (t.players.some(p => String(p.id) === String(guest.id))) {
+              inPsTeamName = t.name;
+            }
+          });
+        }
+
+        const isGuestInBench = newBench.some(b => String(b.id) === String(guest.id));
+        const isGuestInPsBench = ps?.bench?.some(b => String(b.id) === String(guest.id));
+        const isGuestInPausados = newPausados.some(j => String(j.id) === String(guest.id));
+
+        if (inTeamName) {
+          // Coloca o anfitrião no mesmo time do convidado
+          newDrawnTeams = newDrawnTeams.map(t => {
+            if (t.name === inTeamName) {
+              return { ...t, players: [...t.players.map(updatePlayerVinculo), hostPlayerObj] };
+            }
+            return { ...t, players: t.players.map(updatePlayerVinculo) };
+          });
+          if (ps && inPsTeamName) {
+            ps.teams = ps.teams.map(t => {
+              if (t.name === inPsTeamName) {
+                return { ...t, players: [...t.players.map(updatePlayerVinculo), hostPlayerObj] };
+              }
+              return { ...t, players: t.players.map(updatePlayerVinculo) };
+            });
+          }
+          // Atualiza as outras abas/banco
+          newBench = newBench.map(updatePlayerVinculo);
+          if (ps) ps.bench = ps.bench.map(updatePlayerVinculo);
+        } else if (isGuestInBench || isGuestInPsBench) {
+          // Ambos vão para o banco de reservas
+          newBench = newBench.map(updatePlayerVinculo);
+          newBench.push(hostPlayerObj);
+          if (ps) {
+            ps.bench = ps.bench.map(updatePlayerVinculo);
+            if (!ps.bench.some(b => String(b.id) === String(playerId))) {
+              ps.bench.push(hostPlayerObj);
+            }
+          }
+          newDrawnTeams = newDrawnTeams.map(t => ({ ...t, players: t.players.map(updatePlayerVinculo) }));
+          if (ps) {
+            ps.teams = ps.teams.map(t => ({ ...t, players: t.players.map(updatePlayerVinculo) }));
+          }
+        } else if (isGuestInPausados) {
+          // O convidado também estava descansando. Remove o convidado de pausados e coloca ambos no banco!
+          newPausados = newPausados.filter(j => String(j.id) !== String(guest.id));
+          const guestPlayerObj = { ...guest, isConvidado: true, convidadoDe: Number(playerId) };
+
+          newBench.push(hostPlayerObj, guestPlayerObj);
+          if (ps) {
+            if (!ps.bench.some(b => String(b.id) === String(playerId))) ps.bench.push(hostPlayerObj);
+            if (!ps.bench.some(b => String(b.id) === String(guest.id))) ps.bench.push(guestPlayerObj);
+          }
+          newDrawnTeams = newDrawnTeams.map(t => ({ ...t, players: t.players.map(updatePlayerVinculo) }));
+          if (ps) {
+            ps.teams = ps.teams.map(t => ({ ...t, players: t.players.map(updatePlayerVinculo) }));
+          }
+        } else {
+          // Fallback: banco
+          newBench.push(player);
+          if (ps && !ps.bench.some(b => String(b.id) === String(playerId))) {
+            ps.bench.push(player);
+          }
+        }
+      } else {
+        // Convidado não cadastrado / não ativo
+        newBench.push(player);
+        if (ps && !ps.bench.some(b => String(b.id) === String(playerId))) {
+          ps.bench.push(player);
+        }
+      }
+    } else {
+      // Retornar sem vínculo
+      newBench.push(player);
+      if (ps && !ps.bench.some(b => String(b.id) === String(playerId))) {
+        ps.bench.push(player);
+      }
+    }
+
+    setJogadoresPausados(newPausados);
+    setBenchState(newBench);
+    setDrawnTeams(newDrawnTeams);
+    setPeladaStateLocal(ps);
+    saveDateState({
+      drawnTeams: newDrawnTeams,
+      initialBench: newBench,
+      peladaState: ps,
+      jogadoresPausados: newPausados
+    });
   }
   function peladaStandings(){
     if(!peladaState?.teams)return[];
@@ -5394,7 +6481,18 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     <div style={S.page}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
-          <button onClick={onBack} style={S.btnSm()}>← Voltar</button>
+          <button 
+            onClick={() => {
+              if (hasUnsavedChangesAtletas) {
+                setModalConfirmacaoNavegacao({ type: "voltar" });
+              } else {
+                onBack();
+              }
+            }} 
+            style={S.btnSm()}
+          >
+            ← Voltar
+          </button>
           <div style={{minWidth:0}}><h2 style={{fontSize:17,fontWeight:800,margin:0,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pelada.nome}</h2><div style={{fontSize:11,color:t.textSec}}>{vinculados.length} atletas · {datas.length} datas</div></div>
         </div>
         <div style={{display:"flex",gap:6,flexShrink:0}}>
@@ -5403,23 +6501,115 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         </div>
       </div>
 
-      {/* Abas principais */}
-      <div style={{display:"flex",gap:0,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:20}}>
-        {[...ABAS,"sorteio","jogos","placar","relatório"].map(tb=><button key={tb} onClick={()=>currentSetAba(tb)} style={S.tab(currentAba===tb)}>{tb === "placar" ? "Classificação" : tb.charAt(0).toUpperCase()+tb.slice(1)}</button>)}
-      </div>
-
-      {currentAba==="info"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <div style={S.card}>
-            <div style={{fontWeight:600,fontSize:13,color:t.text,marginBottom:8}}>Informações da Pelada</div>
-            <div style={{fontSize:13,color:t.textSec,lineHeight:2}}><b style={{color:t.text}}>Nome:</b> {pelada.nome}<br/><b style={{color:t.text}}>Criada em:</b> {formatarData(pelada.data_criacao)}<br/><b style={{color:t.text}}>Status:</b> {pelada.ativo?"🟢 Ativa":"🔴 Inativa"}</div>
+      {/* Filtros Globais de Data */}
+      {datas.length > 0 && (
+        <div style={{
+          ...S.card,
+          display: "flex",
+          gap: 12,
+          padding: "12px 16px",
+          marginBottom: 16,
+          alignItems: "center",
+          flexWrap: "wrap",
+          border: `1px solid ${t.tabBorder}`,
+          background: t.card
+        }}>
+          <div style={{fontSize: 13, fontWeight: 700, color: t.textSec, display: "flex", alignItems: "center", gap: 6}}>
+            📅 Data Ativa:
           </div>
-          <CriarPelada onSave={(d)=>onUpdatePelada(pelada.id,d)} initial={pelada} t={t}/>
+          <div style={{display: "flex", gap: 8, flex: 1, minWidth: 280, flexWrap: "wrap"}}>
+            <div style={{flex: 1, minWidth: 90}}>
+              <label style={{fontSize: 10, color: t.textSec, display: "block", marginBottom: 4, fontWeight: 600}}>ANO</label>
+              <select 
+                value={filtroAno} 
+                onChange={e => setFiltroAno(e.target.value)} 
+                style={{...S.select, padding: "8px 12px"}}
+              >
+                {anosDisponiveis.map(ano => (
+                  <option key={ano} value={ano}>{ano}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{flex: 1.2, minWidth: 110}}>
+              <label style={{fontSize: 10, color: t.textSec, display: "block", marginBottom: 4, fontWeight: 600}}>MÊS</label>
+              <select 
+                value={filtroMes} 
+                onChange={e => setFiltroMes(e.target.value)} 
+                style={{...S.select, padding: "8px 12px"}}
+              >
+                {mesesDisponiveis.map(mes => (
+                  <option key={mes} value={mes}>{NOMES_MESES[mes] || mes}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{flex: 1.8, minWidth: 150}}>
+              <label style={{fontSize: 10, color: t.textSec, display: "block", marginBottom: 4, fontWeight: 600}}>DIA DA PELADA</label>
+              <select 
+                value={selDataSorteio} 
+                onChange={e => {
+                  if (hasUnsavedChangesAtletas) {
+                    setModalConfirmacaoNavegacao({ type: "data", target: e.target.value });
+                  } else {
+                    setSelDataSorteio(e.target.value);
+                  }
+                }} 
+                style={{...S.select, padding: "8px 12px", border: `1px solid ${t.accent || "#7F77DD"}`}}
+              >
+                {diasDisponiveis.map(d => (
+                  <option key={d.id} value={d.id}>{formatarData(d.data)}{d.local ? ` (${d.local})` : ""}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       )}
-      {currentAba==="datas"&&<AbaDatas peladaId={pelada.id} datasRealizacao={datasRealizacao} onAdd={onAddData} onUpdate={onUpdateData} onRemove={onRemoveData} t={t}/>}
-      {currentAba==="atletas"&&<AbaAtletasPelada pelada={pelada} atletas={atletas} participacoes={participacoes} onAddPart={onAddPart} onRemovePart={onRemovePart} onUpdatePart={onUpdatePart} onAddFinanceiro={onAddFinanceiro} onAddAtleta={onAddAtleta} t={t}/>}
-      {currentAba==="participações"&&<AbaParticipacoes pelada={pelada} atletas={atletas} participacoes={participacoes} datasRealizacao={datasRealizacao} onAdd={onAddPart} onUpdate={onUpdatePart} onRemove={onRemovePart} onUpdateAtleta={onUpdateAtleta} onAddFinanceiro={onAddFinanceiro} t={t}/>}
+
+      {/* Abas principais */}
+      <div style={{display:"flex",gap:0,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:20}}>
+        {ABAS.map(tb=>(
+          <button 
+            key={tb} 
+            onClick={() => {
+              if (hasUnsavedChangesAtletas) {
+                setModalConfirmacaoNavegacao({ type: "aba", target: tb });
+              } else {
+                currentSetAba(tb);
+              }
+            }} 
+            style={S.tab(currentAba===tb)}
+          >
+            {tb === "placar" ? "Classificação" : tb.charAt(0).toUpperCase()+tb.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {currentAba==="datas"&&(
+        <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))", gap: 16}}>
+          {/* Lado Esquerdo: Info da pelada e CriarPelada */}
+          <div style={{display:"flex", flexDirection:"column", gap:12}}>
+            <div style={S.card}>
+              <div style={{fontWeight:600,fontSize:13,color:t.text,marginBottom:8}}>Informações da Pelada</div>
+              <div style={{fontSize:13,color:t.textSec,lineHeight:2}}><b style={{color:t.text}}>Nome:</b> {pelada.nome}<br/><b style={{color:t.text}}>Criada em:</b> {formatarData(pelada.data_criacao)}<br/><b style={{color:t.text}}>Status:</b> {pelada.ativo?"🟢 Ativa":"🔴 Inativa"}</div>
+            </div>
+            <CriarPelada onSave={(d)=>onUpdatePelada(pelada.id,d)} initial={pelada} t={t}/>
+          </div>
+          {/* Lado Direito: Gerenciamento de Datas */}
+          <AbaDatas peladaId={pelada.id} datasRealizacao={datasRealizacao} onAdd={onAddData} onUpdate={onUpdateData} onRemove={onRemoveData} t={t} quadras={quadras}/>
+        </div>
+      )}
+      {currentAba==="atletas"&&<AbaAtletasPelada pelada={pelada} atletas={atletas} participacoes={participacoes} onSavePartsLote={onSavePartsLote} onAddFinanceiro={onAddFinanceiro} onAddAtleta={onAddAtleta} t={t} isRealizada={isRealizada} selDataSorteio={selDataSorteio} onUnsavedChangesChange={setHasUnsavedChangesAtletas} triggerSaveRef={triggerSaveRef} onAddPart={onAddPart}/>}
+      {currentAba==="participações"&&<AbaParticipacoes pelada={pelada} atletas={atletas} participacoes={participacoes} datasRealizacao={datasRealizacao} onAdd={onAddPart} onUpdate={onUpdatePart} onRemove={onRemovePart} onUpdateAtleta={onUpdateAtleta} onAddFinanceiro={onAddFinanceiro} t={t} selDataSorteio={selDataSorteio} onUnsavedChangesChange={setHasUnsavedChangesAtletas} triggerSaveRef={triggerSaveRef} onSavePartsLote={onSavePartsLote}/>}
+      {currentAba==="colaboradores"&&isDonoOuAdmin&&(
+        <AbaColaboradoresItem 
+          collaborators={pelada.collaborators || []} 
+          onSaveCollaborators={(novosColaboradores)=>onUpdatePelada(pelada.id, { collaborators: novosColaboradores })} 
+          auth={auth} 
+          managers={managers} 
+          assegurarManagerColaborador={assegurarManagerColaborador} 
+          t={t} 
+          scope="pelada"
+        />
+      )}
       {currentAba==="sorteio"&&(
         <div>
           {/* Se a data for realizada */}
@@ -5438,12 +6628,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 <button onClick={()=>setModoSorteio("manual")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="manual"?"#378ADD":"transparent",color:modoSorteio==="manual"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="manual"?"#378ADD":t.cardBorder}`,cursor:"pointer"}}>🖐️ Formação Manual</button>
               </div>
               
-              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14}}>
-                <label style={{...S.label,margin:0}}>Atletas presentes na data:</label>
-                <select style={{...S.select,width:160}} value={selDataSorteio} onChange={e=>setSelDataSorteio(e.target.value)}>
-                  {datas.map(d=><option key={d.id} value={d.id}>{formatarData(d.data)}</option>)}
-                </select>
-              </div>
+              {/* O Dia selecionado é gerenciado pelo filtro global no topo */}
 
               <div style={{marginBottom: 14, fontSize: 13, color: t.textSec}}>
                 <b>Jogadores Presentes ({presentes.length}):</b> {presentes.map(p => getPlayerName(p)).join(", ") || "Nenhum jogador marcado como presente nesta data."}
@@ -5557,12 +6742,67 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                   <button onClick={addToBench} style={S.btn("#BA7517")}>Adicionar ao Banco</button>
                 </div>
               )}
-              {benchState.length>0&&<div style={{...S.card,border:"1px solid #BA751733",background:"#BA751710",marginBottom:12}}><div style={{fontWeight:700,color:"#BA7517",marginBottom:6}}>🪑 Banco ({benchState.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{benchState.map((b,i)=><span key={i} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12,padding:"3px 10px",borderRadius:16,background:"#BA751722",color:"#BA7517",fontWeight:600}}><PlayerAvatar atleta={b} size={16}/>{b.goleiro?"🧤":"⚽"} {getPlayerName(b)} {!isRealizada && <button onClick={()=>setSubModal(b.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:0,marginLeft:4,marginRight:2,fontSize:10,fontWeight:800}} title="Substituir / Mover">🔄</button>} {!isRealizada && <button onClick={()=>removeFromRotation(b.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,marginLeft:4,fontWeight:800}}>×</button>}</span>)}</div></div>}
+              {benchState.length>0&&<div style={{...S.card,border:"1px solid #BA751733",background:"#BA751710",marginBottom:12}}><div style={{fontWeight:700,color:"#BA7517",marginBottom:6}}>🪑 Banco ({benchState.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{benchState.map((b,i)=>{
+                const isRev = b.isConvidado && b.convidadoDe;
+                const anfitriaoNome = isRev ? (atletas.find(x=>x.id===b.convidadoDe)?.apelido || atletas.find(x=>x.id===b.convidadoDe)?.nome || "?") : null;
+                return (
+                  <span key={i} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12,padding:"3px 10px",borderRadius:16,background: isRev ? "#7F77DD22" : "#BA751722",color: isRev ? "#7F77DD" : "#BA7517",fontWeight:600,border: isRev ? "1px solid #7F77DD44" : "none"}}>
+                    <PlayerAvatar atleta={b} size={16}/>
+                    {b.goleiro?"🧤":"⚽"} {getPlayerName(b)}
+                    {isRev && <span title={`Reveza com ${anfitriaoNome}`} style={{fontSize:9,opacity:0.85}}>🔄{anfitriaoNome}</span>}
+                    {!isRealizada && isRev && (
+                      <button
+                        onClick={()=>{
+                          if(confirm(`Promover "${getPlayerName(b)}" a jogador independente? Ele deixará de revezar com o anfitrião.`)){
+                            let newBenchLocal = benchState.map(x => String(x.id)===String(b.id) ? {...x,isConvidado:false,convidadoDe:undefined} : x);
+                            let newDTLocal = drawnTeams ? drawnTeams.map(tm => ({...tm,players:tm.players.map(p=>String(p.id)===String(b.id)?{...p,isConvidado:false,convidadoDe:undefined}:p)})) : drawnTeams;
+                            let psLocal = peladaState ? {...peladaState, bench: peladaState.bench.map(x=>String(x.id)===String(b.id)?{...x,isConvidado:false,convidadoDe:undefined}:x), teams: peladaState.teams.map(tm=>({...tm,players:tm.players.map(p=>String(p.id)===String(b.id)?{...p,isConvidado:false,convidadoDe:undefined}:p)}))} : null;
+                            setBenchState(newBenchLocal); setDrawnTeams(newDTLocal); setPeladaStateLocal(psLocal);
+                            saveDateState({drawnTeams:newDTLocal,initialBench:newBenchLocal,peladaState:psLocal});
+                          }
+                        }}
+                        style={{border:"none",background:"transparent",color:"#1D9E75",cursor:"pointer",padding:"0 2px",fontSize:10,fontWeight:800}}
+                        title="Promover a titular independente"
+                      >⬆</button>
+                    )}
+                    {!isRealizada && <button onClick={()=>setSubModal(b.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:0,marginLeft:2,marginRight:2,fontSize:10,fontWeight:800}} title="Substituir / Mover">↔</button>}
+                    {!isRealizada && <button onClick={()=>removeFromRotation(b.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,marginLeft:2,fontWeight:800}}>×</button>}
+                  </span>
+                );
+              })}</div></div>}
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
                 {drawnTeams.map((tm,ti)=>(
                   <div key={ti} style={{...S.card,borderColor:COLORS[ti%COLORS.length]+"55",padding:12}}>
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><div style={{width:10,height:10,borderRadius:"50%",background:COLORS[ti%COLORS.length]}}/><span style={{fontWeight:700,fontSize:13,color:t.text}}>{tm.name}</span></div>
-                    {tm.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,padding:"3px 0",borderBottom:`1px solid ${t.cardBorder}`}}><PlayerAvatar atleta={p} size={18}/><span>{(p.goleiro||p.isGoalkeeper)?"🧤":"⚽"}</span><span style={{flex:1,fontWeight:500,color:t.text}}>{getPlayerName(p)}</span>{!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:11,fontWeight:700,marginRight:4}} title="Substituir / Mover">🔄</button>} {!isRealizada && <button onClick={()=>removeFromRotation(p.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:12,fontWeight:700}}>×</button>}</div>)}
+                    {tm.players.map((p,pi)=>{
+                      const pIsRev = p.isConvidado && p.convidadoDe;
+                      const pAnfNome = pIsRev ? (atletas.find(x=>x.id===p.convidadoDe)?.apelido||atletas.find(x=>x.id===p.convidadoDe)?.nome||"?") : null;
+                      return(
+                        <div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,padding:"3px 0",borderBottom:`1px solid ${t.cardBorder}`,background: pIsRev ? "#7F77DD08" : "transparent",borderRadius: pIsRev ? 4 : 0,paddingLeft: pIsRev ? 4 : 0}}>
+                          <PlayerAvatar atleta={p} size={18}/>
+                          <span>{(p.goleiro||p.isGoalkeeper)?"🧤":"⚽"}</span>
+                          <span style={{flex:1,fontWeight:500,color: pIsRev ? "#7F77DD" : t.text}}>{getPlayerName(p)}</span>
+                          {pIsRev && <span style={{fontSize:9,color:"#7F77DD",opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
+                          {!isRealizada && pIsRev && (
+                            <button
+                              onClick={()=>{
+                                if(confirm(`Promover "${getPlayerName(p)}" a jogador independente?`)){
+                                  let newBenchLocal = benchState.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x);
+                                  let newDTLocal = drawnTeams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}));
+                                  let psLocal = peladaState ? {...peladaState,bench:peladaState.bench.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x),teams:peladaState.teams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}))} : null;
+                                  setBenchState(newBenchLocal); setDrawnTeams(newDTLocal); setPeladaStateLocal(psLocal);
+                                  saveDateState({drawnTeams:newDTLocal,initialBench:newBenchLocal,peladaState:psLocal});
+                                }
+                              }}
+                              style={{border:"none",background:"transparent",color:"#1D9E75",cursor:"pointer",padding:"0 2px",fontSize:10,fontWeight:800}}
+                              title="Promover a titular independente"
+                            >⬆</button>
+                          )}
+                          {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:11,fontWeight:700,marginRight:4}} title="Substituir / Mover">🔄</button>}
+                          {!isRealizada && <button onClick={()=>removeFromRotation(p.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:12,fontWeight:700}}>×</button>}
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </div>
@@ -5572,26 +6812,28 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       )}
       {currentAba==="jogos"&&(
         <div>
-          <div style={{...S.card, marginBottom: 14, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap"}}>
-            <label style={{...S.label, margin: 0}}>Ver jogos da data:</label>
-            <select style={{...S.select, width: 160}} value={selDataSorteio} onChange={e=>setSelDataSorteio(e.target.value)}>
-              {datas.map(d=><option key={d.id} value={d.id}>{formatarData(d.data)}</option>)}
-            </select>
-          </div>
+          {/* Os jogos exibidos correspondem ao Dia selecionado no filtro global */}
 
-          {peladaState?.currentMatch&&!peladaState.currentMatch.played&&String(peladaState.currentMatch.dataRealizacaoId)===String(selDataSorteio)&&!isRealizada&&(
-            <div style={{...S.card,border:"2px solid #1D9E7555",marginBottom:20}}>
-              <div style={{fontSize:11,fontWeight:700,color:"#1D9E75",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>⚽ Jogo {(peladaState.matchLog?.filter(m=>String(m.dataRealizacaoId)===String(selDataSorteio)).length||0)+1}</div>
+          {peladaState?.currentMatch&&!peladaState.currentMatch.played&&String(peladaState.currentMatch.dataRealizacaoId)===String(selDataSorteio)&&(
+            <div style={{...S.card,border:`2px solid ${isRealizada ? t.cardBorder : "#1D9E7555"}`,marginBottom:20}}>
+              <div style={{fontSize:11,fontWeight:700,color:isRealizada ? t.textSec : "#1D9E75",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>
+                ⚽ Jogo {(peladaState.matchLog?.filter(m=>String(m.dataRealizacaoId)===String(selDataSorteio)).length||0)+1} {isRealizada && "(Congelado - Rodada Realizada)"}
+              </div>
               
-              {/* Cronômetro com Alarme da Pelada */}
-              <MatchTimer t={t} defaultMinutes={10} timerKey={`pelada_${pelada.id}`} />
+              {!isRealizada && <MatchTimer t={t} defaultMinutes={10} timerKey={`pelada_${pelada.id}`} />}
 
               <div style={{display:"flex", justifyContent:"center", marginBottom:12}}>
                 <div style={{textAlign:"center",padding:"0 2px",flexShrink:0}}>
                   <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                    <input type="number" min={0} max={99} value={scoreA} onChange={e=>setScoreA(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
-                    <span style={{fontWeight:700,color:t.textSec,fontSize:14}}>×</span>
-                    <input type="number" min={0} max={99} value={scoreB} onChange={e=>setScoreB(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
+                    {isRealizada ? (
+                      <span style={{fontSize:20,fontWeight:850,color:t.text}}>{scoreA || "0"} × {scoreB || "0"}</span>
+                    ) : (
+                      <>
+                        <input type="number" min={0} max={99} value={scoreA} onChange={e=>setScoreA(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
+                        <span style={{fontWeight:700,color:t.textSec,fontSize:14}}>×</span>
+                        <input type="number" min={0} max={99} value={scoreB} onChange={e=>setScoreB(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -5599,42 +6841,76 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,alignItems:"start",width:"100%",overflow:"hidden",marginBottom:12}}>
                 <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamA)}55`,padding:6,textAlign:"right",minWidth:0,overflow:"hidden"}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,minWidth:0,overflow:"hidden"}}><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamA}</span><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamA),flexShrink:0}}/></div>
-                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}</span><input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'A')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",height:18}}/><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button></div>)}</div>
+                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>
+                    {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=>(
+                      <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}</span>
+                        {isRealizada ? (
+                          sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517"}}>⚽({sumulaGols[p.id]})</span> : null
+                        ) : (
+                          <>
+                            <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'A')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",height:18}}/>
+                            <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>
+                            <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamA});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamB)}55`,padding:6,minWidth:0,overflow:"hidden"}}>
                   <div style={{display:"flex",alignItems:"center",gap:4,minWidth:0,overflow:"hidden"}}><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamB),flexShrink:0}}/><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamB}</span></div>
-                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>{peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=><div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button><input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'B')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/><span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}</span></div>)}</div>
+                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>
+                    {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=>(
+                      <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>}
+                        {!isRealizada && <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamB});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>}
+                        {isRealizada ? (
+                          sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517"}}>⚽({sumulaGols[p.id]})</span> : null
+                        ) : (
+                          <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'B')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/>
+                        )}
+                        <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <button onClick={saveMatchLocal} style={{...S.btn(),width:"100%",justifyContent:"center"}}>✓ Registrar</button>
+              {!isRealizada && <button onClick={saveMatchLocal} style={{...S.btn(),width:"100%",justifyContent:"center"}}>✓ Registrar</button>}
               {peladaState?.queue?.length > 2 && (
                 <div style={{marginTop:16, paddingTop:16, borderTop:`1px dashed ${t.cardBorder}`}}>
                   <div style={{fontSize:12,fontWeight:700,color:t.textSec,marginBottom:8,textAlign:"center"}}>Próximo a entrar: <span style={{color:"#7F77DD"}}>{peladaState.queue[2]}</span></div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center"}}>
-                    {peladaState.teams?.find(tm=>tm.name===peladaState.queue[2])?.players.map((p,pi)=><div key={pi} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,background:t.inputBg,padding:"4px 10px",borderRadius:12,border:`1px solid ${t.inputBorder}`}}><PlayerAvatar atleta={p} size={16}/>{getPlayerName(p)} <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button></div>)}
+                    {peladaState.teams?.find(tm=>tm.name===peladaState.queue[2])?.players.map((p,pi)=><div key={pi} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,background:t.inputBg,padding:"4px 10px",borderRadius:12,border:`1px solid ${t.inputBorder}`}}>
+                      <PlayerAvatar atleta={p} size={16}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                    </div>)}
                   </div>
                 </div>
               )}
             </div>
           )}
-          {!peladaState?.currentMatch&&peladaState?.queue?.length>=2&&!isRealizada&&(
-            <div style={{...S.card,textAlign:"center",marginBottom:16,border:"2px solid #7F77DD55"}}>
-              <div style={{fontWeight:600,color:t.text,marginBottom:12}}>Próximo Jogo</div>
+          {!peladaState?.currentMatch&&peladaState?.queue?.length>=2&&(
+            <div style={{...S.card,textAlign:"center",marginBottom:16,border:`2px solid ${isRealizada ? t.cardBorder : "#7F77DD55"}`}}>
+              <div style={{fontWeight:600,color:t.text,marginBottom:12}}>Próximo Jogo {isRealizada && "(Congelado)"}</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
                 <div style={{background:"#7F77DD11",padding:10,borderRadius:12}}>
                   <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[0]}</b>
                   <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
-                    {peladaState.teams?.find(tm=>tm.name===peladaState.queue[0])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}><PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button></div>)}
+                    {peladaState.teams?.find(tm=>tm.name===peladaState.queue[0])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
+                      <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                    </div>)}
                   </div>
                 </div>
                 <div style={{background:"#7F77DD11",padding:10,borderRadius:12}}>
                   <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[1]}</b>
                   <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
-                    {peladaState.teams?.find(tm=>tm.name===peladaState.queue[1])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}><PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button></div>)}
+                    {peladaState.teams?.find(tm=>tm.name===peladaState.queue[1])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
+                      <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                    </div>)}
                   </div>
                 </div>
               </div>
-              <button onClick={()=>{const ps=startNextMatch(peladaState, selDataSorteio);setPeladaStateLocal(ps);saveDateState({peladaState:ps});}} style={S.btn("#7F77DD")}>▶ Iniciar Próximo Jogo na data selecionada</button>
+              {!isRealizada && <button onClick={()=>{const ps=startNextMatch(peladaState, selDataSorteio);setPeladaStateLocal(ps);saveDateState({peladaState:ps});}} style={S.btn("#7F77DD")}>▶ Iniciar Próximo Jogo na data selecionada</button>}
             </div>
           )}
           {(!peladaState || (!peladaState.currentMatch && (!peladaState.queue || peladaState.queue.length < 2))) && (
@@ -5642,6 +6918,58 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               {isRealizada ? "Todos os jogos desta data foram concluídos e registrados." : "Faça o sorteio primeiro para a data selecionada."}
             </div>
           )}
+
+          {jogadoresPausados.length > 0 && (
+            <div style={{...S.card, border: `1px solid ${t.cardBorder}`, marginBottom: 20}}>
+              <div style={{fontSize:12, fontWeight:700, color:t.text, marginBottom:10, display:"flex", alignItems:"center", gap:6}}>
+                <span>🚑 Atletas que Saíram / Descansando ({jogadoresPausados.length})</span>
+              </div>
+              <div style={{display:"flex", flexDirection:"column", gap:8}}>
+                {jogadoresPausados.map((p) => {
+                  const guest = atletas.find(x => x.isConvidado && String(x.convidadoDe) === String(p.id));
+                  const isGuestActive = guest && (
+                    benchState.some(b => String(b.id) === String(guest.id)) ||
+                    (drawnTeams && drawnTeams.some(t => t.players.some(pl => String(pl.id) === String(guest.id)))) ||
+                    jogadoresPausados.some(j => String(j.id) === String(guest.id))
+                  );
+                  return (
+                    <div key={p.id} style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:t.inputBg, borderRadius:10, border:`1px solid ${t.inputBorder}`}}>
+                      <div style={{display:"flex", alignItems:"center", gap:8}}>
+                        <PlayerAvatar atleta={p} size={24}/>
+                        <div>
+                          <div style={{fontWeight:600, fontSize:13, color:t.text}}>{getPlayerName(p)}</div>
+                          {guest && isGuestActive && (
+                            <div style={{fontSize:11, color:"#7F77DD", marginTop:2, display:"flex", alignItems:"center", gap:4}}>
+                              <input 
+                                type="checkbox" 
+                                id={`retornar-vinculo-${p.id}`}
+                                defaultChecked={true}
+                                style={{width:14, height:14, accentColor:"#7F77DD"}}
+                              />
+                              <label htmlFor={`retornar-vinculo-${p.id}`} style={{cursor:"pointer", fontSize: 11}}>Retornar com vínculo com {getPlayerName(guest)}</label>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {!isRealizada && (
+                        <button 
+                          onClick={() => {
+                            const chk = document.getElementById(`retornar-vinculo-${p.id}`);
+                            const retornarComVinculo = chk ? chk.checked : false;
+                            retornarJogador(p.id, retornarComVinculo);
+                          }} 
+                          style={S.btn("#1D9E75")}
+                        >
+                          Retornar
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {(peladaState?.matchLog||[]).filter(m => String(m.dataRealizacaoId) === String(selDataSorteio)).length>0&&(
             <div>
               <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>📜 Histórico da Data</h3>
@@ -5726,6 +7054,150 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           </div>
         </div>
       )}
+
+      {/* Modal: Sair do Jogo */}
+      {sairModal && (()=>{
+        // Detecta se o jogador que vai sair é anfitrião com convidado ativo
+        const sairPlayerObj = atletas.find(x => String(x.id) === String(sairModal.playerId));
+        const isHostLeaving = sairPlayerObj && !sairPlayerObj.isConvidado;
+        const convidadoDoSaindo = isHostLeaving
+          ? atletas.find(x => x.isConvidado && String(x.convidadoDe) === String(sairModal.playerId))
+          : null;
+        const convidadoEstaAtivo = convidadoDoSaindo && (
+          peladaState?.teams?.some(t => t.players.some(p => String(p.id) === String(convidadoDoSaindo.id))) ||
+          benchState.some(b => String(b.id) === String(convidadoDoSaindo.id)) ||
+          jogadoresPausados.some(j => String(j.id) === String(convidadoDoSaindo.id))
+        );
+        // Substitutos disponíveis = banco normal (excluindo o próprio convidado, se for sair junto)
+        const substitutosDisponiveis = benchState.filter(b =>
+          !sairComConvidado || !convidadoDoSaindo || String(b.id) !== String(convidadoDoSaindo.id)
+        );
+        return (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001,padding:16}}>
+            <div style={{...S.card,width:"100%",maxWidth:360,maxHeight:"92vh",overflowY:"auto"}}>
+              {/* Header */}
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:`1px solid ${t.cardBorder}`}}>
+                <span style={{fontSize:22}}>🚑</span>
+                <div>
+                  <div style={{fontWeight:800,fontSize:15,color:t.text}}>{sairModal.playerName}</div>
+                  <div style={{fontSize:11,color:t.textSec}}>está saindo antes do fim do jogo</div>
+                </div>
+              </div>
+
+              {/* Motivo */}
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:11,fontWeight:700,color:t.textSec,textTransform:"uppercase",letterSpacing:0.8,marginBottom:8}}>Motivo</div>
+                <div style={{display:"flex",gap:6}}>
+                  {[
+                    {id:"cansaco", label:"⚡ Cansaço", color:"#BA7517"},
+                    {id:"lesao",   label:"🤕 Lesão",   color:"#E24B4A"},
+                    {id:"outro",   label:"📱 Outro",   color:"#6B7280"},
+                  ].map(m=>(
+                    <button
+                      key={m.id}
+                      onClick={()=>setSairMotivo(m.id)}
+                      style={{
+                        flex:1,padding:"8px 4px",borderRadius:10,fontSize:11,fontWeight:700,cursor:"pointer",
+                        border:`2px solid ${sairMotivo===m.id ? m.color : t.cardBorder}`,
+                        background: sairMotivo===m.id ? m.color+"22" : "transparent",
+                        color: sairMotivo===m.id ? m.color : t.textSec,
+                        transition:"all 0.15s"
+                      }}
+                    >{m.label}</button>
+                  ))}
+                </div>
+                {sairMotivo==="lesao" && (
+                  <div style={{fontSize:11,color:"#E24B4A",marginTop:8,background:"#E24B4A10",padding:"6px 10px",borderRadius:8}}>
+                    ⚠️ Lesão remove o atleta da rotação. Ele não poderá retornar.
+                  </div>
+                )}
+                {sairMotivo!=="lesao" && (
+                  <div style={{fontSize:11,color:"#1D9E75",marginTop:8,background:"#1D9E7510",padding:"6px 10px",borderRadius:8}}>
+                    ⏸️ Irá para a seção "Descansando" — pode retornar ao banco quando quiser.
+                  </div>
+                )}
+              </div>
+
+              {/* Convidado de carona — só aparece se o anfitrião tiver convidado ativo */}
+              {convidadoEstaAtivo && (
+                <div style={{marginBottom:16,padding:"10px 12px",borderRadius:10,background:"#7F77DD10",border:"1px solid #7F77DD33"}}>
+                  <label style={{display:"flex",alignItems:"flex-start",gap:10,cursor:"pointer"}}>
+                    <input
+                      type="checkbox"
+                      checked={sairComConvidado}
+                      onChange={e=>{
+                        setSairComConvidado(e.target.checked);
+                        if (e.target.checked) setSubstituirPorConvidado(false);
+                      }}
+                      style={{marginTop:2,width:16,height:16,accentColor:"#7F77DD",flexShrink:0}}
+                    />
+                    <div>
+                      <div style={{fontWeight:700,fontSize:13,color:"#7F77DD"}}>🚗 Convidado também sai</div>
+                      <div style={{fontSize:11,color:t.textSec,marginTop:2}}>
+                        <b>{convidadoDoSaindo.apelido||convidadoDoSaindo.nome}</b> (convidado de carona) também vai embora junto.
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {/* Opção: Substituir pelo Convidado */}
+              {convidadoEstaAtivo && !sairComConvidado && (
+                <div style={{marginBottom:16,padding:"10px 12px",borderRadius:10,background:"#1D9E7510",border:"1px solid #1D9E7533"}}>
+                  <label style={{display:"flex",alignItems:"flex-start",gap:10,cursor:"pointer"}}>
+                    <input
+                      type="checkbox"
+                      checked={substituirPorConvidado}
+                      onChange={e=>setSubstituirPorConvidado(e.target.checked)}
+                      style={{marginTop:2,width:16,height:16,accentColor:"#1D9E75",flexShrink:0}}
+                    />
+                    <div>
+                      <div style={{fontWeight:700,fontSize:13,color:"#1D9E75"}}>🔄 Substituir pelo convidado</div>
+                      <div style={{fontSize:11,color:t.textSec,marginTop:2}}>
+                        <b>{convidadoDoSaindo.apelido||convidadoDoSaindo.nome}</b> entrará automaticamente no jogo no lugar de {sairModal.playerName}.
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {/* Substituto do banco */}
+              {!substituirPorConvidado && substitutosDisponiveis.length > 0 && (
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:11,fontWeight:700,color:t.textSec,textTransform:"uppercase",letterSpacing:0.8,marginBottom:8}}>Substituir por (opcional)</div>
+                  <select
+                    value={sairSubstitutoId}
+                    onChange={e=>setSairSubstitutoId(e.target.value)}
+                    style={{...S.select,fontSize:13}}
+                  >
+                    <option value="">— Nenhum (sai sem substituto) —</option>
+                    {substitutosDisponiveis.map(b=>(
+                      <option key={b.id} value={b.id}>{getPlayerName(b)}{b.goleiro ? " 🧤" : ""}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {!substituirPorConvidado && substitutosDisponiveis.length === 0 && (
+                <div style={{fontSize:12,color:t.textSec,marginBottom:16,background:t.inputBg,padding:"8px 12px",borderRadius:8}}>Banco vazio — o time jogará com um a menos.</div>
+              )}
+
+              {/* Ações */}
+              <div style={{display:"flex",gap:8}}>
+                <button
+                  onClick={handleSairJogo}
+                  style={{...S.btn(sairMotivo==="lesao" ? "#E24B4A" : "#BA7517"),flex:1,justifyContent:"center"}}
+                >
+                  {sairMotivo==="lesao" ? "🤕 Confirmar Saída (Lesão)" : "⏸️ Confirmar Saída"}
+                </button>
+                <button
+                  onClick={()=>{setSairModal(null);setSairComConvidado(false);setSubstituirPorConvidado(false);}}
+                  style={{...S.btn(t.card,t.textSec),border:`1px solid ${t.cardBorder}`,justifyContent:"center"}}
+                >Cancelar</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {editMatchId !== null && peladaState?.matchLog[editMatchId] && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
@@ -5813,6 +7285,181 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           </div>
         </div>
       )}
+
+      {modalConfirmacaoNavegacao && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100,padding:16}}>
+          <div style={{...S.card,width:"100%",maxWidth:400,textAlign:"center"}}>
+            <div style={{fontSize:24,marginBottom:12}}>⚠️</div>
+            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:8}}>Alterações Não Salvas!</div>
+            <p style={{fontSize:13,color:t.textSec,marginBottom:20}}>Você tem modificações na lista de atletas vinculados desta rodada. Deseja salvar antes de prosseguir?</p>
+            
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <button 
+                onClick={async () => {
+                  if (triggerSaveRef.current) {
+                    await triggerSaveRef.current();
+                  }
+                  setHasUnsavedChangesAtletas(false);
+                  const dest = modalConfirmacaoNavegacao;
+                  setModalConfirmacaoNavegacao(null);
+                  executarNavegacaoDestino(dest);
+                }} 
+                style={S.btn("#1D9E75")}
+              >
+                💾 Salvar e Continuar
+              </button>
+              <button 
+                onClick={() => {
+                  setHasUnsavedChangesAtletas(false);
+                  const dest = modalConfirmacaoNavegacao;
+                  setModalConfirmacaoNavegacao(null);
+                  executarNavegacaoDestino(dest);
+                }} 
+                style={S.btn("#E24B4A")}
+              >
+                🗑️ Descartar Alterações
+              </button>
+              <button 
+                onClick={() => setModalConfirmacaoNavegacao(null)} 
+                style={S.btn(t.card, t.textSec)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/* ─────────────────────────── ABA COLABORADORES ITEM ───────────────── */
+function AbaColaboradoresItem({ collaborators, onSaveCollaborators, auth, managers, assegurarManagerColaborador, t, scope = "campeonato" }) {
+  const S = makeStyles(t);
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+
+  const handleAdicionar = (e) => {
+    e.preventDefault();
+    if (!nome.trim() || !email.trim()) {
+      alert("Por favor, preencha o nome e o e-mail do colaborador.");
+      return;
+    }
+    const trimmedEmail = email.toLowerCase().trim();
+    if (trimmedEmail === "lucas7s7@gmail.com") {
+      alert("Não é possível adicionar o e-mail do administrador padrão como colaborador.");
+      return;
+    }
+    if (collaborators.some(c => String(c.email || "").toLowerCase().trim() === trimmedEmail)) {
+      alert("Este colaborador já está cadastrado nesta modalidade.");
+      return;
+    }
+
+    // Busca se esse colaborador já existe no managers global para ver se precisamos de senha
+    const globalManager = (managers || []).find(m => String(m.email || "").toLowerCase().trim() === trimmedEmail);
+    if (!globalManager && !senha.trim()) {
+      alert("Este é um novo colaborador no sistema. Por favor, forneça uma senha de acesso para ele.");
+      return;
+    }
+
+    // Cria/assegura no managers global
+    const senhaFinal = senha.trim() || (globalManager ? globalManager.password : "");
+    assegurarManagerColaborador(nome.trim(), trimmedEmail, senhaFinal, scope);
+
+    // Salva na modalidade local
+    const novo = { id: Date.now(), name: nome.trim(), email: trimmedEmail };
+    const novaLista = [...collaborators, novo];
+    onSaveCollaborators(novaLista);
+
+    // Limpa os campos
+    setNome("");
+    setEmail("");
+    setSenha("");
+    alert("Colaborador cadastrado com sucesso!");
+  };
+
+  const handleRemover = (id) => {
+    if (confirm("Tem certeza que deseja remover o acesso deste colaborador?")) {
+      const novaLista = collaborators.filter(c => c.id !== id);
+      onSaveCollaborators(novaLista);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={S.card}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 10px 0", color: t.text }}>➕ Cadastrar Colaborador</h3>
+        <p style={{ fontSize: 12, color: t.textSec, marginBottom: 12 }}>
+          Cadastre um colaborador para ajudar na gestão desta modalidade. Se o e-mail já possuir cadastro no sistema, ele usará a mesma conta para acumular os acessos.
+        </p>
+        <form onSubmit={handleAdicionar} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={S.label}>Nome Completo:</label>
+            <input 
+              type="text" 
+              placeholder="Ex: João Silva" 
+              value={nome} 
+              onChange={e => setNome(e.target.value)} 
+              style={S.input} 
+              required
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={S.label}>E-mail de Acesso:</label>
+            <input 
+              type="email" 
+              placeholder="Ex: joao@email.com" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              style={S.input} 
+              required
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={S.label}>Senha de Acesso:</label>
+            <input 
+              type="password" 
+              placeholder="Senha (deixe em branco se o colaborador já possui conta)" 
+              value={senha} 
+              onChange={e => setSenha(e.target.value)} 
+              style={S.input} 
+            />
+            <span style={{ fontSize: 10, color: t.textSec }}>
+              * Se o e-mail já for de um usuário cadastrado no sistema, ele poderá fazer login com a senha atual dele.
+            </span>
+          </div>
+          <button type="submit" style={{ ...S.btn("#1D9E75"), marginTop: 6, justifyContent: "center" }}>
+            ✓ Adicionar Colaborador
+          </button>
+        </form>
+      </div>
+
+      <div style={S.card}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 10px 0", color: t.text }}>👥 Colaboradores Cadastrados ({collaborators.length})</h3>
+        {collaborators.length === 0 ? (
+          <p style={{ fontSize: 13, color: t.textSec, textAlign: "center", margin: "20px 0" }}>Nenhum colaborador cadastrado para esta modalidade.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {collaborators.map(colab => (
+              <div key={colab.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", border: `1px solid ${t.cardBorder}`, borderRadius: 8, background: t.inputBg }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13, color: t.text }}>{colab.name}</span>
+                  <span style={{ fontSize: 11, color: t.textSec }}>{colab.email}</span>
+                </div>
+                <button 
+                  onClick={() => handleRemover(colab.id)} 
+                  style={{ ...S.btnSm("#E24B4A22", "#E24B4A"), padding: "6px 10px" }}
+                  title="Remover Acesso"
+                >
+                  🗑️ Remover
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -6239,9 +7886,23 @@ const getSuspendedPlayersForMatch = (c, targetKey) => {
 };
 
 /* ─────────────────────────── CAMPEONATO ─────────────────────────── */
-function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,onUpdateAtleta,cloudLoading,publicarNaNuvem,t,tab,setTab,isMobile}){
+function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,onUpdateAtleta,cloudLoading,publicarNaNuvem,t,tab,setTab,isMobile,auth,managers,assegurarManagerColaborador}){
   const S=makeStyles(t);
   const c = champ;
+  const atletasDoCampeonato = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("campeonato_" + c.id));
+  const isDonoOuAdmin = auth?.role === "adm" || !c.manager_id || c.manager_id === auth?.manager_id;
+  const champTabs = [
+    "elencos",
+    ...(c.type === "pontos" ? ["tabela", "jogos"] : c.type === "mata" ? ["chave", "jogos"] : ["tabela", "chave", "jogos"]),
+    "estatísticas"
+  ];
+  if (c.allowOnlineReg) {
+    champTabs.push("solicitações");
+  }
+  if (isDonoOuAdmin) {
+    champTabs.push("colaboradores");
+  }
+  champTabs.push("mural", "galeria", "configurações", "nuvem");
   const rosters = c.rosters || {};
   const colorOf = (n,teams) => COLORS[(teams||[]).indexOf(n)%COLORS.length];
   const getRosterByTeamName = (teamName) => {
@@ -6340,8 +8001,8 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     documento: "",
     dataNascimento: "",
     numeroCamisa: "",
-    grupo: "",
     modalidades: [],
+    vinculos: [],
     customFields: {}
   });
 
@@ -6440,8 +8101,15 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
         let atletaId;
         if (existingIdx >= 0) {
           atletaId = atletas[existingIdx].id;
+          const aExistente = atletas[existingIdx];
+          const vinculos = Array.isArray(aExistente.vinculos) ? [...aExistente.vinculos] : [];
+          if (!vinculos.includes("campeonato_" + c.id)) {
+            vinculos.push("campeonato_" + c.id);
+          }
           onUpdateAtleta(atletaId, {
+            ...aExistente,
             ...item,
+            vinculos,
             modalidades: modsArray,
             ativo: item.ativo !== "false",
             goleiro: item.goleiro === "true",
@@ -6452,6 +8120,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           onAddAtleta({
             id: atletaId,
             ...item,
+            vinculos: ["campeonato_" + c.id],
             modalidades: modsArray,
             ativo: item.ativo !== "false",
             goleiro: item.goleiro === "true",
@@ -6708,7 +8377,6 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       documento: "", // RG
       dataNascimento: "",
       numeroCamisa: "",
-      grupo: filtroGrupoElenco || "",
       celular1: "",
       celular2: "",
       foneResidencial: "",
@@ -6723,6 +8391,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       bairro: "",
       nomeMae: "",
       docFoto: "",
+      vinculos: ["campeonato_" + c.id],
       customFields: {}
     });
     setModalNovoAtleta(true);
@@ -6740,7 +8409,6 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       documento: a.documento || "",
       dataNascimento: a.dataNascimento || "",
       numeroCamisa: a.numeroCamisa || "",
-      grupo: a.grupo || "",
       celular1: a.celular1 || "",
       celular2: a.celular2 || "",
       foneResidencial: a.foneResidencial || "",
@@ -6755,6 +8423,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       bairro: a.bairro || "",
       nomeMae: a.nomeMae || "",
       docFoto: a.docFoto || "",
+      vinculos: Array.isArray(a.vinculos) ? a.vinculos : [],
       customFields: a.customFields || {}
     });
     setModalNovoAtleta(true);
@@ -6770,7 +8439,11 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       alert("Cadastro do atleta atualizado com sucesso!");
     } else {
       const novoId = Date.now();
-      const novoAtleta = {id: novoId, ...formAtleta};
+      const novoAtleta = {
+        id: novoId, 
+        ...formAtleta,
+        vinculos: ["campeonato_" + c.id]
+      };
       onAddAtleta(novoAtleta);
       
       const tc = deepClone(c);
@@ -6900,7 +8573,11 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
   if (c.allowOnlineReg) {
     tabs.push("solicitações");
   }
-  tabs.push("mural", "galeria", "configurações", "nuvem");
+  tabs.push("mural", "galeria");
+  if (isDonoOuAdmin) {
+    tabs.push("colaboradores");
+  }
+  tabs.push("configurações", "nuvem");
 
   const getArtilheiro = () => {
     const evts = [];
@@ -7172,8 +8849,8 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     }
     const teamRoster = selTeamElenco ? (rosters[selTeamElenco] || []) : [];
     const allRosteredIds = Object.values(rosters).flat();
-    const notInTeam = atletas.filter(a => !allRosteredIds.includes(a.id));
-    const gruposUnicos = Array.from(new Set(atletas.map(a => a.grupo).filter(Boolean)));
+    const notInTeam = atletasDoCampeonato.filter(a => !allRosteredIds.includes(a.id));
+    const gruposUnicos = Array.from(new Set(atletasDoCampeonato.map(a => a.grupo).filter(Boolean)));
     const dispFiltrados = notInTeam.filter(a => {
       const matchesNome = a.nome.toLowerCase().includes(filtroElenco.toLowerCase()) || (a.apelido && a.apelido.toLowerCase().includes(filtroElenco.toLowerCase()));
       const matchesGrupo = !filtroGrupoElenco || a.grupo === filtroGrupoElenco;
@@ -7220,10 +8897,17 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
             foto: "",
             habilidade: 3,
             goleiro: false,
-            ativo: true
+            ativo: true,
+            vinculos: ["campeonato_" + c.id]
           };
           onAddAtleta(a);
           novosCadastrados++;
+        } else {
+          const vinculos = Array.isArray(a.vinculos) ? [...a.vinculos] : [];
+          if (!vinculos.includes("campeonato_" + c.id)) {
+            a.vinculos = [...vinculos, "campeonato_" + c.id];
+            onUpdateAtleta(a.id, a);
+          }
         }
         
         if (!tc.rosters[nomeTime].includes(a.id)) {
@@ -7444,7 +9128,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
             <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
               {teamRoster.map(id=>{
                 const a = atletas.find(x=>x.id===id);
-                if(!a) return null;
+                if(!a || !Array.isArray(a.vinculos) || !a.vinculos.includes("campeonato_" + c.id)) return null;
                 const regs = c.registrations || [];
                 const isPaid = regs.some(r => r.atletaId === id && r.team === selTeamElenco && r.paid);
                 return (
@@ -7601,15 +9285,24 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
             documento: p.documento || "",
             dataNascimento: p.dataNascimento || "",
             numeroCamisa: p.numeroCamisa || "",
-            customFields: p.customFields || {}
+            customFields: p.customFields || {},
+            vinculos: ["campeonato_" + c.id]
           };
           onAddAtleta(newPlayer);
           a = newPlayer;
         } else {
-          a.documento = a.documento || p.documento || "";
-          a.dataNascimento = a.dataNascimento || p.dataNascimento || "";
-          a.numeroCamisa = a.numeroCamisa || p.numeroCamisa || "";
-          a.customFields = { ...(a.customFields || {}), ...(p.customFields || {}) };
+          const vinculos = Array.isArray(a.vinculos) ? [...a.vinculos] : [];
+          if (!vinculos.includes("campeonato_" + c.id)) {
+            vinculos.push("campeonato_" + c.id);
+          }
+          onUpdateAtleta(a.id, {
+            ...a,
+            documento: a.documento || p.documento || "",
+            dataNascimento: a.dataNascimento || p.dataNascimento || "",
+            numeroCamisa: a.numeroCamisa || p.numeroCamisa || "",
+            customFields: { ...(a.customFields || {}), ...(p.customFields || {}) },
+            vinculos
+          });
         }
 
         if (!tc.rosters[sub.teamName].includes(a.id)) {
@@ -8191,6 +9884,19 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
         </div>
       </div>
 
+      {/* Abas locais do Campeonato */}
+      <div style={{display:"flex",gap:0,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:20}}>
+        {champTabs.map(tb => (
+          <button
+            key={tb}
+            onClick={() => currentSetTab(tb)}
+            style={S.tab(currentTab === tb)}
+          >
+            {tb === "nuvem" ? "🌐 Nuvem" : tb.charAt(0).toUpperCase() + tb.slice(1)}
+          </button>
+        ))}
+      </div>
+
       {/* Grid Container Responsivo (2 Colunas no Desktop) */}
       <div style={S.layoutContainer(isMobile)}>
         
@@ -8268,6 +9974,17 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
           {currentTab==="solicitações" && c.allowOnlineReg && <AbaSolicitacoes />}
           {currentTab==="mural" && <AbaMuralOrganizador c={c} onUpdate={onUpdate} t={t} />}
           {currentTab==="galeria" && <AbaGaleriaOrganizador c={c} onUpdate={onUpdate} t={t} />}
+          {currentTab==="colaboradores" && isDonoOuAdmin && (
+            <AbaColaboradoresItem 
+              collaborators={c.collaborators || []} 
+              onSaveCollaborators={(novosColaboradores)=>onUpdate({ ...c, collaborators: novosColaboradores })} 
+              auth={auth} 
+              managers={managers} 
+              assegurarManagerColaborador={assegurarManagerColaborador} 
+              t={t} 
+              scope="campeonato"
+            />
+          )}
           {currentTab==="configurações" && <AbaConfiguracoes />}
           {currentTab==="nuvem" && (
             <div style={{display:"flex",flexDirection:"column",gap:20}}>
@@ -9314,104 +11031,6 @@ export default function App(){
             </div>
           </div>
         </div>
-
-        {/* Barra Inferior Sticky (Abas) */}
-        <div style={{
-          backgroundColor: dark ? "#171A21" : "#ffffff",
-          borderBottom: "1px solid " + t.cardBorder,
-          height: 40,
-          position: "sticky",
-          top: 0,
-          zIndex: 1001,
-          boxShadow: dark ? "none" : "0 2px 4px rgba(0,0,0,0.02)"
-        }}>
-          <div style={{
-            width: "100%",
-            maxWidth: "1200px",
-            height: "100%",
-            margin: "0 auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "flex-start",
-            padding: "0 16px",
-            boxSizing: "border-box"
-          }}>
-            <div style={{
-              fontSize: 13,
-              fontWeight: "900",
-              color: t.text,
-              marginRight: 20,
-              fontFamily: "'Outfit', sans-serif",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              maxWidth: isMobile ? 120 : 250,
-              flexShrink: 0
-            }} title={subBarTitle}>
-              {subBarTitle}
-            </div>
-            <div style={{
-              height: 16,
-              width: 1,
-              backgroundColor: t.cardBorder,
-              marginRight: 10,
-              flexShrink: 0
-            }} />
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              height: "100%",
-              overflowX: "auto",
-              whiteSpace: "nowrap",
-              flex: 1,
-              scrollbarWidth: "none",
-              msOverflowStyle: "none"
-            }}>
-              <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-              {links.map((ln, idx) => (
-                <button 
-                  key={idx}
-                  onClick={ln.onClick}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: ln.active ? "#06AA48" : t.textSec,
-                    padding: "0 12px",
-                    height: "100%",
-                    fontSize: 11,
-                    fontWeight: "800",
-                    fontFamily: "'Outfit', sans-serif",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                    cursor: "pointer",
-                    position: "relative",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    transition: "all 0.2s ease",
-                    flexShrink: 0,
-                    ...ln.style
-                  }}
-                >
-                  {ln.label}
-                  {ln.active && (
-                    <div style={{
-                      position: "absolute",
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 3.5,
-                      backgroundColor: "#06AA48",
-                      borderRadius: "2px 2px 0 0"
-                    }} />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
     );
   };
@@ -9878,7 +11497,11 @@ export default function App(){
   useEffect(() => {
     allQuadrasRef.current = allQuadras;
   }, [allQuadras]);
-  const participacoes = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
+  const participacoesRaw = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
+  const participacoes = React.useMemo(() => {
+    const ids = new Set(allAtletas.map(a => a.id));
+    return participacoesRaw.filter(p => ids.has(p.atleta_id));
+  }, [allAtletas, participacoesRaw]);
   const financeiro = appState?.financeiro && typeof appState.financeiro === 'object' ? appState.financeiro : { entries: [] };
   const managers = Array.isArray(appState?.managers) ? appState.managers : [];
   const managersRef = useRef(managers);
@@ -9887,8 +11510,147 @@ export default function App(){
   }, [managers]);
   const adminPassword = appState?.adminPassword || "1204110411";
 
-  const [auth, setAuth] = useState({ role:"", name:"", manager_id: null, scope: "geral" });
+  // Efeito para limpar automaticamente participações órfãs (atletas excluídos)
+  useEffect(() => {
+    if (loading) return;
+    if (Array.isArray(appState?.participacoes) && Array.isArray(appState?.atletas)) {
+      const atletaIds = new Set(appState.atletas.map(a => a.id));
+      const temOrfas = appState.participacoes.some(p => !atletaIds.has(p.atleta_id));
+      if (temOrfas) {
+        const limpas = appState.participacoes.filter(p => atletaIds.has(p.atleta_id));
+        setAppState(prev => ({ ...prev, participacoes: limpas }));
+        console.log("[AUTO-LIMPEZA] Removidas participações órfãs de atletas deletados.");
+      }
+    }
+  }, [loading, appState?.participacoes, appState?.atletas, setAppState]);
+
+  // Efeito de migração automática dos dados históricos de atletas e vínculos (Grupo -> Liga/Pelada N:N)
+  useEffect(() => {
+    if (loading) return; // Aguarda o carregamento do LocalStorage
+
+    const legacyAtletasCamp = appState?.atletasCampeonato || [];
+    const legacyAtletasPel = appState?.atletas || [];
+    
+    const precisaMigrarAtletasCamp = legacyAtletasCamp.length > 0;
+    const precisaMigrarVinculos = legacyAtletasPel.some(a => !Array.isArray(a.vinculos));
+
+    if (precisaMigrarAtletasCamp || precisaMigrarVinculos) {
+      console.log("[MIGRAÇÃO] Iniciando migração de dados de Atletas e Vínculos...");
+
+      const camps = Array.isArray(appState?.campeonatos) ? appState.campeonatos : [];
+      const parts = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
+
+      const mapAtletaVinculos = (atletaId, isFromCamp) => {
+        const vinculos = [];
+        
+        // 1. Mapeia campeonatos com base nos rosters
+        camps.forEach(c => {
+          if (c.rosters) {
+            const pertenceAoCamp = Object.values(c.rosters).some(rosterArray => 
+              Array.isArray(rosterArray) && rosterArray.map(String).includes(String(atletaId))
+            );
+            if (pertenceAoCamp) {
+              vinculos.push("campeonato_" + c.id);
+            }
+          }
+        });
+
+        // 2. Mapeia peladas com base em participações
+        parts.forEach(p => {
+          if (String(p.atleta_id) === String(atletaId) && p.pelada_id) {
+            const vinculoId = "pelada_" + p.pelada_id;
+            if (!vinculos.includes(vinculoId)) {
+              vinculos.push(vinculoId);
+            }
+          }
+        });
+
+        // 3. Fallback para peladas se for atleta de pelada e não possuir participações
+        if (!isFromCamp && vinculos.length === 0 && appState?.peladas?.length > 0) {
+          vinculos.push("pelada_" + appState.peladas[0].id);
+        }
+
+        return vinculos;
+      };
+
+      const novosAtletas = [];
+
+      // Migrar atletas de pelada
+      legacyAtletasPel.forEach(a => {
+        const vinculos = Array.isArray(a.vinculos) ? a.vinculos : mapAtletaVinculos(a.id, false);
+        const atletaMigrado = {
+          ...a,
+          vinculos
+        };
+        delete atletaMigrado.grupo;
+        novosAtletas.push(atletaMigrado);
+      });
+
+      // Migrar atletas de campeonato
+      legacyAtletasCamp.forEach(a => {
+        if (novosAtletas.some(x => String(x.id) === String(a.id))) return;
+        const vinculos = mapAtletaVinculos(a.id, true);
+        const atletaMigrado = {
+          ...a,
+          vinculos
+        };
+        delete atletaMigrado.grupo;
+        novosAtletas.push(atletaMigrado);
+      });
+
+      setAppState(prev => ({
+        ...prev,
+        atletas: novosAtletas,
+        atletasCampeonato: []
+      }));
+      
+      console.log("[MIGRAÇÃO] Migração concluída! Atletas unificados:", novosAtletas.length);
+    }
+  }, [loading, appState, setAppState]);
+
+  const [auth, setAuth] = useState({ role:"", name:"", manager_id: null, scope: "geral", email: "" });
   const [authLoading, setAuthLoading] = useState(true);
+
+  const [dashboardTab, setDashboardTab] = useState("campeonatos");
+  const [dashboardSelectedId, setDashboardSelectedId] = useState("");
+  const [dashboardSelectedDataId, setDashboardSelectedDataId] = useState("");
+
+  // Sincroniza dinamicamente o escopo do manager com base nos seus vínculos reais de colaboração
+  useEffect(() => {
+    if (auth.role !== "manager" || !auth.email) return;
+
+    const emailLogado = String(auth.email || "").toLowerCase().trim();
+    const camps = Array.isArray(appState?.campeonatos) ? appState.campeonatos : [];
+    const pels = Array.isArray(appState?.peladas) ? appState.peladas : [];
+
+    const isColabCamp = camps.some(c => Array.isArray(c.collaborators) && c.collaborators.some(col => String(col.email || "").toLowerCase().trim() === emailLogado));
+    const isColabPel = pels.some(p => Array.isArray(p.collaborators) && p.collaborators.some(col => String(col.email || "").toLowerCase().trim() === emailLogado));
+
+    let computedScope = "campeonato";
+    
+    // Busca se existe no managers global para ver se há escopo pré-definido
+    const managerDef = (appState?.managers || []).find(m => String(m.email || "").toLowerCase().trim() === emailLogado);
+    if (managerDef && managerDef.scope) {
+      computedScope = managerDef.scope;
+    }
+
+    if (isColabCamp && isColabPel) {
+      computedScope = "geral";
+    } else if (isColabPel) {
+      computedScope = "pelada";
+    } else if (isColabCamp) {
+      computedScope = "campeonato";
+    }
+
+    if (auth.scope !== computedScope) {
+      setAuth(prev => ({ ...prev, scope: computedScope }));
+      if (computedScope === "pelada") {
+        setDashboardTab("peladas");
+      } else if (computedScope === "campeonato") {
+        setDashboardTab("campeonatos");
+      }
+    }
+  }, [appState?.campeonatos, appState?.peladas, appState?.managers, auth.email, auth.role, auth.scope]);
   const lastAuthUserEmail = useRef("");
   const [screen, setScreen] = useState("selection");
   const [cloudLoading, setCloudLoading] = useState(false);
@@ -9911,7 +11673,7 @@ export default function App(){
         
         // Verifica se é o Administrador padrão
         if (trimmedEmail === "lucas7s7@gmail.com") {
-          setAuth({ role: "adm", name: "Lucas", manager_id: null, scope: "geral" });
+          setAuth({ role: "adm", name: "Lucas", manager_id: null, scope: "geral", email: trimmedEmail });
           setScreen(prev => (prev === "login" || prev === "selection") ? "home" : prev);
           if (isNewLogin) {
             console.log("[DEBUG AUTH] Novo login admin detectado! Chamando autoRestaurarDaNuvem");
@@ -9943,7 +11705,7 @@ export default function App(){
           }
 
           if (manager) {
-            setAuth({ role: "manager", name: manager.name || "Manager", manager_id: manager.id, scope: manager.scope || "campeonato" });
+            setAuth({ role: "manager", name: manager.name || "Manager", manager_id: manager.id, scope: manager.scope || "campeonato", email: trimmedEmail });
             setScreen(prev => (prev === "login" || prev === "selection") ? "home" : prev);
             if (isNewLogin) {
               console.log("[DEBUG AUTH] Novo login manager detectado! Chamando autoRestaurarDaNuvem");
@@ -9953,14 +11715,14 @@ export default function App(){
           } else {
             // Se for outro usuário (por exemplo, um novo usuário básico)
             console.log("[DEBUG AUTH] Usuário público logado");
-            setAuth({ role: "public", name: user.displayName || trimmedEmail.split("@")[0], manager_id: null, scope: "leitura" });
+            setAuth({ role: "public", name: user.displayName || trimmedEmail.split("@")[0], manager_id: null, scope: "leitura", email: trimmedEmail });
             setScreen(prev => (prev === "login" || prev === "selection") ? "public" : prev);
           }
         }
       } else {
         // Usuário deslogado
         console.log("[DEBUG AUTH] Usuário deslogado. Limpando email em lastAuthUserEmail");
-        setAuth({ role: "", name: "", manager_id: null, scope: "geral" });
+        setAuth({ role: "", name: "", manager_id: null, scope: "geral", email: "" });
         lastAuthUserEmail.current = "";
       }
       setAuthLoading(false);
@@ -10050,7 +11812,7 @@ export default function App(){
   const autoRestaurarDaNuvem = async (role, managerId) => {
     if (!isFirebaseConfigured) return;
     try {
-      const docKey = role === "adm" ? "admin_data" : `manager_${managerId || "unknown"}`;
+      const docKey = (role === "adm" || role === "manager") ? "admin_data" : `manager_${managerId || "unknown"}`;
       const docSnap = await getDoc(doc(db, "sistema", docKey));
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -10071,7 +11833,7 @@ export default function App(){
 
     const timer = setTimeout(async () => {
       try {
-        const docKey = auth.role === "adm" ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
+        const docKey = (auth.role === "adm" || auth.role === "manager") ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
         const payload = {
           appState: appState,
           lastUpdated: new Date().toISOString(),
@@ -10262,14 +12024,70 @@ export default function App(){
   // Filtro por manager e scope
   const filterByManager = (items) => {
     if (auth.role === "adm") return items;
-    if (auth.role === "manager") return items.filter(item => item.manager_id === auth.manager_id);
+    if (auth.role === "manager") {
+      const emailLogado = String(auth.email || "").toLowerCase().trim();
+      return items.filter(item => {
+        const isOwner = item.manager_id === auth.manager_id;
+        const isCollaborator = Array.isArray(item.collaborators) && item.collaborators.some(
+          colab => String(colab.email || "").toLowerCase().trim() === emailLogado
+        );
+        return isOwner || isCollaborator;
+      });
+    }
     return [];
   };
-  const campeonatos = filterByManager(allCampeonatos).filter(c => auth.role === "adm" || auth.scope === "geral" || auth.scope === "campeonato");
-  const peladas = filterByManager(allPeladas).filter(p => auth.role === "adm" || auth.scope === "geral" || auth.scope === "pelada");
-    const atletas = filterByManager(allAtletas);
-  const atletasCampeonato = filterByManager(allAtletasCampeonato);
-  const quadras = filterByManager(allQuadras);
+  const campeonatos = filterByManager(allCampeonatos).filter(c => {
+    const isCollaborator = Array.isArray(c.collaborators) && c.collaborators.some(
+      colab => String(colab.email || "").toLowerCase().trim() === String(auth.email || "").toLowerCase().trim()
+    );
+    return auth.role === "adm" || auth.scope === "geral" || auth.scope === "campeonato" || isCollaborator;
+  });
+  const peladas = filterByManager(allPeladas).filter(p => {
+    const isCollaborator = Array.isArray(p.collaborators) && p.collaborators.some(
+      colab => String(colab.email || "").toLowerCase().trim() === String(auth.email || "").toLowerCase().trim()
+    );
+    return auth.role === "adm" || auth.scope === "geral" || auth.scope === "pelada" || isCollaborator;
+  });
+  const atletas = (() => {
+    if (auth.role === "adm") return allAtletas;
+    if (auth.role === "manager") {
+      const emailLogado = String(auth.email || "").toLowerCase().trim();
+      
+      // Obtém as peladas e campeonatos permitidos
+      const peladasPermitidasIds = allPeladas.filter(p => 
+        p.manager_id === auth.manager_id || 
+        (Array.isArray(p.collaborators) && p.collaborators.some(col => String(col.email || "").toLowerCase().trim() === emailLogado))
+      ).map(p => "pelada_" + p.id);
+
+      const campeonatosPermitidosIds = allCampeonatos.filter(c => 
+        c.manager_id === auth.manager_id || 
+        (Array.isArray(c.collaborators) && c.collaborators.some(col => String(col.email || "").toLowerCase().trim() === emailLogado))
+      ).map(c => "campeonato_" + c.id);
+
+      const vinculosPermitidos = [...peladasPermitidasIds, ...campeonatosPermitidosIds];
+
+      return allAtletas.filter(atleta => {
+        const isOwner = atleta.manager_id === auth.manager_id;
+        const belongsToPermittedModalidade = Array.isArray(atleta.vinculos) && atleta.vinculos.some(v => vinculosPermitidos.includes(v));
+        // Se o atleta não tem vínculo com nada, mas é de propriedade do admin ou do manager
+        const isOrphanAndOwned = (!Array.isArray(atleta.vinculos) || atleta.vinculos.length === 0) && (atleta.manager_id === auth.manager_id || !atleta.manager_id);
+        
+        return isOwner || belongsToPermittedModalidade || isOrphanAndOwned;
+      });
+    }
+    return [];
+  })();
+
+  const atletasCampeonato = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.some(v => v.startsWith("campeonato_")));
+  
+  const quadras = (() => {
+    if (auth.role === "adm") return allQuadras;
+    if (auth.role === "manager") {
+      // Retorna as quadras criadas pelo admin (manager_id === null) ou pelo próprio manager
+      return allQuadras.filter(q => q.manager_id === auth.manager_id || !q.manager_id);
+    }
+    return [];
+  })();
 
   const escapeHtml = (value) => {
     return String(value ?? "")
@@ -10661,6 +12479,30 @@ export default function App(){
   const adicionarManager = d => setManagers(p => [...p, { ...d, id: Date.now() }]);
   const atualizarManager = (id, d) => setManagers(p => p.map(m => m.id === id ? { ...m, ...d } : m));
   const removerManager = id => setManagers(p => p.filter(m => m.id !== id));
+  const assegurarManagerColaborador = (name, email, password, targetScope = "campeonato") => {
+    const trimmedEmail = String(email || "").toLowerCase().trim();
+    const list = Array.isArray(appState?.managers) ? appState.managers : [];
+    const index = list.findIndex(m => String(m.email || "").toLowerCase().trim() === trimmedEmail);
+    if (index === -1) {
+      adicionarManager({
+        name: name.trim(),
+        email: trimmedEmail,
+        password: password,
+        scope: targetScope
+      });
+    } else {
+      const existingManager = list[index];
+      const currentScope = existingManager.scope || "campeonato";
+      let newScope = currentScope;
+      if (currentScope !== "geral" && currentScope !== targetScope) {
+        newScope = "geral";
+      }
+      atualizarManager(existingManager.id, {
+        password: password || existingManager.password,
+        scope: newScope
+      });
+    }
+  };
   const acessarCampeonatoNuvem = (code) => {
     setCloudLoading(true);
     
@@ -10701,10 +12543,16 @@ export default function App(){
       // ── CRUD Atletas ───────────────────────────────────────────────
   const adicionarAtleta  =d=>setAtletas(p=>[...p,{...d,id:d.id || Date.now() + Math.floor(Math.random() * 100000), manager_id: auth.role === "manager" ? auth.manager_id : null}]);
   const atualizarAtleta  =(id,d)=>setAtletas(p=>p.map(a=>a.id===id?{...a,...d}:a));
-  const removerAtleta    =id=>setAtletas(p=>p.filter(a=>a.id!==id));
-  const adicionarAtletaCampeonato  =d=>setAtletasCampeonato(p=>[...p,{...d,id:d.id || Date.now() + Math.floor(Math.random() * 100000), manager_id: auth.role === "manager" ? auth.manager_id : null}]);
-  const atualizarAtletaCampeonato  =(id,d)=>setAtletasCampeonato(p=>p.map(a=>a.id===id?{...a,...d}:a));
-  const removerAtletaCampeonato    =id=>setAtletasCampeonato(p=>p.filter(a=>a.id!==id));
+  const removerAtleta    =id=>{
+    setAtletas(p=>p.filter(a=>a.id!==id));
+    setParticipacoes(prev=>prev.filter(part=>part.atleta_id!==id));
+  };
+  const adicionarAtletaCampeonato  =d=>setAtletas(p=>[...p,{...d,id:d.id || Date.now() + Math.floor(Math.random() * 100000), manager_id: auth.role === "manager" ? auth.manager_id : null}]);
+  const atualizarAtletaCampeonato  =(id,d)=>setAtletas(p=>p.map(a=>a.id===id?{...a,...d}:a));
+  const removerAtletaCampeonato    =id=>{
+    setAtletas(p=>p.filter(a=>a.id!==id));
+    setParticipacoes(prev=>prev.filter(part=>part.atleta_id!==id));
+  };
 
   // ── CRUD Quadras ───────────────────────────────────────────────
   const adicionarQuadra = d => setQuadras(p => [...p, { ...d, id: d.id || Date.now(), manager_id: auth.role === "manager" ? auth.manager_id : null }]);
@@ -10713,13 +12561,101 @@ export default function App(){
 
   // ── CRUD Datas Realização ──────────────────────────────────────
   const adicionarData=(d)=>setDatasRealizacao(p=>[...p,{...d,id:Date.now()}]);
-  const atualizarData=(id,d)=>setDatasRealizacao(p=>p.map(x=>x.id===id?{...x,...d}:x));
+  const atualizarData = (id, d) => {
+    setDatasRealizacao(prev => prev.map(x => {
+      if (x.id === id) {
+        const dataAtualizada = { ...x, ...d };
+        const presenca = dataAtualizada.presenca || x.presenca || [];
+        const formacoes = dataAtualizada.drawnTeams || dataAtualizada.formacoes || x.formacoes || x.drawnTeams || null;
+        const matchLog = dataAtualizada.peladaState?.matchLog || dataAtualizada.confrontos || x.confrontos || (x.peladaState?.matchLog) || [];
+        const confrontos = matchLog;
+        const estatisticas = calcularEstatisticasData(matchLog);
+        const classificacao = calcularClassificacaoData(dataAtualizada.drawnTeams || x.drawnTeams || formacoes, matchLog);
+        
+        return {
+          ...dataAtualizada,
+          presenca,
+          formacoes,
+          confrontos,
+          estatisticas,
+          classificacao,
+          drawnTeams: formacoes
+        };
+      }
+      return x;
+    }));
+  };
   const removerData  =id=>setDatasRealizacao(p=>p.filter(x=>x.id!==id));
 
   // ── CRUD Participações ─────────────────────────────────────────
-  const adicionarPart=(d)=>setParticipacoes(p=>[...p,{...d,id:Date.now()}]);
-  const atualizarPart=(id,d)=>setParticipacoes(p=>p.map(x=>x.id===id?{...x,...d}:x));
-  const removerPart  =id=>setParticipacoes(p=>p.filter(x=>x.id!==id));
+  const adicionarPart=(d)=>{
+    setParticipacoes(p=>{
+      const next = [...p,{...d,id:Date.now()}];
+      if (d.data_realizacao_id) {
+        const presentesIds = next.filter(x => String(x.data_realizacao_id) === String(d.data_realizacao_id) && x.compareceu).map(x => x.atleta_id);
+        setTimeout(() => atualizarData(d.data_realizacao_id, { presenca: presentesIds }), 0);
+      }
+      return next;
+    });
+  };
+  const atualizarPart=(id,d)=>{
+    setParticipacoes(p=>{
+      const next = p.map(x=>x.id===id?{...x,...d}:x);
+      const part = p.find(x=>x.id===id);
+      if (part && part.data_realizacao_id) {
+        const presentesIds = next.filter(x => String(x.data_realizacao_id) === String(part.data_realizacao_id) && x.compareceu).map(x => x.atleta_id);
+        setTimeout(() => atualizarData(part.data_realizacao_id, { presenca: presentesIds }), 0);
+      }
+      return next;
+    });
+  };
+  const removerPart  =id=>{
+    setParticipacoes(p=>{
+      const part = p.find(x=>x.id===id);
+      const next = p.filter(x=>x.id!==id);
+      if (part && part.data_realizacao_id) {
+        const presentesIds = next.filter(x => String(x.data_realizacao_id) === String(part.data_realizacao_id) && x.compareceu).map(x => x.atleta_id);
+        setTimeout(() => atualizarData(part.data_realizacao_id, { presenca: presentesIds }), 0);
+      }
+      return next;
+    });
+  };
+
+  const salvarParticipacoesLote = (peladaId, dataRealizacaoId, novasParts) => {
+    setParticipacoes(prev => {
+      const filtered = prev.filter(p => !(p.pelada_id === peladaId && String(p.data_realizacao_id) === String(dataRealizacaoId)));
+      const cleanNew = novasParts.map(p => {
+        const cleaned = { ...p };
+        if (String(cleaned.id).startsWith("temp_")) {
+          cleaned.id = Date.now() + Math.floor(Math.random() * 10000);
+        }
+        return cleaned;
+      });
+      const next = [...filtered, ...cleanNew];
+      if (dataRealizacaoId !== null) {
+        const presentesIds = next.filter(x => String(x.data_realizacao_id) === String(dataRealizacaoId) && x.compareceu).map(x => x.atleta_id);
+        setTimeout(() => atualizarData(dataRealizacaoId, { presenca: presentesIds }), 0);
+      }
+      return next;
+    });
+
+    if (dataRealizacaoId === null) {
+      const atletasIdsNovos = novasParts.map(p => p.atleta_id);
+      setAtletas(prev => prev.map(a => {
+        const vinculos = Array.isArray(a.vinculos) ? [...a.vinculos] : [];
+        const vinculoId = "pelada_" + peladaId;
+        const temVinculo = vinculos.includes(vinculoId);
+        const deveTerVinculo = atletasIdsNovos.includes(a.id);
+        
+        if (deveTerVinculo && !temVinculo) {
+          return { ...a, vinculos: [...vinculos, vinculoId] };
+        } else if (!deveTerVinculo && temVinculo) {
+          return { ...a, vinculos: vinculos.filter(v => v !== vinculoId) };
+        }
+        return a;
+      }));
+    }
+  };
 
   // ── CRUD Peladas ───────────────────────────────────────────────
   const adicionarPelada=d=>setPeladas(p=>[...p,{id:Date.now(),nome:d.nome,data_criacao:d.data_criacao||todayStr(),ativo:d.ativo!==false, manager_id: auth.role === "manager" ? auth.manager_id : null}]);
@@ -10930,7 +12866,7 @@ export default function App(){
       // Atualiza o estado local com os dados comprimidos
       setAppState(otimizado);
 
-      const docKey = auth.role === "adm" ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
+      const docKey = (auth.role === "adm" || auth.role === "manager") ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
       const payload = {
         appState: otimizado,
         lastUpdated: new Date().toISOString(),
@@ -10958,7 +12894,7 @@ export default function App(){
     }
     setCloudLoading(true);
     try {
-      const docKey = auth.role === "adm" ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
+      const docKey = (auth.role === "adm" || auth.role === "manager") ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
       const docSnap = await getDoc(doc(db, "sistema", docKey));
       if (!docSnap.exists()) {
         alert("Nenhum backup encontrado na nuvem para a sua conta.");
@@ -11030,34 +12966,18 @@ export default function App(){
   /* ── HOME ────────────────────────────────────────────────────── */
   if(screen==="home"){
     // Cálculo financeiro
-    const entries = financeiroFiltered?.entries || [];
+    let entries = [];
+    if (dashboardSelectedId !== "") {
+      const selectedIdNum = Number(dashboardSelectedId);
+      if (dashboardTab === "campeonatos") {
+        entries = (financeiroFiltered?.entries || []).filter(e => String(e.champ_id) === String(selectedIdNum));
+      } else {
+        entries = (financeiroFiltered?.entries || []).filter(e => String(e.pelada_id) === String(selectedIdNum));
+      }
+    }
     const totalReceita = entries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const totalDespesa = entries.filter(e => e.type === "despesa").reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const saldoFinal = totalReceita - totalDespesa;
-
-    // Total de partidas jogadas
-    let totalPartidasJogadas = 0;
-    campeonatos.forEach(c => {
-      if (c.rounds) c.rounds.forEach(r => r.matches && r.matches.forEach(m => { if (m.played) totalPartidasJogadas++; }));
-      if (c.knockout) c.knockout.forEach(p => p.matches && p.matches.forEach(m => { if (m.played) totalPartidasJogadas++; }));
-      if (c.groups) c.groups.forEach(g => g.rounds && g.rounds.forEach(r => r.matches && r.matches.forEach(m => { if (m.played) totalPartidasJogadas++; })));
-    });
-
-    // Partidas recentes (últimas 5)
-    const getRecentMatches = () => {
-      const list = [];
-      campeonatos.forEach(c => {
-        if (c.type === "pontos" && c.rounds) {
-          c.rounds.forEach(r => r.matches && r.matches.forEach(m => list.push({ ...m, champ: c })));
-        } else if (c.type === "mata" && c.knockout) {
-          c.knockout.forEach(p => p.matches && p.matches.forEach(m => list.push({ ...m, champ: c })));
-        } else if ((c.type === "liga" || c.type === "misto") && c.groups) {
-          c.groups.forEach(g => g.rounds && g.rounds.forEach(r => r.matches && r.matches.forEach(m => list.push({ ...m, champ: c }))));
-        }
-      });
-      return list.sort((a,b) => (b.played ? 1 : 0) - (a.played ? 1 : 0)).slice(0, 5);
-    };
-    const recentMatches = getRecentMatches();
 
     // Comunicados recentes (últimos posts do mural de todos campeonatos)
     const comunicados = [];
@@ -11070,18 +12990,439 @@ export default function App(){
     comunicados.sort((a, b) => (b.date || 0) > (a.date || 0) ? 1 : -1);
     const comunicadosRecentes = comunicados.slice(0, 3);
 
+    // 1. Cálculo de atletas e presença/times para o Card 1
+    let card1Label = "Atletas";
+    let card1Value = `${atletas.length}`;
+    
+    if (dashboardTab === "campeonatos") {
+      card1Label = "Times / Atletas";
+      if (dashboardSelectedId !== "") {
+        const campIdSel = Number(dashboardSelectedId);
+        const campObj = campeonatos.find(c => c.id === campIdSel);
+        const numTimes = campObj && Array.isArray(campObj.teams) ? campObj.teams.length : 0;
+        const numAtletas = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("campeonato_" + campIdSel)).length;
+        card1Value = `${numTimes} / ${numAtletas}`;
+      } else {
+        const numTimesTotal = campeonatos.reduce((sum, c) => sum + (Array.isArray(c.teams) ? c.teams.length : 0), 0);
+        const numAtletasTotal = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.some(v => v.startsWith("campeonato_"))).length;
+        card1Value = `${numTimesTotal} / ${numAtletasTotal}`;
+      }
+    } else {
+      card1Label = "Atletas / Presença";
+      if (dashboardSelectedId !== "") {
+        const peladaIdSel = Number(dashboardSelectedId);
+        const atletasVinc = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("pelada_" + peladaIdSel));
+        
+        if (dashboardSelectedDataId !== "" && dashboardSelectedDataId !== "todas") {
+          const dataIdSel = Number(dashboardSelectedDataId);
+          // Filtrar participações daquela pelada e rodada
+          const partsData = participacoes.filter(p => p.pelada_id === peladaIdSel && String(p.data_realizacao_id) === String(dataIdSel));
+          
+          let cadastrados = partsData.length;
+          if (cadastrados === 0) {
+            cadastrados = atletasVinc.length; // Fallback se as participações não tiverem sido salvas/inicializadas
+          }
+          const presentesCount = partsData.filter(p => p.compareceu).length;
+          card1Value = `${cadastrados} / ${presentesCount}`;
+        } else {
+          // Todas as datas da pelada
+          const datasPel = datasRealizacao.filter(d => d.pelada_id === peladaIdSel && d.status === "realizado");
+          
+          let totalCadastrados = 0;
+          let totalComparecidos = 0;
+          datasPel.forEach(d => {
+            const partsData = participacoes.filter(p => p.pelada_id === peladaIdSel && String(p.data_realizacao_id) === String(d.id));
+            totalCadastrados += partsData.length > 0 ? partsData.length : atletasVinc.length;
+            totalComparecidos += partsData.filter(p => p.compareceu).length;
+          });
+          
+          const mediaCadastrados = datasPel.length > 0 ? (totalCadastrados / datasPel.length) : atletasVinc.length;
+          const mediaComparecidos = datasPel.length > 0 ? (totalComparecidos / datasPel.length) : 0;
+          
+          card1Value = `${mediaCadastrados.toFixed(0)} / ${mediaComparecidos.toFixed(0)}`;
+        }
+      } else {
+        // Caso global das peladas
+        const totalAtletasPeladas = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.some(v => v.startsWith("pelada_"))).length;
+        const datasRealizadasTotal = datasRealizacao.filter(d => d.status === "realizado");
+        
+        let totalCadastradosGeral = 0;
+        let totalComparecidosGeral = 0;
+        datasRealizadasTotal.forEach(d => {
+          const partsData = participacoes.filter(p => p.pelada_id === d.pelada_id && String(p.data_realizacao_id) === String(d.id));
+          if (partsData.length > 0) {
+            totalCadastradosGeral += partsData.length;
+            totalComparecidosGeral += partsData.filter(p => p.compareceu).length;
+          } else {
+            const atletasVinc = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("pelada_" + d.pelada_id));
+            totalCadastradosGeral += atletasVinc.length;
+          }
+        });
+        
+        const mediaCadastradosGeral = datasRealizadasTotal.length > 0 ? (totalCadastradosGeral / datasRealizadasTotal.length) : totalAtletasPeladas;
+        const mediaComparecidosGeral = datasRealizadasTotal.length > 0 ? (totalComparecidosGeral / datasRealizadasTotal.length) : 0;
+        
+        card1Value = `${mediaCadastradosGeral.toFixed(0)} / ${mediaComparecidosGeral.toFixed(0)}`;
+      }
+    }
+
+    // 2. Ajuste do Card 2 (Campeonatos ou Peladas)
+    let card2Label = "Campeonatos";
+    let card2Value = campeonatos.length;
+    let card2Icon = "🏆";
+    let card2Color = "#06AA48";
+
+    if (dashboardTab === "peladas") {
+      card2Label = "Peladas";
+      card2Value = peladas.length;
+      card2Icon = "👟";
+      card2Color = "#378ADD";
+    }
+
     const statCards = [
-      { label: "Atletas", value: atletas.length, icon: "👤", color: "#378ADD" },
-      { label: "Campeonatos", value: campeonatos.length, icon: "🏆", color: "#06AA48" },
-      { label: "Partidas Jogadas", value: totalPartidasJogadas, icon: "⚽", color: "#D85A30" },
+      { label: card1Label, value: card1Value, icon: "👤", color: "#8e44ad" },
+      { label: card2Label, value: card2Value, icon: card2Icon, color: card2Color },
       { label: "Saldo Caixa", value: fmtCur(saldoFinal), icon: "💰", color: saldoFinal >= 0 ? "#20E278" : "#E24B4A" },
     ];
+
+    // Computa o Painel Dinâmico (Artilharia / Info / Ações Rápidas)
+    const renderPainelDinamico = () => {
+      // 1. Caso Peladas e Selecionado uma Pelada
+      if (dashboardTab === "peladas" && dashboardSelectedId !== "") {
+        const peladaIdSel = Number(dashboardSelectedId);
+        const peladaObj = peladas.find(p => p.id === peladaIdSel);
+        
+        // Coleta e calcula a artilharia
+        const golsAcumulados = {};
+        const datasArt = datasRealizacao.filter(d => {
+          if (d.pelada_id !== peladaIdSel) return false;
+          if (dashboardSelectedDataId !== "" && dashboardSelectedDataId !== "todas") {
+            return d.id === Number(dashboardSelectedDataId);
+          }
+          return true; // Todas as datas
+        });
+
+        datasArt.forEach(d => {
+          const ps = d.peladaState;
+          if (ps && Array.isArray(ps.matchLog)) {
+            ps.matchLog.forEach(m => {
+              if (m && m.played && m.sumula) {
+                Object.keys(m.sumula).forEach(atletaId => {
+                  const gols = Number(m.sumula[atletaId]) || 0;
+                  if (gols > 0) {
+                    golsAcumulados[atletaId] = (golsAcumulados[atletaId] || 0) + gols;
+                  }
+                });
+              }
+            });
+          }
+        });
+
+        const rankArtilharia = Object.keys(golsAcumulados)
+          .map(atletaId => {
+            const atletaObj = allAtletas.find(a => String(a.id) === String(atletaId));
+            return {
+              atletaId,
+              atleta: atletaObj,
+              gols: golsAcumulados[atletaId]
+            };
+          })
+          .filter(x => x.gols > 0)
+          .sort((a, b) => b.gols - a.gols);
+
+        if (rankArtilharia.length > 0) {
+          // Exibe Artilharia Top 10
+          return (
+            <div style={S.card}>
+              <div style={{fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 14, display: "flex", alignItems: "center", gap: 8}}>
+                <span>⚽</span>
+                Artilharia - Top 10 ({peladaObj?.nome || "Pelada"})
+              </div>
+              <div style={{display: "flex", flexDirection: "column", gap: 0}}>
+                {rankArtilharia.slice(0, 10).map((x, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "10px 14px",
+                    borderBottom: i !== Math.min(rankArtilharia.length, 10) - 1 ? `1px solid ${t.cardBorder}` : "none",
+                    background: i % 2 === 0 ? t.inputBg + "44" : "transparent",
+                    borderRadius: 8
+                  }}>
+                    <div style={{display: "flex", alignItems: "center", gap: 10}}>
+                      <span style={{
+                        fontWeight: 900,
+                        color: i === 0 ? "#FFD700" : i === 1 ? "#C0C0C0" : i === 2 ? "#CD7F32" : t.textSec,
+                        width: 24, fontSize: 13
+                      }}>
+                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}º`}
+                      </span>
+                      <PlayerAvatar atleta={x.atleta} size={28} />
+                      <span style={{fontSize: 13, fontWeight: 700, color: t.text}}>
+                        {x.atleta ? getPlayerName(x.atleta) : "Atleta Deletado"}
+                      </span>
+                    </div>
+                    <div style={{fontWeight: 800, color: "#378ADD", fontSize: 14, display: "flex", alignItems: "center", gap: 4}}>
+                      {x.gols} <span style={{fontSize: 10, color: t.textSec}}>gols</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        } else {
+          // Informações da Pelada
+          const datasDessaPelada = datasRealizacao.filter(d => d.pelada_id === peladaIdSel);
+          const realizadas = datasDessaPelada.filter(d => d.status === "realizado").length;
+          const agendadas = datasDessaPelada.filter(d => d.status === "agendado").length;
+          const proximaData = datasDessaPelada.find(d => d.status === "agendado");
+          
+          return (
+            <div style={S.card}>
+              <div style={{fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 14, display: "flex", alignItems: "center", gap: 8}}>
+                <span>👟</span>
+                Informações da Pelada: {peladaObj?.nome}
+              </div>
+              <div style={{display: "flex", flexDirection: "column", gap: 10, fontSize: 13, color: t.textSec, lineHeight: 1.6, marginBottom: 16}}>
+                <div><b>Data de Criação:</b> {formatarData(peladaObj?.data_criacao)}</div>
+                <div style={{display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4}}>
+                  <div style={{background: "#378ADD15", padding: "4px 10px", borderRadius: 8, color: "#378ADD", fontWeight: 700}}>
+                    📅 {datasDessaPelada.length} Total
+                  </div>
+                  <div style={{background: "#1D9E7515", padding: "4px 10px", borderRadius: 8, color: "#1D9E75", fontWeight: 700}}>
+                    ✅ {realizadas} Realizadas
+                  </div>
+                  <div style={{background: "#E24B4A15", padding: "4px 10px", borderRadius: 8, color: "#E24B4A", fontWeight: 700}}>
+                    ⏳ {agendadas} Agendadas
+                  </div>
+                </div>
+                {proximaData && (
+                  <div style={{marginTop: 6, padding: "8px 12px", background: t.inputBg, borderRadius: 8, border: `1px solid ${t.cardBorder}`}}>
+                    <b>Próximo Encontro Agendado:</b><br/>
+                    📆 {formatarData(proximaData.data)} {proximaData.local ? `em 🏟️ ${proximaData.local}` : ""}
+                  </div>
+                )}
+                {Array.isArray(peladaObj?.collaborators) && peladaObj.collaborators.length > 0 && (
+                  <div style={{marginTop: 4}}>
+                    <b>Colaboradores ({peladaObj.collaborators.length}):</b><br/>
+                    <div style={{display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4}}>
+                      {peladaObj.collaborators.map(c => (
+                        <span key={c.id} style={{fontSize: 11, background: t.cardBorder + "55", padding: "2px 8px", borderRadius: 6, color: t.text}}>
+                          👤 {c.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button 
+                onClick={() => { setCurrent(peladaObj); setScreen("gerenciarPelada"); }}
+                style={{...S.btn("#378ADD"), width: "100%", fontWeight: 700}}
+              >
+                Gerenciar Pelada ⚙️
+              </button>
+            </div>
+          );
+        }
+      }
+
+      // 2. Caso Campeonatos e Selecionado um Campeonato
+      if (dashboardTab === "campeonatos" && dashboardSelectedId !== "") {
+        const campIdSel = Number(dashboardSelectedId);
+        const campObj = campeonatos.find(c => c.id === campIdSel);
+        
+        const mDef = campObj ? MODALIDADES_ESPORTIVAS.find(x => x.id === campObj.modalidade) : null;
+        
+        const stats = {};
+        if (campObj && Array.isArray(campObj.groups)) {
+          campObj.groups.forEach(g => {
+            if (Array.isArray(g.rounds)) {
+              g.rounds.forEach(r => {
+                if (Array.isArray(r.matches)) {
+                  r.matches.forEach(m => {
+                    if (Array.isArray(m.events)) {
+                      m.events.forEach(e => {
+                        if (e.type === "gol") {
+                          stats[e.atletaId] = (stats[e.atletaId] || 0) + 1;
+                        }
+                      });
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+        
+        const artilheiros = Object.keys(stats)
+          .map(aid => ({ atletaId: aid, gols: stats[aid] }))
+          .sort((a,b) => b.gols - a.gols);
+          
+        const principalArtilheiro = artilheiros.length > 0 ? allAtletas.find(a => String(a.id) === String(artilheiros[0].atletaId)) : null;
+
+        return (
+          <div style={S.card}>
+            <div style={{fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 14, display: "flex", alignItems: "center", gap: 8}}>
+              <span>🏆</span>
+              Informações do Campeonato: {campObj?.name}
+            </div>
+            <div style={{display: "flex", flexDirection: "column", gap: 10, fontSize: 13, color: t.textSec, lineHeight: 1.6, marginBottom: 16}}>
+              <div><b>Modalidade:</b> {mDef ? `${mDef.icon} ${mDef.name}` : "🏆 Futebol"}</div>
+              <div><b>Tipo de disputa:</b> {campObj?.type === "pontos" ? "Tabela Corrida" : campObj?.type === "mata" ? "Mata-mata" : campObj?.type === "liga" ? "Liga com Grupos" : "Misto"}</div>
+              {principalArtilheiro && (
+                <div style={{padding: "8px 12px", background: "#FFD70010", borderRadius: 8, border: "1px solid #FFD70033", display: "flex", alignItems: "center", gap: 10}}>
+                  <span style={{fontSize: 20}}>👑</span>
+                  <div>
+                    <div style={{fontWeight: 700, color: t.text}}>Artilheiro Principal:</div>
+                    <div style={{fontSize: 12}}>{getPlayerName(principalArtilheiro)} ({artilheiros[0].gols} gols)</div>
+                  </div>
+                </div>
+              )}
+              {Array.isArray(campObj?.collaborators) && campObj.collaborators.length > 0 && (
+                <div style={{marginTop: 4}}>
+                  <b>Colaboradores ({campObj.collaborators.length}):</b><br/>
+                  <div style={{display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4}}>
+                    {campObj.collaborators.map(c => (
+                      <span key={c.id} style={{fontSize: 11, background: t.cardBorder + "55", padding: "2px 8px", borderRadius: 6, color: t.text}}>
+                        👤 {c.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <button 
+              onClick={() => { setCurrent(campObj); setScreen("gerenciarChamp"); }}
+              style={{...S.btn(t.accent), width: "100%", fontWeight: 700}}
+            >
+              Gerenciar Campeonato ⚙️
+            </button>
+          </div>
+        );
+      }
+
+      // 3. Caso Geral (sem nada selecionado): Renderiza as Ações Rápidas Originais
+      return (
+        <div>
+          <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>Ações Rápidas</div>
+          <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12}}>
+            {[
+              {icon: "🏆", label: "Novo Campeonato", sub: "Grupos, pontos ou chaves", action: () => setScreen("novoChamp"), color: t.accent, scope: "campeonato"},
+              {icon: "👟", label: "Nova Pelada", sub: "Sorteador de times rápidos", action: () => setScreen("novaPelada"), color: "#378ADD", scope: "pelada"},
+            ].filter(b => auth.role === "adm" || auth.scope === "geral" || auth.scope === b.scope).map(b => (
+              <button key={b.label} onClick={b.action}
+                style={{
+                  ...S.card,
+                  textAlign: "center",
+                  cursor: "pointer",
+                  border: "1.5px solid " + b.color + "22",
+                  display: "block",
+                  width: "100%",
+                  padding: 16,
+                  background: t.card,
+                  boxSizing: "border-box",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = b.color; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = b.color + "22"; e.currentTarget.style.transform = "none"; }}
+              >
+                <div style={{fontSize: 28, marginBottom: 6}}>{b.icon}</div>
+                <div style={{fontWeight: 800, fontSize: 14, color: b.color}}>{b.label}</div>
+                <div style={{fontSize: 11, color: t.textSec, marginTop: 4, lineHeight: 1.4}}>{b.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    };
 
     return renderComLayout(
       <div style={{display: "flex", flexDirection: "column", gap: 20, paddingTop: 4}}>
 
+        {/* Banner de Sincronização */}
+        <div style={{...S.card, background: isFirebaseConfigured ? "#20E27808" : "#378ADD08", borderColor: isFirebaseConfigured ? "#20E27830" : "#378ADD30", padding: "12px 16px"}}>
+          <div style={{display: "flex", alignItems: "center", gap: 10}}>
+            <div style={{fontSize: 18}}>{isFirebaseConfigured ? "☁️" : "💾"}</div>
+            <div style={{flex: 1}}>
+              <div style={{fontSize: 13, fontWeight: 800, color: isFirebaseConfigured ? "#20E278" : "#378ADD", marginBottom: 2}}>
+                {isFirebaseConfigured ? "Conectado ao Firebase Cloud Sync" : "Armazenamento Local Ativo"}
+              </div>
+              <div style={{fontSize: 11, color: t.textSec}}>
+                {isFirebaseConfigured
+                  ? "Seus dados são salvos online automaticamente."
+                  : "Dados salvos de forma segura neste dispositivo."}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Seleção de Modalidade (Tabs) */}
+        <div style={{display: "flex", gap: 10, background: t.inputBg, padding: 6, borderRadius: 16, border: `1px solid ${t.cardBorder}`}}>
+          <button 
+            onClick={() => { setDashboardTab("campeonatos"); setDashboardSelectedId(""); setDashboardSelectedDataId(""); }}
+            style={{
+              flex: 1, padding: "10px 14px", borderRadius: 12, fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", transition: "all 0.2s ease",
+              background: dashboardTab === "campeonatos" ? t.accent : "transparent",
+              color: dashboardTab === "campeonatos" ? "#fff" : t.textSec
+            }}
+          >
+            🏆 Campeonatos / Ligas
+          </button>
+          <button 
+            onClick={() => { setDashboardTab("peladas"); setDashboardSelectedId(""); setDashboardSelectedDataId(""); }}
+            style={{
+              flex: 1, padding: "10px 14px", borderRadius: 12, fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", transition: "all 0.2s ease",
+              background: dashboardTab === "peladas" ? "#378ADD" : "transparent",
+              color: dashboardTab === "peladas" ? "#fff" : t.textSec
+            }}
+          >
+            👟 Peladas / Sorteadores
+          </button>
+        </div>
+
+        {/* Filtros Elegantes do Dashboard */}
+        <div style={{...S.card, padding: 14, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center"}}>
+          <div style={{fontSize: 12, fontWeight: 800, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>Filtro Rápido:</div>
+          {dashboardTab === "campeonatos" ? (
+            <select 
+              value={dashboardSelectedId} 
+              onChange={e => setDashboardSelectedId(e.target.value)} 
+              style={{...S.select, flex: 1, minWidth: 200}}
+            >
+              <option value="">Todos os Campeonatos</option>
+              {campeonatos.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          ) : (
+            <>
+              <select 
+                value={dashboardSelectedId} 
+                onChange={e => { setDashboardSelectedId(e.target.value); setDashboardSelectedDataId(""); }} 
+                style={{...S.select, flex: 1, minWidth: 200}}
+              >
+                <option value="">Todas as Peladas</option>
+                {peladas.map(p => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </select>
+              
+              {dashboardSelectedId !== "" && (
+                <select 
+                  value={dashboardSelectedDataId} 
+                  onChange={e => setDashboardSelectedDataId(e.target.value)} 
+                  style={{...S.select, flex: 1, minWidth: 180}}
+                >
+                  <option value="todas">Todas as Datas</option>
+                  {datasRealizacao.filter(d => d.pelada_id === Number(dashboardSelectedId)).map(d => (
+                    <option key={d.id} value={d.id}>📅 {formatarData(d.data)} {d.local ? `(${d.local})` : ""}</option>
+                  ))}
+                </select>
+              )}
+            </>
+          )}
+        </div>
+
         {/* Cards de Estatísticas */}
-        <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12}}>
+        <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(180px, 1fr))", gap: 12}}>
           {statCards.map((sc, i) => (
             <div key={i} style={{
               ...S.card,
@@ -11104,101 +13445,14 @@ export default function App(){
           ))}
         </div>
 
-        {/* Banner de Sincronização */}
-        <div style={{...S.card, background: isFirebaseConfigured ? "#20E27808" : "#378ADD08", borderColor: isFirebaseConfigured ? "#20E27830" : "#378ADD30", padding: "12px 16px"}}>
-          <div style={{display: "flex", alignItems: "center", gap: 10}}>
-            <div style={{fontSize: 18}}>{isFirebaseConfigured ? "☁️" : "💾"}</div>
-            <div style={{flex: 1}}>
-              <div style={{fontSize: 13, fontWeight: 800, color: isFirebaseConfigured ? "#20E278" : "#378ADD", marginBottom: 2}}>
-                {isFirebaseConfigured ? "Conectado ao Firebase Cloud Sync" : "Armazenamento Local Ativo"}
-              </div>
-              <div style={{fontSize: 11, color: t.textSec}}>
-                {isFirebaseConfigured
-                  ? "Seus dados são salvos online automaticamente."
-                  : "Dados salvos de forma segura neste dispositivo."}
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 320px", gap: 16, alignItems: "flex-start"}}>
           {/* COLUNA PRINCIPAL */}
           <div style={{display: "flex", flexDirection: "column", gap: 16}}>
 
-            {/* Ações Rápidas */}
-            <div>
-              <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>Ações Rápidas</div>
-              <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12}}>
-                {[
-                  {icon: "🏆", label: "Novo Campeonato", sub: "Grupos, pontos ou chaves", action: () => setScreen("novoChamp"), color: t.accent, scope: "campeonato"},
-                  {icon: "👟", label: "Nova Pelada", sub: "Sorteador de times rápidos", action: () => setScreen("novaPelada"), color: "#378ADD", scope: "pelada"},
-                ].filter(b => auth.role === "adm" || auth.scope === "geral" || auth.scope === b.scope).map(b => (
-                  <button key={b.label} onClick={b.action}
-                    style={{
-                      ...S.card,
-                      textAlign: "center",
-                      cursor: "pointer",
-                      border: "1.5px solid " + b.color + "22",
-                      display: "block",
-                      width: "100%",
-                      padding: 16,
-                      background: t.card,
-                      boxSizing: "border-box",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = b.color; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = b.color + "22"; e.currentTarget.style.transform = "none"; }}
-                  >
-                    <div style={{fontSize: 28, marginBottom: 6}}>{b.icon}</div>
-                    <div style={{fontWeight: 800, fontSize: 14, color: b.color}}>{b.label}</div>
-                    <div style={{fontSize: 11, color: t.textSec, marginTop: 4, lineHeight: 1.4}}>{b.sub}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Painel Dinâmico */}
+            {renderPainelDinamico()}
 
-            {/* Feed de Partidas Recentes */}
-            {recentMatches.length > 0 && (
-              <div>
-                <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>📊 Partidas Recentes</div>
-                <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-                  {recentMatches.map((m, mi) => {
-                    const c = m.champ;
-                    const mDef = MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade);
-                    const mColor = mDef ? mDef.color : t.accent;
-                    return (
-                      <div key={mi} style={{
-                        ...S.card,
-                        padding: "12px 14px",
-                        borderLeft: "4px solid " + mColor,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 6,
-                        cursor: "pointer"
-                      }} onClick={() => { setCurrent(c); setScreen("gerenciarChamp"); setActiveChampTab("jogos"); }}>
-                        <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 10, color: t.textSec}}>
-                          <span style={{fontWeight: 800, color: mColor}}>{c.name}</span>
-                          <span>{m.played ? "✅ Encerrado" : "🕒 Pendente"}</span>
-                        </div>
-                        <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8}}>
-                          <div style={{display: "flex", alignItems: "center", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 0}}>
-                            <span style={{fontSize: 13, fontWeight: 800, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{m.home}</span>
-                            <Avatar name={m.home} color={COLORS[c.teams.indexOf(m.home) % COLORS.length]} size={26} src={c.emblems?.[m.home]}/>
-                          </div>
-                          <div style={{textAlign: "center", minWidth: 60, fontSize: 16, fontWeight: 900, color: t.text}}>
-                            {m.played ? m.homeScore + " - " + m.awayScore : "VS"}
-                          </div>
-                          <div style={{display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0}}>
-                            <Avatar name={m.away} color={COLORS[c.teams.indexOf(m.away) % COLORS.length]} size={26} src={c.emblems?.[m.away]}/>
-                            <span style={{fontSize: 13, fontWeight: 800, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{m.away}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* Feed de Partidas Recentes removido */}
 
             {/* Lista Mobile de campeonatos */}
             {isMobile && (
@@ -11257,25 +13511,7 @@ export default function App(){
               </div>
             </div>
 
-            {/* Comunicados Recentes */}
-            {comunicadosRecentes.length > 0 && (
-              <div style={S.card}>
-                <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>📢 Comunicados</div>
-                <div style={{display: "flex", flexDirection: "column", gap: 10}}>
-                  {comunicadosRecentes.map((post, pi) => (
-                    <div
-                      key={pi}
-                      style={{cursor: "pointer", paddingBottom: pi < comunicadosRecentes.length - 1 ? 10 : 0, borderBottom: pi < comunicadosRecentes.length - 1 ? "1px solid " + t.cardBorder : "none"}}
-                      onClick={() => { const cc = campeonatos.find(x => x.id === post.champId); if (cc) { setCurrent(cc); setScreen("gerenciarChamp"); setActiveChampTab("mural"); } }}
-                    >
-                      <div style={{fontSize: 10, fontWeight: 700, color: t.accent, marginBottom: 3}}>{post.champName}</div>
-                      <div style={{fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>{post.title || "Sem título"}</div>
-                      <div style={{fontSize: 11, color: t.textSec, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical"}}>{post.content}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Comunicados Recentes removido */}
           </div>
         </div>
       </div>
@@ -11379,6 +13615,8 @@ export default function App(){
         onExportCamp={exportAtletasCampeonato} 
         onImportCamp={importAtletasCampeonato} 
         onDownloadTemplateCamp={downloadAtletasCampeonatoTemplate} 
+        campeonatos={campeonatos}
+        peladas={peladas}
         t={t}
       />
     </div>
@@ -11455,6 +13693,9 @@ export default function App(){
       tab={activeChampTab}
       setTab={setActiveChampTab}
       isMobile={isMobile}
+      auth={auth}
+      managers={managers}
+      assegurarManagerColaborador={assegurarManagerColaborador}
     />
   );
 
@@ -11485,6 +13726,7 @@ export default function App(){
         onAddPart={adicionarPart}
         onUpdatePart={atualizarPart}
         onRemovePart={removerPart}
+        onSavePartsLote={salvarParticipacoesLote}
         onUpdateAtleta={atualizarAtleta}
         onAddFinanceiro={(desc, amount)=>{setFinanceiroWrapped(f=>({entries:[...f.entries,{id:Date.now(),desc,amount,type:"receita",date:todayStr(),category:"Mensalidade",pelada_id:pelAtual.id,manager_id:auth.role==="manager"?auth.manager_id:null}]}))}}
         onAddAtleta={adicionarAtleta}
@@ -11492,6 +13734,10 @@ export default function App(){
         t={t}
         aba={activePeladaTab}
         setAba={setActivePeladaTab}
+        auth={auth}
+        managers={managers}
+        assegurarManagerColaborador={assegurarManagerColaborador}
+        quadras={quadras}
       />
     );
   }
