@@ -6491,7 +6491,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const allTeamsMap = new Map();
     datas.forEach(d => {
       const isCurrentActiveDate = String(d.id) === String(selDataSorteio);
-      const activeState = isCurrentActiveDate ? peladaStateLocal : (d.peladaState || null);
+      const activeState = isCurrentActiveDate ? peladaState : (d.peladaState || null);
 
       const matchLog = activeState?.matchLog || d.confrontos || [];
       if (Array.isArray(matchLog)) {
@@ -6538,7 +6538,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       teams: Array.from(allTeamsMap.values()),
       matchLog: allMatches
     };
-  }, [datas, pelada.peladaState, selDataSorteio, peladaStateLocal]);
+  }, [datas, pelada.peladaState, selDataSorteio, peladaState]);
 
   return(
     <div style={S.page}>
