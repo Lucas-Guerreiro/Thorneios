@@ -3200,42 +3200,10 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
 
   const getFilteredMatches = () => {
     const log = peladaState?.matchLog || [];
-    const dataObj = datas.find(x => String(x.id) === String(selDataSorteio));
-    
-    const normalizeToDateObj = (dStr) => {
-      if (!dStr) return null;
-      try {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
-          return new Date(dStr + "T12:00:00");
-        }
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dStr)) {
-          const [day, month, year] = dStr.split("/");
-          return new Date(`${year}-${month}-${day}T12:00:00`);
-        }
-        const parsed = new Date(dStr);
-        if (!isNaN(parsed.getTime())) return parsed;
-      } catch (e) {}
-      return null;
-    };
-
-    const datesCloseOrEqual = (d1, d2) => {
-      if (!d1 || !d2) return false;
-      if (d1 === d2) return true;
-      const t1 = normalizeToDateObj(d1);
-      const t2 = normalizeToDateObj(d2);
-      if (!t1 || !t2) return false;
-      if (t1.getFullYear() === t2.getFullYear() &&
-          t1.getMonth() === t2.getMonth() &&
-          t1.getDate() === t2.getDate()) {
-        return true;
-      }
-      return Math.abs(t1.getTime() - t2.getTime()) <= 30 * 60 * 60 * 1000;
-    };
-
-    return log.filter(m => m.played && (
-      String(m.dataRealizacaoId) === String(selDataSorteio) || 
-      (dataObj && datesCloseOrEqual(m.date, dataObj.data))
-    ));
+    if (String(selDataSorteio) === "todas") {
+      return log.filter(m => m.played);
+    }
+    return log.filter(m => m.played && String(m.dataRealizacaoId) === String(selDataSorteio));
   };
 
   const getPlayersFallback = (match, teamLetter) => {
@@ -3393,6 +3361,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
   const totalPartidas = getFilteredMatches().length;
 
   const getSelectedDateText = () => {
+    if (String(selDataSorteio) === "todas") return "Todas as Datas";
     const dataObj = datas.find(x => String(x.id) === String(selDataSorteio));
     return dataObj ? formatarData(dataObj.data) : "—";
   };
@@ -5764,6 +5733,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   }, [datasComAnoMes, filtroAno, filtroMes]);
 
   useEffect(() => {
+    if (selDataSorteio === "todas") return;
     if (diasDisponiveis.length > 0) {
       const match = diasDisponiveis.find(d => String(d.id) === String(selDataSorteio));
       if (!match) {
@@ -6470,9 +6440,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     });
   }
   function peladaStandings(){
-    if(!peladaState?.teams)return[];
-    const st=peladaState.teams.map(t=>({name:t.name,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,pts:0}));
-    (peladaState.matchLog||[]).filter(m => String(m.dataRealizacaoId) === String(selDataSorteio)).forEach(m=>{
+    const stateParaCalcular = String(selDataSorteio) === "todas" ? consolidatedPeladaState : peladaState;
+    if(!stateParaCalcular?.teams)return[];
+    const st=stateParaCalcular.teams.map(t=>({name:t.name,j:0,v:0,e:0,d:0,gp:0,gc:0,sg:0,pts:0}));
+    (stateParaCalcular.matchLog||[]).filter(m => String(selDataSorteio) === "todas" || String(m.dataRealizacaoId) === String(selDataSorteio)).forEach(m=>{
       const h=st.find(x=>x.name===m.teamA),a=st.find(x=>x.name===m.teamB);if(!h||!a)return;
       const hs=parseInt(m.scoreA),as2=parseInt(m.scoreB);
       h.j++;a.j++;h.gp+=hs;h.gc+=as2;a.gp+=as2;a.gc+=hs;h.sg=h.gp-h.gc;a.sg=a.gp-a.gc;
@@ -6618,6 +6589,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 }} 
                 style={{...S.select, padding: "8px 12px", border: `1px solid ${t.accent || "#7F77DD"}`}}
               >
+                <option value="todas">Todas as Datas</option>
                 {diasDisponiveis.map(d => (
                   <option key={d.id} value={d.id}>{formatarData(d.data)}{d.local ? ` (${d.local})` : ""}</option>
                 ))}
@@ -6660,8 +6632,24 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           <AbaDatas peladaId={pelada.id} datasRealizacao={datasRealizacao} onAdd={onAddData} onUpdate={onUpdateData} onRemove={onRemoveData} t={t} quadras={quadras}/>
         </div>
       )}
-      {currentAba==="atletas"&&<AbaAtletasPelada pelada={pelada} atletas={atletas} participacoes={participacoes} onSavePartsLote={onSavePartsLote} onAddFinanceiro={onAddFinanceiro} onAddAtleta={onAddAtleta} t={t} isRealizada={isRealizada} selDataSorteio={selDataSorteio} onUnsavedChangesChange={setHasUnsavedChangesAtletas} triggerSaveRef={triggerSaveRef} onAddPart={onAddPart}/>}
-      {currentAba==="participações"&&<AbaParticipacoes pelada={pelada} atletas={atletas} participacoes={participacoes} datasRealizacao={datasRealizacao} onAdd={onAddPart} onUpdate={onUpdatePart} onRemove={onRemovePart} onUpdateAtleta={onUpdateAtleta} onAddFinanceiro={onAddFinanceiro} t={t} selDataSorteio={selDataSorteio} onUnsavedChangesChange={setHasUnsavedChangesAtletas} triggerSaveRef={triggerSaveRef} onSavePartsLote={onSavePartsLote}/>}
+      {currentAba==="atletas"&& (
+        String(selDataSorteio) === "todas" ? (
+          <div style={{textAlign:"center",padding:40,color:t.textSec,background:t.card,borderRadius:8,border:`1px solid ${t.tabBorder}`}}>
+            Selecione uma data específica no seletor global "DIA DA PELADA" para gerenciar os atletas e convidados.
+          </div>
+        ) : (
+          <AbaAtletasPelada pelada={pelada} atletas={atletas} participacoes={participacoes} onSavePartsLote={onSavePartsLote} onAddFinanceiro={onAddFinanceiro} onAddAtleta={onAddAtleta} t={t} isRealizada={isRealizada} selDataSorteio={selDataSorteio} onUnsavedChangesChange={setHasUnsavedChangesAtletas} triggerSaveRef={triggerSaveRef} onAddPart={onAddPart}/>
+        )
+      )}
+      {currentAba==="participações"&& (
+        String(selDataSorteio) === "todas" ? (
+          <div style={{textAlign:"center",padding:40,color:t.textSec,background:t.card,borderRadius:8,border:`1px solid ${t.tabBorder}`}}>
+            Selecione uma data específica no seletor global "DIA DA PELADA" para gerenciar as participações (presenças e pagamentos).
+          </div>
+        ) : (
+          <AbaParticipacoes pelada={pelada} atletas={atletas} participacoes={participacoes} datasRealizacao={datasRealizacao} onAdd={onAddPart} onUpdate={onUpdatePart} onRemove={onRemovePart} onUpdateAtleta={onUpdateAtleta} onAddFinanceiro={onAddFinanceiro} t={t} selDataSorteio={selDataSorteio} onUnsavedChangesChange={setHasUnsavedChangesAtletas} triggerSaveRef={triggerSaveRef} onSavePartsLote={onSavePartsLote}/>
+        )
+      )}
       {currentAba==="colaboradores"&&isDonoOuAdmin&&(
         <AbaColaboradoresItem 
           collaborators={pelada.collaborators || []} 
@@ -6674,7 +6662,12 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         />
       )}
       {currentAba==="sorteio"&&(
-        <div>
+        String(selDataSorteio) === "todas" ? (
+          <div style={{textAlign:"center",padding:40,color:t.textSec,background:t.card,borderRadius:8,border:`1px solid ${t.tabBorder}`}}>
+            Selecione uma data específica no seletor global "DIA DA PELADA" para realizar o sorteio dos times.
+          </div>
+        ) : (
+          <div>
           {/* Se a data for realizada */}
           {isRealizada && (
             <div style={{...S.card, marginBottom: 14, background: "#1D9E7512", border: "1px solid #1D9E7533", color: "#1D9E75", display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 8}}>
@@ -6871,10 +6864,16 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               </div>
             </div>
           )}
-        </div>
+          </div>
+        )
       )}
       {currentAba==="jogos"&&(
-        <div>
+        String(selDataSorteio) === "todas" ? (
+          <div style={{textAlign:"center",padding:40,color:t.textSec,background:t.card,borderRadius:8,border:`1px solid ${t.tabBorder}`}}>
+            Selecione uma data específica no seletor global "DIA DA PELADA" para gerenciar e registrar as partidas.
+          </div>
+        ) : (
+          <div>
           {/* Os jogos exibidos correspondem ao Dia selecionado no filtro global */}
 
           {peladaState?.currentMatch&&!peladaState.currentMatch.played&&String(peladaState.currentMatch.dataRealizacaoId)===String(selDataSorteio)&&(
@@ -7098,9 +7097,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               </div>
             </div>
           )}
-        </div>
+          </div>
+        )
       )}
-      {currentAba==="placar"&&<StandingsTable standings={peladaStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent="#378ADD" t={t}/>}
+      {currentAba==="placar"&&<StandingsTable standings={peladaStandings()} teams={(String(selDataSorteio) === "todas" ? (consolidatedPeladaState?.teams || []) : (peladaState?.teams || [])).map(x=>x.name)} colorOf={colorOfTeam} accent="#378ADD" t={t}/>}
       {currentAba==="relatório"&&<AbaRelatorioPelada peladaState={consolidatedPeladaState} datas={datas} atletas={atletas} selDataSorteio={selDataSorteio} repSortBy={repSortBy} setRepSortBy={setRepSortBy} formatarData={formatarData} t={t} />}
 
       {subModal && (
