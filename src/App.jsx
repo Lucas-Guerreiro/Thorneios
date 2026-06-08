@@ -3240,6 +3240,40 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
         ));
   };
 
+  const getPlayersFallback = (match, teamLetter) => {
+    const teamName = teamLetter === 'A' ? match.teamA : match.teamB;
+    const matchPlayers = teamLetter === 'A' ? match.playersA : match.playersB;
+    if (Array.isArray(matchPlayers) && matchPlayers.length > 0) {
+      return matchPlayers;
+    }
+    const dataId = match.dataRealizacaoId;
+    if (dataId) {
+      const dObj = datas.find(x => String(x.id) === String(dataId));
+      if (dObj) {
+        const teams = dObj.peladaState?.teams || dObj.drawnTeams || dObj.formacoes || dObj.teams || [];
+        if (Array.isArray(teams)) {
+          const foundTeam = teams.find(t => t.name === teamName);
+          if (foundTeam && Array.isArray(foundTeam.players)) {
+            return foundTeam.players;
+          }
+        }
+      }
+    }
+    if (peladaState && Array.isArray(peladaState.teams)) {
+      const foundTeam = peladaState.teams.find(t => t.name === teamName);
+      if (foundTeam && Array.isArray(foundTeam.players)) {
+        return foundTeam.players;
+      }
+    }
+    return [];
+  };
+
+  const getAtletaAtualizado = (p) => {
+    const pId = p.id || p.atleta_id;
+    const encontrado = atletas.find(a => String(a.id) === String(pId));
+    return encontrado || p;
+  };
+
   const buildReportData = () => {
     const filteredMatches = getFilteredMatches();
     const stats = {};
@@ -3250,13 +3284,17 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
       const sumula = m.sumula || {};
 
       // Players do time A
-      (m.playersA || []).forEach(p => {
-        if (!stats[p.id]) {
-          stats[p.id] = { player: p, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0 };
+      const playersA = getPlayersFallback(m, 'A');
+      playersA.forEach(p => {
+        const pId = String(p.id || p.atleta_id || '');
+        if (!pId) return;
+        const atletaAtual = getAtletaAtualizado(p);
+        if (!stats[pId]) {
+          stats[pId] = { player: atletaAtual, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0 };
         }
-        const s = stats[p.id];
+        const s = stats[pId];
         s.j++;
-        s.gp += parseInt(sumula[p.id]) || 0;
+        s.gp += parseInt(sumula[pId]) || parseInt(sumula[Number(pId)]) || 0;
         s.gc += scoreB;
         if (scoreA > scoreB) {
           s.v++;
@@ -3270,13 +3308,17 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
       });
 
       // Players do time B
-      (m.playersB || []).forEach(p => {
-        if (!stats[p.id]) {
-          stats[p.id] = { player: p, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0 };
+      const playersB = getPlayersFallback(m, 'B');
+      playersB.forEach(p => {
+        const pId = String(p.id || p.atleta_id || '');
+        if (!pId) return;
+        const atletaAtual = getAtletaAtualizado(p);
+        if (!stats[pId]) {
+          stats[pId] = { player: atletaAtual, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0 };
         }
-        const s = stats[p.id];
+        const s = stats[pId];
         s.j++;
-        s.gp += parseInt(sumula[p.id]) || 0;
+        s.gp += parseInt(sumula[pId]) || parseInt(sumula[Number(pId)]) || 0;
         s.gc += scoreA;
         if (scoreB > scoreA) {
           s.v++;
@@ -3299,13 +3341,21 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
   };
 
   const getFilteredStandings = () => {
-    if (!peladaState?.teams) return [];
-    const st = peladaState.teams.map(t => ({ name: t.name, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, pts: 0 }));
+    const teamsList = peladaState?.teams || [];
+    const st = teamsList.map(t => ({ name: t.name, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, pts: 0 }));
     const filteredMatches = getFilteredMatches();
     
     filteredMatches.forEach(m => {
-      const h = st.find(x => x.name === m.teamA);
-      const a = st.find(x => x.name === m.teamB);
+      let h = st.find(x => x.name === m.teamA);
+      if (!h && m.teamA) {
+        h = { name: m.teamA, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, pts: 0 };
+        st.push(h);
+      }
+      let a = st.find(x => x.name === m.teamB);
+      if (!a && m.teamB) {
+        a = { name: m.teamB, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, pts: 0 };
+        st.push(a);
+      }
       if (!h || !a) return;
       const hs = parseInt(m.scoreA) || 0;
       const as2 = parseInt(m.scoreB) || 0;
@@ -6444,22 +6494,34 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const allMatches = [];
     const allTeamsMap = new Map();
     datas.forEach(d => {
-      if (d.peladaState) {
-        if (Array.isArray(d.peladaState.matchLog)) {
-          allMatches.push(...d.peladaState.matchLog);
-        }
-        if (Array.isArray(d.peladaState.teams)) {
-          d.peladaState.teams.forEach(tm => {
-            allTeamsMap.set(tm.name, tm);
-          });
-        }
+      const matchLog = d.peladaState?.matchLog || d.confrontos || [];
+      if (Array.isArray(matchLog)) {
+        matchLog.forEach(m => {
+          const mappedMatch = {
+            ...m,
+            dataRealizacaoId: m.dataRealizacaoId || d.id
+          };
+          if (!allMatches.some(am => am.id === m.id || (am.date === m.date && am.teamA === m.teamA && am.teamB === m.teamB))) {
+            allMatches.push(mappedMatch);
+          }
+        });
+      }
+      const teams = d.peladaState?.teams || d.drawnTeams || d.formacoes || [];
+      if (Array.isArray(teams)) {
+        teams.forEach(tm => {
+          allTeamsMap.set(tm.name, tm);
+        });
       }
     });
     if (pelada.peladaState) {
       if (Array.isArray(pelada.peladaState.matchLog)) {
         pelada.peladaState.matchLog.forEach(m => {
+          const mappedMatch = {
+            ...m,
+            dataRealizacaoId: m.dataRealizacaoId || selDataSorteio
+          };
           if (!allMatches.some(am => am.id === m.id || (am.date === m.date && am.teamA === m.teamA && am.teamB === m.teamB))) {
-            allMatches.push(m);
+            allMatches.push(mappedMatch);
           }
         });
       }
@@ -6475,7 +6537,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       teams: Array.from(allTeamsMap.values()),
       matchLog: allMatches
     };
-  }, [datas, pelada.peladaState]);
+  }, [datas, pelada.peladaState, selDataSorteio]);
 
   return(
     <div style={S.page}>
