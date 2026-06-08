@@ -5446,7 +5446,7 @@ function AbaParticipacoes({
   function togglePagou(atletaId){
     const p = localParts.find(x => x.atleta_id === atletaId);
     if (!p) return;
-    const dataObj = datasRealizacao.find(d => d.id === selDataSorteio);
+    const dataObj = datasRealizacao.find(d => String(d.id) === String(selDataSorteio));
     const vinculo = participacoes.find(x => x.atleta_id === atletaId && x.pelada_id === peladaId && x.data_realizacao_id === null);
     const valorCobrado = dataObj?.valor || pelada.valor_contribuicao || vinculo?.valor_padrao || 0;
 
@@ -5487,7 +5487,7 @@ function AbaParticipacoes({
   if(datas.length===0)return<div style={{color:t.textSec,fontSize:13,textAlign:"center",padding:24}}>Nenhuma data agendada ou realizada. Crie datas na aba Datas.</div>;
   if(vinculadosAtletas.length===0)return<div style={{color:t.textSec,fontSize:13,textAlign:"center",padding:24}}>Nenhum atleta vinculado. Vincule atletas na aba Atletas.</div>;
 
-  const dataAtual=datas.find(d=>d.id===selDataSorteio)||datas[0];
+  const dataAtual=datas.find(d=>String(d.id)===String(selDataSorteio))||datas[0];
   const presentes=vinculadosAtletas.filter(a=>{const p=localParts.find(x=>x.atleta_id===a.id);return p?.compareceu;});
   const pagaram=vinculadosAtletas.filter(a=>{const p=localParts.find(x=>x.atleta_id===a.id);return p?.pagou;});
   const totalArrecadado=pagaram.reduce((s,a)=>{const p=localParts.find(x=>x.atleta_id===a.id);return s+((p?.usou_saldo)?0:Number(p?.valor||0));},0);
@@ -12626,7 +12626,7 @@ export default function App(){
   const adicionarData=(d)=>setDatasRealizacao(p=>[...p,{...d,id:Date.now()}]);
   const atualizarData = (id, d) => {
     setDatasRealizacao(prev => prev.map(x => {
-      if (x.id === id) {
+      if (String(x.id) === String(id)) {
         const dataAtualizada = { ...x, ...d };
         const presenca = dataAtualizada.presenca || x.presenca || [];
         const formacoes = dataAtualizada.drawnTeams || dataAtualizada.formacoes || x.formacoes || x.drawnTeams || null;
@@ -12648,7 +12648,7 @@ export default function App(){
       return x;
     }));
   };
-  const removerData  =id=>setDatasRealizacao(p=>p.filter(x=>x.id!==id));
+  const removerData  =id=>setDatasRealizacao(p=>p.filter(x=>String(x.id)!==String(id)));
 
   // ── CRUD Participações ─────────────────────────────────────────
   const adicionarPart=(d)=>{
