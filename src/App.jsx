@@ -5776,6 +5776,22 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
   const lastLoadedDateIdRef = useRef(null);
 
+  const getInitialPeladaStateForDate = (d) => {
+    if (d.peladaState) return d.peladaState;
+    if (d.confrontos && d.confrontos.length > 0) {
+      const teams = d.drawnTeams || d.formacoes || [];
+      const bench = d.initialBench || [];
+      return {
+        teams,
+        queue: teams.map(t => t.name),
+        bench,
+        matchLog: d.confrontos,
+        currentMatch: null
+      };
+    }
+    return pelada.peladaState || null;
+  };
+
   const saveDateState = (updates) => {
     if (!selDataSorteio) return;
     onUpdateData(selDataSorteio, updates);
@@ -5787,7 +5803,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const d = datas.find(x => String(x.id) === String(selDataSorteio));
     if (d) {
       setDrawnTeams(d.drawnTeams !== undefined ? d.drawnTeams : (pelada.drawnTeams || null));
-      setPeladaStateLocal(d.peladaState !== undefined ? d.peladaState : (pelada.peladaState || null));
+      setPeladaStateLocal(getInitialPeladaStateForDate(d));
       setBenchState(d.initialBench !== undefined ? d.initialBench : (pelada.initialBench || []));
       setJogadoresPausados(d.jogadoresPausados !== undefined ? d.jogadoresPausados : []);
       setPpt(d.playersPerTeam !== undefined ? d.playersPerTeam : (pelada.playersPerTeam || 7));
