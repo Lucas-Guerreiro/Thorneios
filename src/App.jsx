@@ -3190,7 +3190,7 @@ function StandingsTable({standings,teams,colorOf,accent,t,emblems}){
 }
 
 /* ─────────────────────────── RELATÓRIO PELADAS ───────────────────── */
-function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepDataId, repSortBy, setRepSortBy, formatarData, t }) {
+function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSortBy, setRepSortBy, formatarData, t }) {
   const S = makeStyles(t);
   
   const colorOfTeam = n => {
@@ -3200,7 +3200,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
 
   const getFilteredMatches = () => {
     const log = peladaState?.matchLog || [];
-    const dataObj = datas.find(x => String(x.id) === String(repDataId));
+    const dataObj = datas.find(x => String(x.id) === String(selDataSorteio));
     
     const normalizeToDateObj = (dStr) => {
       if (!dStr) return null;
@@ -3232,12 +3232,10 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
       return Math.abs(t1.getTime() - t2.getTime()) <= 30 * 60 * 60 * 1000;
     };
 
-    return repDataId === "todas"
-      ? log.filter(m => m.played)
-      : log.filter(m => m.played && (
-          String(m.dataRealizacaoId) === String(repDataId) || 
-          (dataObj && datesCloseOrEqual(m.date, dataObj.data))
-        ));
+    return log.filter(m => m.played && (
+      String(m.dataRealizacaoId) === String(selDataSorteio) || 
+      (dataObj && datesCloseOrEqual(m.date, dataObj.data))
+    ));
   };
 
   const getPlayersFallback = (match, teamLetter) => {
@@ -3395,8 +3393,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
   const totalPartidas = getFilteredMatches().length;
 
   const getSelectedDateText = () => {
-    if (repDataId === "todas") return "(Todas as Datas)";
-    const dataObj = datas.find(x => String(x.id) === String(repDataId));
+    const dataObj = datas.find(x => String(x.id) === String(selDataSorteio));
     return dataObj ? formatarData(dataObj.data) : "—";
   };
 
@@ -3460,23 +3457,19 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
           </div>
         </div>
 
-        {/* Filtros */}
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }} className="no-print">
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={{ ...S.label, marginBottom: 4 }}>Filtrar por Data:</label>
-            <select 
-              style={S.select} 
-              value={repDataId} 
-              onChange={e => setRepDataId(e.target.value)}
-            >
-              <option value="todas">🌟 Todas as Datas</option>
-              {datas.map(d => (
-                <option key={d.id} value={d.id}>📅 {formatarData(d.data)}</option>
-              ))}
-            </select>
+        {/* Cards de Resumo & Botões de Ação */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "stretch" }} className="no-print">
+          <div style={{ ...S.card, flex: 1, minWidth: 140, padding: 12, textAlign: "center", borderColor: (t.accent || "#0095F6") + "33", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>PARTIDAS JOGADAS</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: t.accent || "#0095F6", marginTop: 4 }}>{totalPartidas}</div>
           </div>
           
-          <div style={{ display: "flex", gap: 8, flexShrink: 0, marginTop: 18, flexWrap: "wrap" }}>
+          <div style={{ ...S.card, flex: 1, minWidth: 140, padding: 12, textAlign: "center", borderColor: "#1D9E7533", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#1D9E75", marginTop: 8 }}>{getMostWinningTeam()}</div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, justifyContent: "center", minWidth: 160 }}>
             <button 
               onClick={() => setRepSortBy("pts")} 
               style={S.btnSm(repSortBy === "pts" ? (t.accent || "#0095F6") : "transparent", repSortBy === "pts" ? "#fff" : t.textSec)}
@@ -3495,18 +3488,6 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, repDataId, setRepData
             >
               📄 Exportar PDF
             </button>
-          </div>
-        </div>
-
-        {/* Cards de Resumo */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-          <div style={{ ...S.card, padding: 12, textAlign: "center", borderColor: (t.accent || "#0095F6") + "33" }}>
-            <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>PARTIDAS JOGADAS</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: t.accent || "#0095F6", marginTop: 4 }}>{totalPartidas}</div>
-          </div>
-          <div style={{ ...S.card, padding: 12, textAlign: "center", borderColor: "#1D9E7533" }}>
-            <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#1D9E75", marginTop: 8 }}>{getMostWinningTeam()}</div>
           </div>
         </div>
 
@@ -5672,7 +5653,6 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[manualAssignments,setManualAssignments]=useState({});
   const[assignModal,setAssignModal]=useState(null);
   const[subModal,setSubModal]=useState(null);
-  const[repDataId,setRepDataId]=useState("todas");
   const[repSortBy,setRepSortBy]=useState("pts");
   const[sumulaGols,setSumulaGols]=useState({});
   const[editMatchId,setEditMatchId]=useState(null);
@@ -7102,7 +7082,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         </div>
       )}
       {currentAba==="placar"&&<StandingsTable standings={peladaStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent="#378ADD" t={t}/>}
-      {currentAba==="relatório"&&<AbaRelatorioPelada peladaState={consolidatedPeladaState} datas={datas} atletas={atletas} repDataId={repDataId} setRepDataId={setRepDataId} repSortBy={repSortBy} setRepSortBy={setRepSortBy} formatarData={formatarData} t={t} />}
+      {currentAba==="relatório"&&<AbaRelatorioPelada peladaState={consolidatedPeladaState} datas={datas} atletas={atletas} selDataSorteio={selDataSorteio} repSortBy={repSortBy} setRepSortBy={setRepSortBy} formatarData={formatarData} t={t} />}
 
       {subModal && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
