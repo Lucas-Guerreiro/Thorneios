@@ -1315,7 +1315,7 @@ function buildInitialPeladaState(drawnTeams,bench,existingMatchLog=[]){
 function startNextMatch(ps,dataRealizacaoId=""){
   if(!ps||ps.queue.length<2)return ps;
   const[a,b]=[ps.queue[0],ps.queue[1]];
-  return{...ps,currentMatch:{teamA:a,teamB:b,scoreA:"",scoreB:"",date:todayStr(),dataRealizacaoId,played:false}};
+  return{...ps,currentMatch:{id:Date.now() + "_" + Math.floor(Math.random() * 1000),teamA:a,teamB:b,scoreA:"",scoreB:"",date:todayStr(),dataRealizacaoId,played:false}};
 }
 function resolveMatch(ps,scoreA,scoreB){
   const sA=parseInt(scoreA),sB=parseInt(scoreB);
@@ -6496,12 +6496,13 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     datas.forEach(d => {
       const matchLog = d.peladaState?.matchLog || d.confrontos || [];
       if (Array.isArray(matchLog)) {
-        matchLog.forEach(m => {
+        matchLog.forEach((m, idx) => {
           const mappedMatch = {
             ...m,
+            id: m.id || `${d.id}_match_${idx}`,
             dataRealizacaoId: m.dataRealizacaoId || d.id
           };
-          if (!allMatches.some(am => am.id === m.id || (am.date === m.date && am.teamA === m.teamA && am.teamB === m.teamB))) {
+          if (!allMatches.some(am => am.id === mappedMatch.id)) {
             allMatches.push(mappedMatch);
           }
         });
@@ -6515,12 +6516,13 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     });
     if (pelada.peladaState) {
       if (Array.isArray(pelada.peladaState.matchLog)) {
-        pelada.peladaState.matchLog.forEach(m => {
+        pelada.peladaState.matchLog.forEach((m, idx) => {
           const mappedMatch = {
             ...m,
+            id: m.id || `${selDataSorteio}_match_${idx}`,
             dataRealizacaoId: m.dataRealizacaoId || selDataSorteio
           };
-          if (!allMatches.some(am => am.id === m.id || (am.date === m.date && am.teamA === m.teamA && am.teamB === m.teamB))) {
+          if (!allMatches.some(am => am.id === mappedMatch.id)) {
             allMatches.push(mappedMatch);
           }
         });
