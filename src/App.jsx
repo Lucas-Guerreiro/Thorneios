@@ -6490,7 +6490,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const allMatches = [];
     const allTeamsMap = new Map();
     datas.forEach(d => {
-      const matchLog = d.peladaState?.matchLog || d.confrontos || [];
+      const isCurrentActiveDate = String(d.id) === String(selDataSorteio);
+      const activeState = isCurrentActiveDate ? peladaStateLocal : (d.peladaState || null);
+
+      const matchLog = activeState?.matchLog || d.confrontos || [];
       if (Array.isArray(matchLog)) {
         matchLog.forEach((m, idx) => {
           const mappedMatch = {
@@ -6503,7 +6506,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           }
         });
       }
-      const teams = d.peladaState?.teams || d.drawnTeams || d.formacoes || [];
+      const teams = activeState?.teams || d.drawnTeams || d.formacoes || [];
       if (Array.isArray(teams)) {
         teams.forEach(tm => {
           allTeamsMap.set(tm.name, tm);
@@ -6535,7 +6538,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       teams: Array.from(allTeamsMap.values()),
       matchLog: allMatches
     };
-  }, [datas, pelada.peladaState, selDataSorteio]);
+  }, [datas, pelada.peladaState, selDataSorteio, peladaStateLocal]);
 
   return(
     <div style={S.page}>
