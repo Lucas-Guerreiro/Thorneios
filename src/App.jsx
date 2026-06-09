@@ -5984,6 +5984,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     }
 
     if (convidadoPromovido && confirm(`O atleta é anfitrião do convidado "${getPlayerName(convidadoPromovido)}". Deseja que este convidado assuma a vaga dele na pelada (como substituto permanente)?`)) {
+      onUpdateAtleta(convidadoPromovido.id, { isConvidado: false, convidadoDe: null });
       // Remove o anfitrião, e o convidado permanece no mesmo local como substituto permanente e independente
       const promoteGuest = (p) => {
         if (String(p.id) === String(convidadoPromovido.id)) {
@@ -6045,14 +6046,28 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     let newDrawnTeams = drawnTeams ? deepClone(drawnTeams) : [];
     let ps = peladaState ? deepClone(peladaState) : null;
 
-    // Achar o parceiro de revezamento (se houver)
-    const atletaObj = atletas.find(x => String(x.id) === String(playerId));
+    // Achar o parceiro de revezamento (se houver) a partir do estado do dia
+    let atletaObj = newBench.find(x => String(x.id) === String(playerId));
+    if (!atletaObj) {
+      newDrawnTeams.forEach(t => {
+        const found = t.players.find(x => String(x.id) === String(playerId));
+        if (found) atletaObj = found;
+      });
+    }
+    
     let partnerId = null;
     if (atletaObj) {
       if (atletaObj.isConvidado && atletaObj.convidadoDe) {
         partnerId = atletaObj.convidadoDe;
       } else {
-        const guest = atletas.find(x => x.isConvidado && String(x.convidadoDe) === String(playerId));
+        // Busca se existe algum convidado atrelado a este jogador na partida
+        let guest = newBench.find(x => x.isConvidado && String(x.convidadoDe) === String(playerId));
+        if (!guest) {
+          newDrawnTeams.forEach(t => {
+            const found = t.players.find(x => x.isConvidado && String(x.convidadoDe) === String(playerId));
+            if (found) guest = found;
+          });
+        }
         if (guest) partnerId = guest.id;
       }
     }
@@ -6235,6 +6250,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         if (emJogo) convidadoObj = removerDaPartida(convidado.id);
       }
     } else if (convidado && sairMotivo === "lesao") {
+      onUpdateAtleta(convidado.id, { isConvidado: false, convidadoDe: null });
       // Se o anfitrião saiu por lesão (permanente) e o convidado ficou, promove o convidado a independente
       const promoteGuest = (p) => {
         if (String(p.id) === String(convidado.id)) {
@@ -7011,6 +7027,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                   <button
                                     onClick={()=>{
                                       if(confirm(`Promover "${getPlayerName(b)}" a jogador independente? Ele deixará de revezar com o anfitrião.`)){
+                                        onUpdateAtleta(b.id, { isConvidado: false, convidadoDe: null });
                                         let newBenchLocal = benchState.map(x => String(x.id)===String(b.id) ? {...x,isConvidado:false,convidadoDe:undefined} : x);
                                         let newDTLocal = drawnTeams ? drawnTeams.map(tm => ({...tm,players:tm.players.map(p=>String(p.id)===String(b.id)?{...p,isConvidado:false,convidadoDe:undefined}:p)})) : drawnTeams;
                                         let psLocal = peladaState ? {...peladaState, bench: peladaState.bench.map(x=>String(x.id)===String(b.id)?{...x,isConvidado:false,convidadoDe:undefined}:x), teams: peladaState.teams.map(tm=>({...tm,players:tm.players.map(p=>String(p.id)===String(b.id)?{...p,isConvidado:false,convidadoDe:undefined}:p)}))} : null;
@@ -7134,6 +7151,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                   <button
                                     onClick={()=>{
                                       if(confirm(`Promover "${getPlayerName(p)}" a jogador independente?`)){
+                                        onUpdateAtleta(p.id, { isConvidado: false, convidadoDe: null });
                                         let newBenchLocal = benchState.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x);
                                         let newDTLocal = drawnTeams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}));
                                         let psLocal = peladaState ? {...peladaState,bench:peladaState.bench.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x),teams:peladaState.teams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}))} : null;
