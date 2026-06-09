@@ -27,42 +27,69 @@ body {
   background: rgba(120, 120, 120, 0.4);
 }
 
-/* Acessibilidade - Tamanho das Fontes e Elementos */
-body.scale-115 button,
-body.scale-115 input,
-body.scale-115 select,
-body.scale-115 textarea {
-  font-size: 1.15rem !important;
+/* Acessibilidade - Tamanho das Fontes e Elementos via Zoom Global */
+body.scale-115 #root {
+  zoom: 1.15;
 }
-body.scale-115 td,
-body.scale-115 th,
-body.scale-115 span,
-body.scale-115 div {
-  font-size: 1.08rem;
+body.scale-130 #root {
+  zoom: 1.30;
+}
+body.scale-145 #root {
+  zoom: 1.45;
 }
 
-body.scale-130 button,
-body.scale-130 input,
-body.scale-130 select,
-body.scale-130 textarea {
-  font-size: 1.3rem !important;
-}
-body.scale-130 td,
-body.scale-130 th,
-body.scale-130 span,
-body.scale-130 div {
-  font-size: 1.18rem;
-}
+/* Ajustes Específicos para Mobile/Celular (telas menores que 768px) */
+@media (max-width: 768px) {
+  #root {
+    zoom: 1.12; /* Zoom base ligeiramente maior para mobile */
+  }
+  body.scale-115 #root {
+    zoom: 1.25;
+  }
+  body.scale-130 #root {
+    zoom: 1.40;
+  }
+  body.scale-145 #root {
+    zoom: 1.55;
+  }
 
-body.scale-145 button,
-body.scale-145 input,
-body.scale-145 select,
-body.scale-145 textarea {
-  font-size: 1.45rem !important;
-}
-body.scale-145 td,
-body.scale-145 th,
-body.scale-145 span,
-body.scale-145 div {
-  font-size: 1.32rem;
+  /* Aumentar área de toque (touch target) dos botões de ação com emojis de jogadores no mobile */
+  button[title*="Substituir"],
+  button[title*="Sair"],
+  button[title*="Remover"],
+  button[title*="Mover"],
+  button[title*="Promover"],
+  button[title*="independente"],
+  button[title*="Editar nome"] {
+    padding: 6px 10px !important;
+    font-size: 16px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 2px 4px !important;
+    background-color: rgba(127, 119, 221, 0.12) !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(127, 119, 221, 0.25) !important;
+  }
+
+  /* Aumentar cards de atletas na fila de espera e no banco de reservas */
+  div[style*="display: inline-flex"][style*="border-radius: 12px"],
+  div[style*="display: inline-flex"][style*="borderRadius: 12"],
+  span[style*="display: inline-flex"][style*="border-radius: 16px"],
+  span[style*="display: inline-flex"][style*="borderRadius: 16"] {
+    font-size: 13.5px !important;
+    padding: 6px 12px !important;
+    margin: 4px 3px !important;
+  }
+
+  /* Ajustar o tamanho dos avatares dos jogadores nos cards para acompanhar o aumento */
+  div[style*="display: inline-flex"][style*="border-radius: 12px"] img,
+  div[style*="display: inline-flex"][style*="border-radius: 12px"] svg,
+  span[style*="display: inline-flex"][style*="border-radius: 16px"] img,
+  span[style*="display: inline-flex"][style*="border-radius: 16px"] svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
 }
