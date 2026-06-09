@@ -5616,6 +5616,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[drawnTeams,setDrawnTeams]=useState(pelada.drawnTeams||null);
   const[peladaState,setPeladaStateLocal]=useState(pelada.peladaState||null);
   const[benchState,setBenchState]=useState(pelada.initialBench||[]);
+  const currentBench = peladaState?.bench || benchState;
+  const [showEquipesFormadas, setShowEquipesFormadas] = useState(false);
   const[numTeams,setNumTeams]=useState(2);
   const [numTeamsInput, setNumTeamsInput] = useState("2");
   const[ppt,setPpt]=useState(pelada.playersPerTeam||7);
@@ -7006,16 +7008,16 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                         <label style={{...S.label,margin:0}}>+ Retardatário:</label>
                         <select style={{...S.select,flex:1,minWidth:140}} value={addBenchId} onChange={e=>setAddBenchId(e.target.value)}>
                           <option value="">Selecione quem chegou...</option>
-                          {vinculados.filter(a=>!benchState.some(b=>String(b.id)===String(a.id)) && !drawnTeams.some(t=>t.players.some(p=>String(p.id)===String(a.id)))).map(a=><option key={a.id} value={a.id}>{a.nome}</option>)}
+                          {vinculados.filter(a=>!currentBench.some(b=>String(b.id)===String(a.id)) && !drawnTeams.some(t=>t.players.some(p=>String(p.id)===String(a.id)))).map(a=><option key={a.id} value={a.id}>{a.nome}</option>)}
                         </select>
                         <button onClick={addToBench} style={S.btn("#BA7517")}>Adicionar ao Banco</button>
                       </div>
                     )}
-                    {benchState.length>0&& (
+                    {currentBench.length>0&& (
                       <div style={{...S.card,border:"1px solid #BA751733",background:"#BA751710",marginBottom:12}}>
-                        <div style={{fontWeight:700,color:"#BA7517",marginBottom:6}}>🪑 Banco ({benchState.length})</div>
+                        <div style={{fontWeight:700,color:"#BA7517",marginBottom:6}}>🪑 Banco ({currentBench.length})</div>
                         <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                          {benchState.map((b,i)=>{
+                          {currentBench.map((b,i)=>{
                             const isRev = b.isConvidado && b.convidadoDe;
                             const anfitriaoNome = isRev ? (atletas.find(x=>x.id===b.convidadoDe)?.apelido || atletas.find(x=>x.id===b.convidadoDe)?.nome || "?") : null;
                             return (
@@ -7110,31 +7112,52 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 {/* GESTÃO GERAL DAS EQUIPES E REFAZER SORTEIO */}
                 {drawnTeams && (
                   <div style={{marginTop:24, paddingTop:16, borderTop:`2px solid ${t.cardBorder}`, marginBottom: 20}}>
-                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 14, flexWrap:"wrap", gap: 10}}>
+                    <button 
+                      onClick={() => setShowEquipesFormadas(!showEquipesFormadas)}
+                      style={{
+                        display: "flex", 
+                        justifyContent: "space-between", 
+                        alignItems: "center", 
+                        cursor: "pointer",
+                        width: "100%",
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        fontFamily: "inherit",
+                        textAlign: "left",
+                        marginBottom: 14
+                      }}
+                    >
                       <h3 style={{fontSize:14, fontWeight:700, margin:0, color:t.text}}>👥 Equipes Formadas</h3>
-                      {!isRealizada && (
-                        <button 
-                          onClick={() => {
-                            if (confirm("Tem certeza que deseja refazer o sorteio desta data? Isso apagará as partidas e pontuações do dia!")) {
-                              setDrawnTeams(null);
-                              setBenchState([]);
-                              setPeladaStateLocal(null);
-                              saveDateState({
-                                drawnTeams: null,
-                                initialBench: [],
-                                peladaState: null,
-                                manualAssignments: {}
-                              });
-                            }
-                          }} 
-                          style={S.btnSm("#E24B4A22","#E24B4A")}
-                        >
-                          🔄 Refazer Sorteio
-                        </button>
-                      )}
-                    </div>
+                      <span style={{fontSize: 11, color: t.textSec, fontWeight: 700}}>{showEquipesFormadas ? "▲ Recolher" : "▼ Expandir Lista"}</span>
+                    </button>
 
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
+                    {showEquipesFormadas && (
+                      <>
+                        {!isRealizada && (
+                          <div style={{display: "flex", justifyContent: "flex-end", marginBottom: 14}}>
+                            <button 
+                              onClick={() => {
+                                if (confirm("Tem certeza que deseja refazer o sorteio desta data? Isso apagará as partidas e pontuações do dia!")) {
+                                  setDrawnTeams(null);
+                                  setBenchState([]);
+                                  setPeladaStateLocal(null);
+                                  saveDateState({
+                                    drawnTeams: null,
+                                    initialBench: [],
+                                    peladaState: null,
+                                    manualAssignments: {}
+                                  });
+                                }
+                              }} 
+                              style={S.btnSm("#E24B4A22","#E24B4A")}
+                            >
+                              🔄 Refazer Sorteio
+                            </button>
+                          </div>
+                        )}
+
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
                       {drawnTeams.map((tm,ti)=>(
                         <div key={ti} style={{...S.card,borderColor:COLORS[ti%COLORS.length]+"55",padding:12}}>
                           <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><div style={{width:10,height:10,borderRadius:"50%",background:COLORS[ti%COLORS.length]}}/><span style={{fontWeight:700,fontSize:13,color:t.text}}>{tm.name}</span></div>
@@ -7176,8 +7199,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </>
                 )}
+              </div>
+            )}
 
                 {/* HISTÓRICO DA DATA */}
                 {(peladaState?.matchLog||[]).filter(m => String(m.dataRealizacaoId) === String(selDataSorteio)).length>0&&(
