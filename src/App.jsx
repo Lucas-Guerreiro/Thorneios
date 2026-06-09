@@ -5813,6 +5813,106 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const presentesIds = parts.filter(p=>String(p.data_realizacao_id)===String(selDataSorteio)&&p.compareceu).map(p=>p.atleta_id);
   const presentes = vinculados.filter(a=>presentesIds.includes(a.id));
 
+  function handleCriarNovaEquipe() {
+    if (!drawnTeams) return;
+    const nextNum = drawnTeams.length + 1;
+    const newTeamName = `Time ${nextNum}`;
+    
+    const newDrawnTeams = [
+      ...drawnTeams, 
+      { name: newTeamName, players: [] }
+    ];
+    
+    let newPs = peladaState ? { ...peladaState } : {
+      teams: drawnTeams.map(t => ({ name: t.name, players: [...t.players] })),
+      queue: drawnTeams.map(t => t.name),
+      bench: currentBench,
+      matchLog: [],
+      currentMatch: null
+    };
+    
+    newPs.teams = [
+      ...newPs.teams,
+      { name: newTeamName, players: [] }
+    ];
+    
+    if (!newPs.queue.includes(newTeamName)) {
+      newPs.queue = [
+        ...newPs.queue,
+        newTeamName
+      ];
+    }
+    
+    if (!newPs.currentMatch && newPs.queue.length >= 2) {
+      newPs.currentMatch = {
+        dataRealizacaoId: selDataSorteio,
+        teamA: newPs.queue[0],
+        teamB: newPs.queue[1],
+        scoreA: "",
+        scoreB: "",
+        played: false,
+        sumula: {}
+      };
+    }
+    
+    setDrawnTeams(newDrawnTeams);
+    setPeladaStateLocal(newPs);
+    saveDateState({
+      drawnTeams: newDrawnTeams,
+      peladaState: newPs
+    });
+  }
+
+  function renomearEquipe(oldName, newName) {
+    const trimmedNewName = newName.trim();
+    if (!trimmedNewName) return;
+    if (trimmedNewName === oldName) return;
+    
+    const jaExiste = drawnTeams.some(t => t.name.toLowerCase() === trimmedNewName.toLowerCase());
+    if (jaExiste) {
+      alert(`Já existe um time com o nome "${trimmedNewName}". Escolha outro nome.`);
+      return;
+    }
+    
+    const newDrawnTeams = drawnTeams.map(t => 
+      t.name === oldName ? { ...t, name: trimmedNewName } : t
+    );
+    
+    let newPs = peladaState ? { ...peladaState } : null;
+    if (newPs) {
+      newPs.teams = newPs.teams.map(t => 
+        t.name === oldName ? { ...t, name: trimmedNewName } : t
+      );
+      
+      newPs.queue = newPs.queue.map(name => 
+        name === oldName ? trimmedNewName : name
+      );
+      
+      if (newPs.currentMatch) {
+        if (newPs.currentMatch.teamA === oldName) newPs.currentMatch.teamA = trimmedNewName;
+        if (newPs.currentMatch.teamB === oldName) newPs.currentMatch.teamB = trimmedNewName;
+      }
+      
+      if (newPs.matchLog) {
+        newPs.matchLog = newPs.matchLog.map(m => {
+          let updated = { ...m };
+          if (updated.teamA === oldName) updated.teamA = trimmedNewName;
+          if (updated.teamB === oldName) updated.teamB = trimmedNewName;
+          if (updated.winner === oldName) updated.winner = trimmedNewName;
+          if (updated.loser === oldName) updated.loser = trimmedNewName;
+          return updated;
+        });
+      }
+    }
+    
+    setDrawnTeams(newDrawnTeams);
+    setPeladaStateLocal(newPs);
+    saveDateState({
+      drawnTeams: newDrawnTeams,
+      peladaState: newPs
+    });
+  }
+
   function doDraw(){
     if(!selDataSorteio){alert("Selecione uma data para realizar o sorteio!");return;}
     if(drawnTeams) {
@@ -6863,6 +6963,119 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
             {drawnTeams && (
               /* --- JOGOS E BANCO / FILA / GESTÃO --- */
               <div>
+                {/* GESTÃO GERAL DAS EQUIPES E REFAZER SORTEIO */}
+                <div style={{marginTop:8, paddingTop:4, marginBottom: 20}}>
+                  <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${t.cardBorder}`, paddingBottom: 8, marginBottom: 14}}>
+                    <button 
+                      onClick={() => setShowEquipesFormadas(!showEquipesFormadas)}
+                      style={{
+                        display: "flex", 
+                        alignItems: "center", 
+                        gap: 8,
+                        cursor: "pointer",
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        fontFamily: "inherit",
+                        textAlign: "left"
+                      }}
+                    >
+                      <h3 style={{fontSize:14, fontWeight:700, margin:0, color:t.text}}>👥 Equipes Formadas</h3>
+                      <span style={{fontSize: 11, color: t.textSec, fontWeight: 700}}>{showEquipesFormadas ? "▲ Recolher" : "▼ Expandir Lista"}</span>
+                    </button>
+                    
+                    {!isRealizada && showEquipesFormadas && (
+                      <div style={{display: "flex", gap: 8}}>
+                        <button 
+                          onClick={handleCriarNovaEquipe} 
+                          style={S.btnSm("#378ADD22","#378ADD")}
+                        >
+                          ➕ Nova Equipe
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (confirm("Tem certeza que deseja refazer o sorteio desta data? Isso apagará as partidas e pontuações do dia!")) {
+                              setDrawnTeams(null);
+                              setBenchState([]);
+                              setPeladaStateLocal(null);
+                              saveDateState({
+                                drawnTeams: null,
+                                initialBench: [],
+                                peladaState: null,
+                                manualAssignments: {}
+                              });
+                            }
+                          }} 
+                          style={S.btnSm("#E24B4A22","#E24B4A")}
+                        >
+                          🔄 Refazer Sorteio
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {showEquipesFormadas && (
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
+                      {drawnTeams.map((tm,ti)=>(
+                        <div key={ti} style={{...S.card,borderColor:COLORS[ti%COLORS.length]+"55",padding:12}}>
+                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,marginBottom:8}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6}}>
+                              <div style={{width:10,height:10,borderRadius:"50%",background:COLORS[ti%COLORS.length]}}/>
+                              <span style={{fontWeight:700,fontSize:13,color:t.text}}>{tm.name}</span>
+                            </div>
+                            {!isRealizada && (
+                              <button 
+                                onClick={() => {
+                                  const novoNome = prompt(`Editar nome do time "${tm.name}":`, tm.name);
+                                  if (novoNome) renomearEquipe(tm.name, novoNome);
+                                }}
+                                style={{border:"none",background:"transparent",color:t.textSec,cursor:"pointer",padding:0,fontSize:11}}
+                                title="Editar nome do time"
+                              >
+                                ✏️
+                              </button>
+                            )}
+                          </div>
+                          {tm.players.map((p,pi)=>{
+                            const pIsRev = p.isConvidado && p.convidadoDe;
+                            const pAnfNome = pIsRev ? (atletas.find(x=>x.id===p.convidadoDe)?.apelido||atletas.find(x=>x.id===p.convidadoDe)?.nome||"?") : null;
+                            return(
+                              <div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,padding:"3px 0",borderBottom:`1px solid ${t.cardBorder}`,background: pIsRev ? "#7F77DD08" : "transparent",borderRadius: pIsRev ? 4 : 0,paddingLeft: pIsRev ? 4 : 0}}>
+                                <PlayerAvatar atleta={p} size={18}/>
+                                <span>{(p.goleiro||p.isGoalkeeper)?"🧤":"⚽"}</span>
+                                <span style={{flex:1,fontWeight:500,color: pIsRev ? "#7F77DD" : t.text}}>{getPlayerName(p)}</span>
+                                {pIsRev && <span style={{fontSize:9,color:"#7F77DD",opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
+                                {!isRealizada && pIsRev && (
+                                  <button
+                                    onClick={()=>{
+                                      if(confirm(`Promover "${getPlayerName(p)}" a jogador independente?`)){
+                                        onUpdateAtleta(p.id, { isConvidado: false, convidadoDe: null });
+                                        let newBenchLocal = benchState.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x);
+                                        let newDTLocal = drawnTeams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}));
+                                        let psLocal = peladaState ? {...peladaState,bench:peladaState.bench.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x),teams:peladaState.teams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}))} : null;
+                                        setBenchState(newBenchLocal); setDrawnTeams(newDTLocal); setPeladaStateLocal(psLocal);
+                                        saveDateState({drawnTeams:newDTLocal,initialBench:newBenchLocal,peladaState:psLocal});
+                                      }
+                                    }}
+                                    style={{border:"none",background:"transparent",color:"#1D9E75",cursor:"pointer",padding:"0 2px",fontSize:10,fontWeight:800}}
+                                    title="Promover a titular independente"
+                                  >⬆</button>
+                                )}
+                                {!isRealizada && (
+                                  <>
+                                    <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:11,fontWeight:700}} title="Substituir / Mover">🔄</button>
+                                    <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:tm.name});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:11}} title="Sair do jogo">🚑</button>
+                                    <button onClick={()=>removeFromRotation(p.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:12,fontWeight:700}}>×</button>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {peladaState?.currentMatch&&!peladaState.currentMatch.played&&String(peladaState.currentMatch.dataRealizacaoId)===String(selDataSorteio)&&(
                   <div style={{...S.card,border:`2px solid ${isRealizada ? t.cardBorder : "#1D9E7555"}`,marginBottom:20}}>
                     <div style={{fontSize:11,fontWeight:700,color:isRealizada ? t.textSec : "#1D9E75",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>
@@ -7109,100 +7322,6 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                   </div>
                 )}
 
-                {/* GESTÃO GERAL DAS EQUIPES E REFAZER SORTEIO */}
-                {drawnTeams && (
-                  <div style={{marginTop:24, paddingTop:16, borderTop:`2px solid ${t.cardBorder}`, marginBottom: 20}}>
-                    <button 
-                      onClick={() => setShowEquipesFormadas(!showEquipesFormadas)}
-                      style={{
-                        display: "flex", 
-                        justifyContent: "space-between", 
-                        alignItems: "center", 
-                        cursor: "pointer",
-                        width: "100%",
-                        background: "none",
-                        border: "none",
-                        padding: 0,
-                        fontFamily: "inherit",
-                        textAlign: "left",
-                        marginBottom: 14
-                      }}
-                    >
-                      <h3 style={{fontSize:14, fontWeight:700, margin:0, color:t.text}}>👥 Equipes Formadas</h3>
-                      <span style={{fontSize: 11, color: t.textSec, fontWeight: 700}}>{showEquipesFormadas ? "▲ Recolher" : "▼ Expandir Lista"}</span>
-                    </button>
-
-                    {showEquipesFormadas && (
-                      <>
-                        {!isRealizada && (
-                          <div style={{display: "flex", justifyContent: "flex-end", marginBottom: 14}}>
-                            <button 
-                              onClick={() => {
-                                if (confirm("Tem certeza que deseja refazer o sorteio desta data? Isso apagará as partidas e pontuações do dia!")) {
-                                  setDrawnTeams(null);
-                                  setBenchState([]);
-                                  setPeladaStateLocal(null);
-                                  saveDateState({
-                                    drawnTeams: null,
-                                    initialBench: [],
-                                    peladaState: null,
-                                    manualAssignments: {}
-                                  });
-                                }
-                              }} 
-                              style={S.btnSm("#E24B4A22","#E24B4A")}
-                            >
-                              🔄 Refazer Sorteio
-                            </button>
-                          </div>
-                        )}
-
-                        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
-                      {drawnTeams.map((tm,ti)=>(
-                        <div key={ti} style={{...S.card,borderColor:COLORS[ti%COLORS.length]+"55",padding:12}}>
-                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><div style={{width:10,height:10,borderRadius:"50%",background:COLORS[ti%COLORS.length]}}/><span style={{fontWeight:700,fontSize:13,color:t.text}}>{tm.name}</span></div>
-                          {tm.players.map((p,pi)=>{
-                            const pIsRev = p.isConvidado && p.convidadoDe;
-                            const pAnfNome = pIsRev ? (atletas.find(x=>x.id===p.convidadoDe)?.apelido||atletas.find(x=>x.id===p.convidadoDe)?.nome||"?") : null;
-                            return(
-                              <div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,padding:"3px 0",borderBottom:`1px solid ${t.cardBorder}`,background: pIsRev ? "#7F77DD08" : "transparent",borderRadius: pIsRev ? 4 : 0,paddingLeft: pIsRev ? 4 : 0}}>
-                                <PlayerAvatar atleta={p} size={18}/>
-                                <span>{(p.goleiro||p.isGoalkeeper)?"🧤":"⚽"}</span>
-                                <span style={{flex:1,fontWeight:500,color: pIsRev ? "#7F77DD" : t.text}}>{getPlayerName(p)}</span>
-                                {pIsRev && <span style={{fontSize:9,color:"#7F77DD",opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
-                                {!isRealizada && pIsRev && (
-                                  <button
-                                    onClick={()=>{
-                                      if(confirm(`Promover "${getPlayerName(p)}" a jogador independente?`)){
-                                        onUpdateAtleta(p.id, { isConvidado: false, convidadoDe: null });
-                                        let newBenchLocal = benchState.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x);
-                                        let newDTLocal = drawnTeams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}));
-                                        let psLocal = peladaState ? {...peladaState,bench:peladaState.bench.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x),teams:peladaState.teams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}))} : null;
-                                        setBenchState(newBenchLocal); setDrawnTeams(newDTLocal); setPeladaStateLocal(psLocal);
-                                        saveDateState({drawnTeams:newDTLocal,initialBench:newBenchLocal,peladaState:psLocal});
-                                      }
-                                    }}
-                                    style={{border:"none",background:"transparent",color:"#1D9E75",cursor:"pointer",padding:"0 2px",fontSize:10,fontWeight:800}}
-                                    title="Promover a titular independente"
-                                  >⬆</button>
-                                )}
-                                {!isRealizada && (
-                                  <>
-                                    <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:11,fontWeight:700}} title="Substituir / Mover">🔄</button>
-                                    <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:tm.name});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:11}} title="Sair do jogo">🚑</button>
-                                    <button onClick={()=>removeFromRotation(p.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:12,fontWeight:700}}>×</button>
-                                  </>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
 
                 {/* HISTÓRICO DA DATA */}
                 {(peladaState?.matchLog||[]).filter(m => String(m.dataRealizacaoId) === String(selDataSorteio)).length>0&&(
