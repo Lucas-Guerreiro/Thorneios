@@ -5822,10 +5822,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     // Separa os presentes em sorteáveis (independentes) e revezadores
     const { sorteaveis, revezadores } = separarAtletasSorteio(presentes, numTeams, ppt);
     
-    if(sorteaveis.length<ppt){alert(`Você precisa de ao menos ${ppt} atletas independentes presentes na data! (Atuais: ${sorteaveis.length})`);return;}
-    const nt=Math.min(numTeams,Math.floor(sorteaveis.length/ppt));
+    if(sorteaveis.length === 0){alert("Não existem atletas independentes presentes na data para realizar o sorteio!");return;}
     
-    const { fullTeams, bench } = drawBalancedTeams(sorteaveis, nt, ppt);
+    const { fullTeams, bench } = drawBalancedTeams(sorteaveis, numTeams, ppt);
     
     // Aloca os convidados de revezamento no mesmo time/banco que seus respectivos anfitriões
     revezadores.forEach(rev => {
@@ -6473,7 +6472,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     return st.sort((a,b)=>b.pts-a.pts||b.sg-a.sg||b.gp-a.gp);
   }
   const colorOfTeam=n=>{const i=(peladaState?.teams||[]).findIndex(x=>x.name===n);return COLORS[i%COLORS.length]||"#888";};
-  const maxTeams=Math.floor(vinculados.length/ppt)||2;
+  const maxTeams=20;
 
   const selectedDateObj = datas.find(d => String(d.id) === String(selDataSorteio));
   const isRealizada = selectedDateObj?.status === "realizado";
@@ -6705,16 +6704,27 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 padding: drawnTeams ? "12px 16px" : "16px"
               }}>
                 {drawnTeams ? (
-                  <div 
+                  <button 
                     onClick={() => setShowSorteioConfig(!showSorteioConfig)} 
-                    style={{display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer"}}
+                    style={{
+                      display: "flex", 
+                      justifyContent: "space-between", 
+                      alignItems: "center", 
+                      cursor: "pointer",
+                      width: "100%",
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      fontFamily: "inherit",
+                      textAlign: "left"
+                    }}
                   >
                     <div style={{fontWeight: 700, fontSize: 13, color: t.text, display: "flex", alignItems: "center", gap: 6}}>
                       <span>🎲 Painel de Sorteio</span>
                       <span style={{fontSize: 10, background: "#1D9E7522", color: "#1D9E75", padding: "2px 6px", borderRadius: 4, fontWeight: 700}}>Sorteado</span>
                     </div>
                     <span style={{fontSize: 11, color: t.textSec, fontWeight: 700}}>{showSorteioConfig ? "▲ Recolher Ajustes" : "▼ Ajustes de Sorteio"}</span>
-                  </div>
+                  </button>
                 ) : null}
 
                 {(!drawnTeams || showSorteioConfig) && (
