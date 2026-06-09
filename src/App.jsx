@@ -12085,6 +12085,20 @@ export default function App(){
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
       console.log("[DEBUG AUTH] onAuthStateChanged disparado! Usuário:", user ? user.email : "null");
       if (user) {
+        const activeSession = sessionStorage.getItem("active_session");
+        if (!activeSession) {
+          console.log("[DEBUG AUTH] Sessão persistente anterior inválida nesta aba. Deslogando...");
+          try {
+            await signOut(firebaseAuth);
+          } catch(e) {
+            console.error("Erro ao limpar sessao local:", e);
+          }
+          setAuth({ role: "", name: "", manager_id: null, scope: "geral", email: "" });
+          lastAuthUserEmail.current = "";
+          setScreen("selection");
+          setAuthLoading(false);
+          return;
+        }
         const trimmedEmail = String(user.email || "").toLowerCase().trim();
         const isNewLogin = lastAuthUserEmail.current !== trimmedEmail;
         console.log("[DEBUG AUTH] trimmedEmail:", trimmedEmail, "lastAuthUserEmail.current:", lastAuthUserEmail.current, "isNewLogin:", isNewLogin);
@@ -12304,6 +12318,7 @@ export default function App(){
         throw new Error("O Firebase Auth não está configurado.");
       }
       await setPersistence(firebaseAuth, browserSessionPersistence);
+      sessionStorage.setItem("active_session", "true");
       await signInWithEmailAndPassword(firebaseAuth, trimmed, password);
       return "";
     } catch (error) {
@@ -12313,6 +12328,7 @@ export default function App(){
       if (error.code === "auth/user-not-found" || error.code === "auth/invalid-credential" || error.code === "auth/wrong-password") {
         if (trimmed === "lucas7s7@gmail.com" && password === adminPassword) {
           try {
+            sessionStorage.setItem("active_session", "true");
             await createUserWithEmailAndPassword(firebaseAuth, trimmed, password);
             return "";
           } catch (createErr) {
@@ -12324,6 +12340,7 @@ export default function App(){
         const manager = managers.find(m => String(m.email||"").toLowerCase() === trimmed && m.password === password);
         if (manager) {
           try {
+            sessionStorage.setItem("active_session", "true");
             await createUserWithEmailAndPassword(firebaseAuth, trimmed, password);
             return "";
           } catch (createErr) {
@@ -12407,6 +12424,7 @@ export default function App(){
   };
 
   const handleLogout = async () => {
+    sessionStorage.removeItem("active_session");
     if (isFirebaseConfigured && firebaseAuth) {
       try {
         await signOut(firebaseAuth);
