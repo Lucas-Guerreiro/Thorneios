@@ -11,7 +11,9 @@ import {
   signOut, 
   onAuthStateChanged, 
   createUserWithEmailAndPassword, 
-  sendPasswordResetEmail 
+  sendPasswordResetEmail,
+  setPersistence,
+  browserSessionPersistence
 } from "firebase/auth";
 
 
@@ -5583,17 +5585,17 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const currentAba = aba || localAba;
   const currentSetAba = setAba || setLocalAba;
   const isDonoOuAdmin = auth.role === "adm" || (auth.role === "manager" && pelada.manager_id === auth.manager_id);
-  const ABAS=["datas","atletas","participações","sorteio","jogos","placar","relatório"];
+  const ABAS=["datas","atletas","participações","jogos","placar","relatório"];
   if (isDonoOuAdmin) {
     ABAS.push("colaboradores");
   }
   const datas=datasRealizacao.filter(d=>d.pelada_id===pelada.id);
   const parts=participacoes.filter(p=>p.pelada_id===pelada.id);
-
+ 
   const [hasUnsavedChangesAtletas, setHasUnsavedChangesAtletas] = useState(false);
   const [modalConfirmacaoNavegacao, setModalConfirmacaoNavegacao] = useState(null);
   const triggerSaveRef = useRef(null);
-
+ 
   const executarNavegacaoDestino = (dest) => {
     if (!dest) return;
     if (dest.type === "aba") {
@@ -5608,17 +5610,20 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       onBack();
     }
   };
-
+ 
   /* sorteio / jogos */
   /* sorteio / jogos */
   const[drawnTeams,setDrawnTeams]=useState(pelada.drawnTeams||null);
   const[peladaState,setPeladaStateLocal]=useState(pelada.peladaState||null);
   const[benchState,setBenchState]=useState(pelada.initialBench||[]);
   const[numTeams,setNumTeams]=useState(2);
+  const [numTeamsInput, setNumTeamsInput] = useState("2");
   const[ppt,setPpt]=useState(pelada.playersPerTeam||7);
+  const [pptInput, setPptInput] = useState(String(pelada.playersPerTeam||7));
   const[scoreA,setScoreA]=useState("");const[scoreB,setScoreB]=useState("");
-
+ 
   const[modoSorteio,setModoSorteio]=useState("auto");
+  const[showSorteioConfig,setShowSorteioConfig]=useState(false);
   const[manualAssignments,setManualAssignments]=useState({});
   const[assignModal,setAssignModal]=useState(null);
   const[subModal,setSubModal]=useState(null);
@@ -5628,7 +5633,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[editScoreA,setEditScoreA]=useState("");
   const[editScoreB,setEditScoreB]=useState("");
   const[editSumula,setEditSumula]=useState({});
-
+ 
   // Estado para modal de "Sair do Jogo"
   const[sairModal,setSairModal]=useState(null); // {playerId, playerName, teamName}
   const[sairMotivo,setSairMotivo]=useState("cansaco"); // cansaco | lesao | outro
@@ -5636,7 +5641,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[sairComConvidado,setSairComConvidado]=useState(false);
   const[substituirPorConvidado,setSubstituirPorConvidado]=useState(false);
   const[jogadoresPausados,setJogadoresPausados]=useState([]); // descansando — podem retornar
-
+ 
   const updateSumulaAndScore = (playerId, val, teamType) => {
     const cleanVal = val.replace(/\D/g,"");
     const numVal = parseInt(cleanVal) || 0;
@@ -5655,7 +5660,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       });
     }
   };
-
+ 
   const updateEditSumulaAndScore = (playerId, val, teamType) => {
     const numVal = parseInt(val) || 0;
     const oldVal = parseInt(editSumula[playerId]) || 0;
@@ -5673,19 +5678,19 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       });
     }
   };
-
+ 
   const[selDataSorteio,setSelDataSorteio]=useState(datas[0]?.id||"");
   
   // Filtros de Ano, Mês e Dia
   const [filtroAno, setFiltroAno] = useState("");
   const [filtroMes, setFiltroMes] = useState("");
-
+ 
   const NOMES_MESES = {
     "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
     "05": "Maio", "06": "Junho", "07": "Julho", "08": "Agosto",
     "09": "Setembro", "10": "Outubro", "11": "Novembro", "12": "Dezembro"
   };
-
+ 
   const datasComAnoMes = React.useMemo(() => {
     return datas.map(d => {
       if (!d.data) return { ...d, ano: "", mes: "" };
@@ -5695,12 +5700,12 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       return { ...d, ano, mes };
     }).sort((a, b) => b.data.localeCompare(a.data));
   }, [datas]);
-
+ 
   const anosDisponiveis = React.useMemo(() => {
     const anosSet = new Set(datasComAnoMes.map(d => d.ano).filter(Boolean));
     return Array.from(anosSet).sort((a, b) => b.localeCompare(a));
   }, [datasComAnoMes]);
-
+ 
   useEffect(() => {
     if (anosDisponiveis.length > 0) {
       if (!filtroAno || !anosDisponiveis.includes(filtroAno)) {
@@ -5710,13 +5715,13 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       setFiltroAno("");
     }
   }, [anosDisponiveis, filtroAno]);
-
+ 
   const mesesDisponiveis = React.useMemo(() => {
     if (!filtroAno) return [];
     const mesesSet = new Set(datasComAnoMes.filter(d => d.ano === filtroAno).map(d => d.mes).filter(Boolean));
     return Array.from(mesesSet).sort((a, b) => a.localeCompare(b));
   }, [datasComAnoMes, filtroAno]);
-
+ 
   useEffect(() => {
     if (mesesDisponiveis.length > 0) {
       if (!filtroMes || !mesesDisponiveis.includes(filtroMes)) {
@@ -5726,12 +5731,12 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       setFiltroMes("");
     }
   }, [mesesDisponiveis, filtroMes]);
-
+ 
   const diasDisponiveis = React.useMemo(() => {
     if (!filtroAno || !filtroMes) return [];
     return datasComAnoMes.filter(d => d.ano === filtroAno && d.mes === filtroMes);
   }, [datasComAnoMes, filtroAno, filtroMes]);
-
+ 
   useEffect(() => {
     if (selDataSorteio === "todas") return;
     if (diasDisponiveis.length > 0) {
@@ -5743,9 +5748,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       setSelDataSorteio(datas[0].id);
     }
   }, [diasDisponiveis, selDataSorteio, datas]);
-
+ 
   const lastLoadedDateIdRef = useRef(null);
-
+ 
   const getInitialPeladaStateForDate = (d) => {
     if (d.peladaState) return d.peladaState;
     if (d.confrontos && d.confrontos.length > 0) {
@@ -5761,12 +5766,12 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     }
     return pelada.peladaState || null;
   };
-
+ 
   const saveDateState = (updates) => {
     if (!selDataSorteio) return;
     onUpdateData(selDataSorteio, updates);
   };
-
+ 
   useEffect(() => {
     if (!selDataSorteio) return;
     if (lastLoadedDateIdRef.current === selDataSorteio) return;
@@ -5776,8 +5781,12 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       setPeladaStateLocal(getInitialPeladaStateForDate(d));
       setBenchState(d.initialBench !== undefined ? d.initialBench : (pelada.initialBench || []));
       setJogadoresPausados(d.jogadoresPausados !== undefined ? d.jogadoresPausados : []);
-      setPpt(d.playersPerTeam !== undefined ? d.playersPerTeam : (pelada.playersPerTeam || 7));
-      setNumTeams(d.numTeams !== undefined ? d.numTeams : 2);
+      const loadedPpt = d.playersPerTeam !== undefined ? d.playersPerTeam : (pelada.playersPerTeam || 7);
+      const loadedNumTeams = d.numTeams !== undefined ? d.numTeams : 2;
+      setPpt(loadedPpt);
+      setPptInput(String(loadedPpt));
+      setNumTeams(loadedNumTeams);
+      setNumTeamsInput(String(loadedNumTeams));
       setManualAssignments(d.manualAssignments !== undefined ? d.manualAssignments : {});
       lastLoadedDateIdRef.current = selDataSorteio;
     } else {
@@ -5786,7 +5795,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       setBenchState([]);
       setJogadoresPausados([]);
       setPpt(7);
+      setPptInput("7");
       setNumTeams(2);
+      setNumTeamsInput("2");
       setManualAssignments({});
       lastLoadedDateIdRef.current = null;
     }
@@ -5802,6 +5813,11 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
   function doDraw(){
     if(!selDataSorteio){alert("Selecione uma data para realizar o sorteio!");return;}
+    if(drawnTeams) {
+      if(!confirm("Tem certeza que deseja refazer o sorteio desta data? Isso apagará as partidas e pontuações do dia!")) {
+        return;
+      }
+    }
     
     // Separa os presentes em sorteáveis (independentes) e revezadores
     const { sorteaveis, revezadores } = separarAtletasSorteio(presentes, numTeams, ppt);
@@ -5852,6 +5868,11 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
   function confirmManualFormation() {
     if(!selDataSorteio){alert("Selecione uma data!");return;}
+    if(drawnTeams) {
+      if(!confirm("Tem certeza que deseja refazer o sorteio desta data? Isso apagará as partidas e pontuações do dia!")) {
+        return;
+      }
+    }
     
     // Auto-aloca convidados de revezamento que ficaram "Sem Time" na mesma partição do anfitrião
     const updatedAssignments = { ...manualAssignments };
@@ -6661,212 +6682,6 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           scope="pelada"
         />
       )}
-      {currentAba==="sorteio"&&(
-        String(selDataSorteio) === "todas" ? (
-          <div style={{textAlign:"center",padding:40,color:t.textSec,background:t.card,borderRadius:8,border:`1px solid ${t.tabBorder}`}}>
-            Selecione uma data específica no seletor global "DIA DA PELADA" para realizar o sorteio dos times.
-          </div>
-        ) : (
-          <div>
-          {/* Se a data for realizada */}
-          {isRealizada && (
-            <div style={{...S.card, marginBottom: 14, background: "#1D9E7512", border: "1px solid #1D9E7533", color: "#1D9E75", display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 8}}>
-              <span>🔒</span>
-              <span style={{fontSize: 13, fontWeight: 700}}>Esta rodada foi realizada e as formações de times estão congeladas (sem alterações).</span>
-            </div>
-          )}
-
-          {/* Se a data estiver agendada e os times ainda não foram gerados */}
-          {!isRealizada && !drawnTeams && (
-            <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px solid ${t.cardBorder}`}}>
-              <div style={{display:"flex",gap:10,marginBottom:14,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:14}}>
-                <button onClick={()=>setModoSorteio("auto")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="auto"?"#7F77DD":"transparent",color:modoSorteio==="auto"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="auto"?"#7F77DD":t.cardBorder}`,cursor:"pointer"}}>🎲 Sorteio Automático</button>
-                <button onClick={()=>setModoSorteio("manual")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="manual"?"#378ADD":"transparent",color:modoSorteio==="manual"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="manual"?"#378ADD":t.cardBorder}`,cursor:"pointer"}}>🖐️ Formação Manual</button>
-              </div>
-              
-              {/* O Dia selecionado é gerenciado pelo filtro global no topo */}
-
-              <div style={{marginBottom: 14, fontSize: 13, color: t.textSec}}>
-                <b>Jogadores Presentes ({presentes.length}):</b> {presentes.map(p => getPlayerName(p)).join(", ") || "Nenhum jogador marcado como presente nesta data."}
-              </div>
-
-              <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:14}}>
-                <div style={{display:"flex",gap:6,alignItems:"center"}}><label style={{...S.label,margin:0}}>Jogadores/time:</label><input type="number" min={5} max={15} value={ppt} onChange={e=>{const val=Math.max(5,Number(e.target.value));setPpt(val);saveDateState({playersPerTeam:val});}} style={{...S.input,width:60}}/></div>
-                <div style={{display:"flex",gap:6,alignItems:"center"}}><label style={{...S.label,margin:0}}>Times (máx {maxTeams}):</label><input type="number" min={2} max={maxTeams} value={numTeams} onChange={e=>{const val=Math.min(maxTeams,Math.max(2,Number(e.target.value)));setNumTeams(val);saveDateState({numTeams:val});}} style={{...S.input,width:56}}/></div>
-              </div>
-
-              {modoSorteio==="auto" && (
-                <button onClick={doDraw} style={S.btn("#7F77DD")}>🎲 Sortear Times Automaticamente</button>
-              )}
-              
-              {modoSorteio==="manual" && (
-                <div>
-                  <div style={{display:"flex",gap:10,marginBottom:20}}>
-                    <button onClick={randomFillManual} style={{...S.btn(t.card,t.text),border:`1px solid ${t.cardBorder}`,flex:1,justifyContent:"center"}}>Preencher Aleatório</button>
-                    <button onClick={confirmManualFormation} style={{...S.btn("#378ADD"),flex:1,justifyContent:"center"}}>✓ Iniciar Pelada</button>
-                  </div>
-                  
-                  <div style={{marginBottom:16}}>
-                    <div style={{fontWeight:700,fontSize:12,color:t.textSec,marginBottom:8}}>Sem Time ({presentes.filter(p=>!manualAssignments[p.id]||manualAssignments[p.id]==="none").length})</div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                      {presentes.filter(p=>!manualAssignments[p.id]||manualAssignments[p.id]==="none").map(p=>(
-                         <button key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,border:`1px solid ${t.cardBorder}`,background:t.card,color:t.text,cursor:"pointer"}}><PlayerAvatar atleta={p} size={18}/> {getPlayerName(p)}</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
-                    {Array.from({length:numTeams}).map((_,i)=>{
-                      const tId = `t${i+1}`;
-                      const pInTeam = presentes.filter(p=>manualAssignments[p.id]===tId);
-                      return(
-                        <div key={tId} style={{...S.card,padding:10,borderColor:COLORS[i%COLORS.length]+"55"}}>
-                          <div style={{fontWeight:700,fontSize:13,color:COLORS[i%COLORS.length],marginBottom:8}}>Time {i+1} ({pInTeam.length})</div>
-                          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                            {pInTeam.map(p=>(
-                               <div key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,cursor:"pointer",padding:"4px",borderRadius:4,background:t.inputBg}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)}</div>
-                            ))}
-                          </div>
-                        </div>
-                      )
-                    })}
-                    <div style={{...S.card,padding:10,borderColor:"#BA751755"}}>
-                      <div style={{fontWeight:700,fontSize:13,color:"#BA7517",marginBottom:8}}>Banco ({presentes.filter(p=>manualAssignments[p.id]==="bench").length})</div>
-                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                        {presentes.filter(p=>manualAssignments[p.id]==="bench").map(p=>(
-                           <div key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,cursor:"pointer",padding:"4px",borderRadius:4,background:t.inputBg}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)}</div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Se a data estiver agendada e os times já foram gerados, permite "Refazer Sorteio" */}
-          {!isRealizada && drawnTeams && (
-            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 14, flexWrap:"wrap", gap: 10}}>
-              <div style={{fontSize: 13, color: t.textSec}}>
-                Os times foram gerados e o sorteio está ativo para esta data.
-              </div>
-              <button 
-                onClick={() => {
-                  if (confirm("Tem certeza que deseja refazer o sorteio desta data? Isso apagará as partidas e pontuações do dia!")) {
-                    setDrawnTeams(null);
-                    setBenchState([]);
-                    setPeladaStateLocal(null);
-                    saveDateState({
-                      drawnTeams: null,
-                      initialBench: [],
-                      peladaState: null,
-                      manualAssignments: {}
-                    });
-                  }
-                }} 
-                style={S.btnSm("#E24B4A22","#E24B4A")}
-              >
-                🔄 Refazer Sorteio
-              </button>
-            </div>
-          )}
-          
-          {assignModal && (
-            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
-              <div style={{...S.card,width:"100%",maxWidth:300}}>
-                <div style={{fontWeight:700,fontSize:15,color:t.text,marginBottom:12}}>Mover {getPlayerName(atletas.find(a=>a.id===assignModal))} para:</div>
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  {Array.from({length:numTeams}).map((_,i)=>(
-                    <button key={i} onClick={()=>toggleManualAssignment(assignModal, `t${i+1}`)} style={{...S.btn(COLORS[i%COLORS.length]+"22",COLORS[i%COLORS.length]),justifyContent:"center",fontWeight:700}}>Time {i+1}</button>
-                  ))}
-                  <button onClick={()=>toggleManualAssignment(assignModal, "bench")} style={{...S.btn("#BA751722","#BA7517"),justifyContent:"center",fontWeight:700}}>Banco</button>
-                  <button onClick={()=>toggleManualAssignment(assignModal, "none")} style={{...S.btn(t.inputBg,t.text),justifyContent:"center",border:`1px solid ${t.cardBorder}`}}>Sem Time</button>
-                  <button onClick={()=>setAssignModal(null)} style={{...S.btn(t.card,t.textSec),justifyContent:"center",marginTop:8,border:"none"}}>Cancelar</button>
-                </div>
-              </div>
-            </div>
-          )}
-          {drawnTeams&&(
-            <div>
-              {!isRealizada && (
-                <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px dashed ${t.cardBorder}`,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                  <label style={{...S.label,margin:0}}>+ Retardatário:</label>
-                  <select style={{...S.select,flex:1,minWidth:140}} value={addBenchId} onChange={e=>setAddBenchId(e.target.value)}>
-                    <option value="">Selecione quem chegou...</option>
-                    {vinculados.filter(a=>!benchState.some(b=>String(b.id)===String(a.id)) && !drawnTeams.some(t=>t.players.some(p=>String(p.id)===String(a.id)))).map(a=><option key={a.id} value={a.id}>{a.nome}</option>)}
-                  </select>
-                  <button onClick={addToBench} style={S.btn("#BA7517")}>Adicionar ao Banco</button>
-                </div>
-              )}
-              {benchState.length>0&&<div style={{...S.card,border:"1px solid #BA751733",background:"#BA751710",marginBottom:12}}><div style={{fontWeight:700,color:"#BA7517",marginBottom:6}}>🪑 Banco ({benchState.length})</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{benchState.map((b,i)=>{
-                const isRev = b.isConvidado && b.convidadoDe;
-                const anfitriaoNome = isRev ? (atletas.find(x=>x.id===b.convidadoDe)?.apelido || atletas.find(x=>x.id===b.convidadoDe)?.nome || "?") : null;
-                return (
-                  <span key={i} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12,padding:"3px 10px",borderRadius:16,background: isRev ? "#7F77DD22" : "#BA751722",color: isRev ? "#7F77DD" : "#BA7517",fontWeight:600,border: isRev ? "1px solid #7F77DD44" : "none"}}>
-                    <PlayerAvatar atleta={b} size={16}/>
-                    {b.goleiro?"🧤":"⚽"} {getPlayerName(b)}
-                    {isRev && <span title={`Reveza com ${anfitriaoNome}`} style={{fontSize:9,opacity:0.85}}>🔄{anfitriaoNome}</span>}
-                    {!isRealizada && isRev && (
-                      <button
-                        onClick={()=>{
-                          if(confirm(`Promover "${getPlayerName(b)}" a jogador independente? Ele deixará de revezar com o anfitrião.`)){
-                            let newBenchLocal = benchState.map(x => String(x.id)===String(b.id) ? {...x,isConvidado:false,convidadoDe:undefined} : x);
-                            let newDTLocal = drawnTeams ? drawnTeams.map(tm => ({...tm,players:tm.players.map(p=>String(p.id)===String(b.id)?{...p,isConvidado:false,convidadoDe:undefined}:p)})) : drawnTeams;
-                            let psLocal = peladaState ? {...peladaState, bench: peladaState.bench.map(x=>String(x.id)===String(b.id)?{...x,isConvidado:false,convidadoDe:undefined}:x), teams: peladaState.teams.map(tm=>({...tm,players:tm.players.map(p=>String(p.id)===String(b.id)?{...p,isConvidado:false,convidadoDe:undefined}:p)}))} : null;
-                            setBenchState(newBenchLocal); setDrawnTeams(newDTLocal); setPeladaStateLocal(psLocal);
-                            saveDateState({drawnTeams:newDTLocal,initialBench:newBenchLocal,peladaState:psLocal});
-                          }
-                        }}
-                        style={{border:"none",background:"transparent",color:"#1D9E75",cursor:"pointer",padding:"0 2px",fontSize:10,fontWeight:800}}
-                        title="Promover a titular independente"
-                      >⬆</button>
-                    )}
-                    {!isRealizada && <button onClick={()=>setSubModal(b.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:0,marginLeft:2,marginRight:2,fontSize:10,fontWeight:800}} title="Substituir / Mover">↔</button>}
-                    {!isRealizada && <button onClick={()=>removeFromRotation(b.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,marginLeft:2,fontWeight:800}}>×</button>}
-                  </span>
-                );
-              })}</div></div>}
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
-                {drawnTeams.map((tm,ti)=>(
-                  <div key={ti} style={{...S.card,borderColor:COLORS[ti%COLORS.length]+"55",padding:12}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><div style={{width:10,height:10,borderRadius:"50%",background:COLORS[ti%COLORS.length]}}/><span style={{fontWeight:700,fontSize:13,color:t.text}}>{tm.name}</span></div>
-                    {tm.players.map((p,pi)=>{
-                      const pIsRev = p.isConvidado && p.convidadoDe;
-                      const pAnfNome = pIsRev ? (atletas.find(x=>x.id===p.convidadoDe)?.apelido||atletas.find(x=>x.id===p.convidadoDe)?.nome||"?") : null;
-                      return(
-                        <div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,padding:"3px 0",borderBottom:`1px solid ${t.cardBorder}`,background: pIsRev ? "#7F77DD08" : "transparent",borderRadius: pIsRev ? 4 : 0,paddingLeft: pIsRev ? 4 : 0}}>
-                          <PlayerAvatar atleta={p} size={18}/>
-                          <span>{(p.goleiro||p.isGoalkeeper)?"🧤":"⚽"}</span>
-                          <span style={{flex:1,fontWeight:500,color: pIsRev ? "#7F77DD" : t.text}}>{getPlayerName(p)}</span>
-                          {pIsRev && <span style={{fontSize:9,color:"#7F77DD",opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
-                          {!isRealizada && pIsRev && (
-                            <button
-                              onClick={()=>{
-                                if(confirm(`Promover "${getPlayerName(p)}" a jogador independente?`)){
-                                  let newBenchLocal = benchState.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x);
-                                  let newDTLocal = drawnTeams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}));
-                                  let psLocal = peladaState ? {...peladaState,bench:peladaState.bench.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x),teams:peladaState.teams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}))} : null;
-                                  setBenchState(newBenchLocal); setDrawnTeams(newDTLocal); setPeladaStateLocal(psLocal);
-                                  saveDateState({drawnTeams:newDTLocal,initialBench:newBenchLocal,peladaState:psLocal});
-                                }
-                              }}
-                              style={{border:"none",background:"transparent",color:"#1D9E75",cursor:"pointer",padding:"0 2px",fontSize:10,fontWeight:800}}
-                              title="Promover a titular independente"
-                            >⬆</button>
-                          )}
-                          {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:11,fontWeight:700,marginRight:4}} title="Substituir / Mover">🔄</button>}
-                          {!isRealizada && <button onClick={()=>removeFromRotation(p.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:12,fontWeight:700}}>×</button>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          </div>
-        )
-      )}
       {currentAba==="jogos"&&(
         String(selDataSorteio) === "todas" ? (
           <div style={{textAlign:"center",padding:40,color:t.textSec,background:t.card,borderRadius:8,border:`1px solid ${t.tabBorder}`}}>
@@ -6874,229 +6689,536 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           </div>
         ) : (
           <div>
-          {/* Os jogos exibidos correspondem ao Dia selecionado no filtro global */}
-
-          {peladaState?.currentMatch&&!peladaState.currentMatch.played&&String(peladaState.currentMatch.dataRealizacaoId)===String(selDataSorteio)&&(
-            <div style={{...S.card,border:`2px solid ${isRealizada ? t.cardBorder : "#1D9E7555"}`,marginBottom:20}}>
-              <div style={{fontSize:11,fontWeight:700,color:isRealizada ? t.textSec : "#1D9E75",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>
-                ⚽ Jogo {(peladaState.matchLog?.filter(m=>String(m.dataRealizacaoId)===String(selDataSorteio)).length||0)+1} {isRealizada && "(Congelado - Rodada Realizada)"}
+            {isRealizada && !drawnTeams && (
+              <div style={{...S.card, marginBottom: 14, background: "#1D9E7512", border: "1px solid #1D9E7533", color: "#1D9E75", display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 8}}>
+                <span>🔒</span>
+                <span style={{fontSize: 13, fontWeight: 700}}>Esta rodada foi realizada e as formações de times estão congeladas (sem alterações).</span>
               </div>
-              
-              {!isRealizada && <MatchTimer t={t} defaultMinutes={10} timerKey={`pelada_${pelada.id}`} />}
+            )}
 
-              <div style={{display:"flex", justifyContent:"center", marginBottom:12}}>
-                <div style={{textAlign:"center",padding:"0 2px",flexShrink:0}}>
-                  <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                    {isRealizada ? (
-                      <span style={{fontSize:20,fontWeight:850,color:t.text}}>{scoreA || "0"} × {scoreB || "0"}</span>
-                    ) : (
-                      <>
-                        <input type="number" min={0} max={99} value={scoreA} onChange={e=>setScoreA(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
-                        <span style={{fontWeight:700,color:t.textSec,fontSize:14}}>×</span>
-                        <input type="number" min={0} max={99} value={scoreB} onChange={e=>setScoreB(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
-                      </>
+            {(!isRealizada || !drawnTeams) && (
+              <div style={{
+                ...S.card, 
+                marginBottom: 14, 
+                background: t.inputBg, 
+                border: `1px solid ${t.cardBorder}`, 
+                padding: drawnTeams ? "12px 16px" : "16px"
+              }}>
+                {drawnTeams ? (
+                  <div 
+                    onClick={() => setShowSorteioConfig(!showSorteioConfig)} 
+                    style={{display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer"}}
+                  >
+                    <div style={{fontWeight: 700, fontSize: 13, color: t.text, display: "flex", alignItems: "center", gap: 6}}>
+                      <span>🎲 Painel de Sorteio</span>
+                      <span style={{fontSize: 10, background: "#1D9E7522", color: "#1D9E75", padding: "2px 6px", borderRadius: 4, fontWeight: 700}}>Sorteado</span>
+                    </div>
+                    <span style={{fontSize: 11, color: t.textSec, fontWeight: 700}}>{showSorteioConfig ? "▲ Recolher Ajustes" : "▼ Ajustes de Sorteio"}</span>
+                  </div>
+                ) : null}
+
+                {(!drawnTeams || showSorteioConfig) && (
+                  <div style={drawnTeams ? {marginTop: 14, paddingTop: 14, borderTop: `1px solid ${t.cardBorder}`} : {}}>
+                    <div style={{display:"flex",gap:10,marginBottom:14,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:14}}>
+                      <button onClick={()=>setModoSorteio("auto")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="auto"?"#7F77DD":"transparent",color:modoSorteio==="auto"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="auto"?"#7F77DD":t.cardBorder}`,cursor:"pointer"}}>🎲 Sorteio Automático</button>
+                      <button onClick={()=>setModoSorteio("manual")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="manual"?"#378ADD":"transparent",color:modoSorteio==="manual"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="manual"?"#378ADD":t.cardBorder}`,cursor:"pointer"}}>🖐️ Formação Manual</button>
+                    </div>
+                    
+                    <div style={{marginBottom: 14, fontSize: 13, color: t.textSec}}>
+                      <b>Jogadores Presentes ({presentes.length}):</b> {presentes.map(p => getPlayerName(p)).join(", ") || "Nenhum jogador marcado como presente nesta data."}
+                    </div>
+
+                    <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:14}}>
+                      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                        <label style={{...S.label,margin:0}}>Jogadores/time:</label>
+                        <input 
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={pptInput} 
+                          onChange={e=>{
+                            const cleanVal = e.target.value.replace(/\D/g, "");
+                            setPptInput(cleanVal);
+                            if (cleanVal !== "") {
+                              const val = Math.max(5, Math.min(15, Number(cleanVal)));
+                              setPpt(val);
+                              saveDateState({playersPerTeam:val});
+                            }
+                          }}
+                          onBlur={() => {
+                            const val = Math.max(5, Math.min(15, Number(pptInput) || 7));
+                            setPpt(val);
+                            setPptInput(String(val));
+                            saveDateState({playersPerTeam:val});
+                          }}
+                          style={{...S.input,width:60}}
+                        />
+                      </div>
+                      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                        <label style={{...S.label,margin:0}}>Times (máx {maxTeams}):</label>
+                        <input 
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={numTeamsInput} 
+                          onChange={e=>{
+                            const cleanVal = e.target.value.replace(/\D/g, "");
+                            setNumTeamsInput(cleanVal);
+                            if (cleanVal !== "") {
+                              const val = Math.max(2, Math.min(maxTeams, Number(cleanVal)));
+                              setNumTeams(val);
+                              saveDateState({numTeams:val});
+                            }
+                          }}
+                          onBlur={() => {
+                            const val = Math.max(2, Math.min(maxTeams, Number(numTeamsInput) || 2));
+                            setNumTeams(val);
+                            setNumTeamsInput(String(val));
+                            saveDateState({numTeams:val});
+                          }}
+                          style={{...S.input,width:56}}
+                        />
+                      </div>
+                    </div>
+
+                    {modoSorteio==="auto" && (
+                      <button onClick={doDraw} style={S.btn("#7F77DD")}>🎲 Sortear Times Automaticamente</button>
+                    )}
+                    
+                    {modoSorteio==="manual" && (
+                      <div>
+                        <div style={{display:"flex",gap:10,marginBottom:20}}>
+                          <button onClick={randomFillManual} style={{...S.btn(t.card,t.text),border:`1px solid ${t.cardBorder}`,flex:1,justifyContent:"center"}}>Preencher Aleatório</button>
+                          <button onClick={confirmManualFormation} style={{...S.btn("#378ADD"),flex:1,justifyContent:"center"}}>✓ Iniciar Pelada</button>
+                        </div>
+                        
+                        <div style={{marginBottom:16}}>
+                          <div style={{fontWeight:700,fontSize:12,color:t.textSec,marginBottom:8}}>Sem Time ({presentes.filter(p=>!manualAssignments[p.id]||manualAssignments[p.id]==="none").length})</div>
+                          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                            {presentes.filter(p=>!manualAssignments[p.id]||manualAssignments[p.id]==="none").map(p=>(
+                               <button key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:20,border:`1px solid ${t.cardBorder}`,background:t.card,color:t.text,cursor:"pointer"}}><PlayerAvatar atleta={p} size={18}/> {getPlayerName(p)}</button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
+                          {Array.from({length:numTeams}).map((_,i)=>{
+                            const tId = `t${i+1}`;
+                            const pInTeam = presentes.filter(p=>manualAssignments[p.id]===tId);
+                            return(
+                              <div key={tId} style={{...S.card,padding:10,borderColor:COLORS[i%COLORS.length]+"55"}}>
+                                <div style={{fontWeight:700,fontSize:13,color:COLORS[i%COLORS.length],marginBottom:8}}>Time {i+1} ({pInTeam.length})</div>
+                                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                                  {pInTeam.map(p=>(
+                                     <div key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,cursor:"pointer",padding:"4px",borderRadius:4,background:t.inputBg}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)}</div>
+                                  ))}
+                                </div>
+                              </div>
+                            )
+                          })}
+                          <div style={{...S.card,padding:10,borderColor:"#BA751755"}}>
+                            <div style={{fontWeight:700,fontSize:13,color:"#BA7517",marginBottom:8}}>Banco ({presentes.filter(p=>manualAssignments[p.id]==="bench").length})</div>
+                            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                              {presentes.filter(p=>manualAssignments[p.id]==="bench").map(p=>(
+                                 <div key={p.id} onClick={()=>setAssignModal(p.id)} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,cursor:"pointer",padding:"4px",borderRadius:4,background:t.inputBg}}><PlayerAvatar atleta={p} size={16}/> {getPlayerName(p)}</div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
-                </div>
+                )}
               </div>
+            )}
 
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,alignItems:"start",width:"100%",overflow:"hidden",marginBottom:12}}>
-                <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamA)}55`,padding:6,textAlign:"right",minWidth:0,overflow:"hidden"}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,minWidth:0,overflow:"hidden"}}><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamA}</span><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamA),flexShrink:0}}/></div>
-                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>
-                    {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=>(
-                      <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                        <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}</span>
-                        {isRealizada ? (
-                          sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517"}}>⚽({sumulaGols[p.id]})</span> : null
-                        ) : (
-                          <>
-                            <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'A')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",height:18}}/>
-                            <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>
-                            <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamA});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamB)}55`,padding:6,minWidth:0,overflow:"hidden"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:4,minWidth:0,overflow:"hidden"}}><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamB),flexShrink:0}}/><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamB}</span></div>
-                  <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>
-                    {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=>(
-                      <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                        {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>}
-                        {!isRealizada && <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamB});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>}
-                        {isRealizada ? (
-                          sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517"}}>⚽({sumulaGols[p.id]})</span> : null
-                        ) : (
-                          <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'B')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/>
-                        )}
-                        <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {!isRealizada && <button onClick={saveMatchLocal} style={{...S.btn(),width:"100%",justifyContent:"center"}}>✓ Registrar</button>}
-              {peladaState?.queue?.length > 2 && (
-                <div style={{marginTop:16, paddingTop:16, borderTop:`1px dashed ${t.cardBorder}`}}>
-                  <div style={{fontSize:12,fontWeight:700,color:t.textSec,marginBottom:8,textAlign:"center"}}>Próximo a entrar: <span style={{color:"#7F77DD"}}>{peladaState.queue[2]}</span></div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center"}}>
-                    {peladaState.teams?.find(tm=>tm.name===peladaState.queue[2])?.players.map((p,pi)=><div key={pi} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,background:t.inputBg,padding:"4px 10px",borderRadius:12,border:`1px solid ${t.inputBorder}`}}>
-                      <PlayerAvatar atleta={p} size={16}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
-                    </div>)}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          {!peladaState?.currentMatch&&peladaState?.queue?.length>=2&&(
-            <div style={{...S.card,textAlign:"center",marginBottom:16,border:`2px solid ${isRealizada ? t.cardBorder : "#7F77DD55"}`}}>
-              <div style={{fontWeight:600,color:t.text,marginBottom:12}}>Próximo Jogo {isRealizada && "(Congelado)"}</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-                <div style={{background:"#7F77DD11",padding:10,borderRadius:12}}>
-                  <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[0]}</b>
-                  <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
-                    {peladaState.teams?.find(tm=>tm.name===peladaState.queue[0])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                      <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
-                    </div>)}
-                  </div>
-                </div>
-                <div style={{background:"#7F77DD11",padding:10,borderRadius:12}}>
-                  <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[1]}</b>
-                  <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
-                    {peladaState.teams?.find(tm=>tm.name===peladaState.queue[1])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                      <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
-                    </div>)}
-                  </div>
-                </div>
-              </div>
-              {!isRealizada && <button onClick={()=>{const ps=startNextMatch(peladaState, selDataSorteio);setPeladaStateLocal(ps);saveDateState({peladaState:ps});}} style={S.btn("#7F77DD")}>▶ Iniciar Próximo Jogo na data selecionada</button>}
-            </div>
-          )}
-          {(!peladaState || (!peladaState.currentMatch && (!peladaState.queue || peladaState.queue.length < 2))) && (
-            <div style={{textAlign:"center",padding:40,color:t.textSec}}>
-              {isRealizada ? "Todos os jogos desta data foram concluídos e registrados." : "Faça o sorteio primeiro para a data selecionada."}
-            </div>
-          )}
+            {drawnTeams && (
+              /* --- JOGOS E BANCO / FILA / GESTÃO --- */
+              <div>
+                {peladaState?.currentMatch&&!peladaState.currentMatch.played&&String(peladaState.currentMatch.dataRealizacaoId)===String(selDataSorteio)&&(
+                  <div style={{...S.card,border:`2px solid ${isRealizada ? t.cardBorder : "#1D9E7555"}`,marginBottom:20}}>
+                    <div style={{fontSize:11,fontWeight:700,color:isRealizada ? t.textSec : "#1D9E75",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>
+                      ⚽ Jogo {(peladaState.matchLog?.filter(m=>String(m.dataRealizacaoId)===String(selDataSorteio)).length||0)+1} {isRealizada && "(Congelado - Rodada Realizada)"}
+                    </div>
+                    
+                    {!isRealizada && <MatchTimer t={t} defaultMinutes={10} timerKey={`pelada_${pelada.id}`} />}
 
-          {jogadoresPausados.length > 0 && (
-            <div style={{...S.card, border: `1px solid ${t.cardBorder}`, marginBottom: 20}}>
-              <div style={{fontSize:12, fontWeight:700, color:t.text, marginBottom:10, display:"flex", alignItems:"center", gap:6}}>
-                <span>🚑 Atletas que Saíram / Descansando ({jogadoresPausados.length})</span>
-              </div>
-              <div style={{display:"flex", flexDirection:"column", gap:8}}>
-                {jogadoresPausados.map((p) => {
-                  const guest = atletas.find(x => x.isConvidado && String(x.convidadoDe) === String(p.id));
-                  const isGuestActive = guest && (
-                    benchState.some(b => String(b.id) === String(guest.id)) ||
-                    (drawnTeams && drawnTeams.some(t => t.players.some(pl => String(pl.id) === String(guest.id)))) ||
-                    jogadoresPausados.some(j => String(j.id) === String(guest.id))
-                  );
-                  return (
-                    <div key={p.id} style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:t.inputBg, borderRadius:10, border:`1px solid ${t.inputBorder}`}}>
-                      <div style={{display:"flex", alignItems:"center", gap:8}}>
-                        <PlayerAvatar atleta={p} size={24}/>
-                        <div>
-                          <div style={{fontWeight:600, fontSize:13, color:t.text}}>{getPlayerName(p)}</div>
-                          {guest && isGuestActive && (
-                            <div style={{fontSize:11, color:"#7F77DD", marginTop:2, display:"flex", alignItems:"center", gap:4}}>
-                              <input 
-                                type="checkbox" 
-                                id={`retornar-vinculo-${p.id}`}
-                                defaultChecked={true}
-                                style={{width:14, height:14, accentColor:"#7F77DD"}}
-                              />
-                              <label htmlFor={`retornar-vinculo-${p.id}`} style={{cursor:"pointer", fontSize: 11}}>Retornar com vínculo com {getPlayerName(guest)}</label>
-                            </div>
+                    <div style={{display:"flex", justifyContent:"center", marginBottom:12}}>
+                      <div style={{textAlign:"center",padding:"0 2px",flexShrink:0}}>
+                        <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                          {isRealizada ? (
+                            <span style={{fontSize:20,fontWeight:850,color:t.text}}>{scoreA || "0"} × {scoreB || "0"}</span>
+                          ) : (
+                            <>
+                              <input type="number" min={0} max={99} value={scoreA} onChange={e=>setScoreA(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
+                              <span style={{fontWeight:700,color:t.textSec,fontSize:14}}>×</span>
+                              <input type="number" min={0} max={99} value={scoreB} onChange={e=>setScoreB(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
+                            </>
                           )}
                         </div>
                       </div>
+                    </div>
+
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,alignItems:"start",width:"100%",overflow:"hidden",marginBottom:12}}>
+                      <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamA)}55`,padding:6,textAlign:"right",minWidth:0,overflow:"hidden"}}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,minWidth:0,overflow:"hidden"}}><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamA}</span><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamA),flexShrink:0}}/></div>
+                        <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>
+                          {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=>(
+                            <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                              <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}</span>
+                              {isRealizada ? (
+                                sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517"}}>⚽({sumulaGols[p.id]})</span> : null
+                              ) : (
+                                <>
+                                  <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'A')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",height:18}}/>
+                                  <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>
+                                  <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamA});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamB)}55`,padding:6,minWidth:0,overflow:"hidden"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:4,minWidth:0,overflow:"hidden"}}><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamB),flexShrink:0}}/><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamB}</span></div>
+                        <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>
+                          {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=>(
+                            <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                              {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>}
+                              {!isRealizada && <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamB});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>}
+                              {isRealizada ? (
+                                sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517"}}>⚽({sumulaGols[p.id]})</span> : null
+                              ) : (
+                                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'B')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/>
+                              )}
+                              <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {!isRealizada && <button onClick={saveMatchLocal} style={{...S.btn(),width:"100%",justifyContent:"center"}}>✓ Registrar</button>}
+                  </div>
+                )}
+
+                {!peladaState?.currentMatch&&peladaState?.queue?.length>=2&&(
+                  <div style={{...S.card,textAlign:"center",marginBottom:16,border:`2px solid ${isRealizada ? t.cardBorder : "#7F77DD55"}`}}>
+                    <div style={{fontWeight:600,color:t.text,marginBottom:12}}>Próximo Jogo {isRealizada && "(Congelado)"}</div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                      <div style={{background:"#7F77DD11",padding:10,borderRadius:12}}>
+                        <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[0]}</b>
+                        <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
+                          {peladaState.teams?.find(tm=>tm.name===peladaState.queue[0])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
+                            <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                          </div>)}
+                        </div>
+                      </div>
+                      <div style={{background:"#7F77DD11",padding:10,borderRadius:12}}>
+                        <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[1]}</b>
+                        <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
+                          {peladaState.teams?.find(tm=>tm.name===peladaState.queue[1])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
+                            <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                          </div>)}
+                        </div>
+                      </div>
+                    </div>
+                    {!isRealizada && <button onClick={()=>{const ps=startNextMatch(peladaState, selDataSorteio);setPeladaStateLocal(ps);saveDateState({peladaState:ps});}} style={S.btn("#7F77DD")}>▶ Iniciar Próximo Jogo na data selecionada</button>}
+                  </div>
+                )}
+
+                {(!peladaState || (!peladaState.currentMatch && (!peladaState.queue || peladaState.queue.length < 2))) && (
+                  <div style={{textAlign:"center",padding:40,color:t.textSec}}>
+                    {isRealizada ? "Todos os jogos desta data foram concluídos e registrados." : "Faça o sorteio primeiro para a data selecionada."}
+                  </div>
+                )}
+
+                {/* FILA DE ESPERA COMPLETA COM SEUS ATLETAS E AÇÕES */}
+                {peladaState?.queue?.length > 2 && (
+                  <div style={{marginTop:16, paddingTop:16, borderTop:`1px dashed ${t.cardBorder}`, marginBottom: 20}}>
+                    <div style={{fontSize:13, fontWeight:800, color:t.textSec, marginBottom:12, textAlign:"center"}}>📋 Fila de Espera</div>
+                    <div style={{display:"flex", flexDirection:"column", gap:14}}>
+                      {peladaState.queue.slice(2).map((teamName, qIdx) => {
+                        const teamData = peladaState.teams?.find(tm => tm.name === teamName);
+                        return (
+                          <div key={teamName} style={{background: t.inputBg, borderRadius: 10, padding: 10, border: `1px solid ${t.cardBorder}`}}>
+                            <div style={{fontSize:12, fontWeight:700, color:"#7F77DD", marginBottom:8, display:"flex", alignItems:"center", gap:6}}>
+                              <div style={{width:8, height:8, borderRadius:"50%", background:colorOfTeam(teamName)}}/>
+                              <span>{qIdx === 0 ? "Próximo a entrar" : `${qIdx + 1}º na Fila`}: {teamName}</span>
+                            </div>
+                            <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+                              {teamData?.players.map((p, pi) => {
+                                const pIsRev = p.isConvidado && p.convidadoDe;
+                                const pAnfNome = pIsRev ? (atletas.find(x=>x.id===p.convidadoDe)?.apelido||atletas.find(x=>x.id===p.convidadoDe)?.nome||"?") : null;
+                                return (
+                                  <div key={pi} style={{display:"inline-flex", alignItems:"center", gap:4, fontSize:11, background: t.card, padding:"4px 8px", borderRadius:12, border:`1px solid ${t.inputBorder}`}}>
+                                    <PlayerAvatar atleta={p} size={16}/>
+                                    <span style={{fontWeight:500, color: pIsRev ? "#7F77DD" : t.text}}>{getPlayerName(p)}</span>
+                                    {pIsRev && <span style={{fontSize:9, color:"#7F77DD", opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
+                                    {!isRealizada && (
+                                      <>
+                                        <button onClick={()=>setSubModal(p.id)} style={{border:"none", background:"transparent", color:"#0095F6", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Mover / Substituir">🔄</button>
+                                        <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:teamName});}} style={{border:"none", background:"transparent", color:"#E24B4A", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Sair do jogo">🚑</button>
+                                        <button onClick={()=>removeFromRotation(p.id)} style={{border:"none", background:"transparent", color:"#E24B4A", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Remover do Rodízio">×</button>
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* BANCO DE RESERVAS E RETARDATÁRIOS */}
+                {drawnTeams && (
+                  <div style={{marginBottom: 20}}>
+                    {!isRealizada && (
+                      <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px dashed ${t.cardBorder}`,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                        <label style={{...S.label,margin:0}}>+ Retardatário:</label>
+                        <select style={{...S.select,flex:1,minWidth:140}} value={addBenchId} onChange={e=>setAddBenchId(e.target.value)}>
+                          <option value="">Selecione quem chegou...</option>
+                          {vinculados.filter(a=>!benchState.some(b=>String(b.id)===String(a.id)) && !drawnTeams.some(t=>t.players.some(p=>String(p.id)===String(a.id)))).map(a=><option key={a.id} value={a.id}>{a.nome}</option>)}
+                        </select>
+                        <button onClick={addToBench} style={S.btn("#BA7517")}>Adicionar ao Banco</button>
+                      </div>
+                    )}
+                    {benchState.length>0&& (
+                      <div style={{...S.card,border:"1px solid #BA751733",background:"#BA751710",marginBottom:12}}>
+                        <div style={{fontWeight:700,color:"#BA7517",marginBottom:6}}>🪑 Banco ({benchState.length})</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                          {benchState.map((b,i)=>{
+                            const isRev = b.isConvidado && b.convidadoDe;
+                            const anfitriaoNome = isRev ? (atletas.find(x=>x.id===b.convidadoDe)?.apelido || atletas.find(x=>x.id===b.convidadoDe)?.nome || "?") : null;
+                            return (
+                              <span key={i} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12,padding:"3px 10px",borderRadius:16,background: isRev ? "#7F77DD22" : "#BA751722",color: isRev ? "#7F77DD" : "#BA7517",fontWeight:600,border: isRev ? "1px solid #7F77DD44" : "none"}}>
+                                <PlayerAvatar atleta={b} size={16}/>
+                                {b.goleiro?"🧤":"⚽"} {getPlayerName(b)}
+                                {isRev && <span title={`Reveza com ${anfitriaoNome}`} style={{fontSize:9,opacity:0.85}}>🔄{anfitriaoNome}</span>}
+                                {!isRealizada && isRev && (
+                                  <button
+                                    onClick={()=>{
+                                      if(confirm(`Promover "${getPlayerName(b)}" a jogador independente? Ele deixará de revezar com o anfitrião.`)){
+                                        let newBenchLocal = benchState.map(x => String(x.id)===String(b.id) ? {...x,isConvidado:false,convidadoDe:undefined} : x);
+                                        let newDTLocal = drawnTeams ? drawnTeams.map(tm => ({...tm,players:tm.players.map(p=>String(p.id)===String(b.id)?{...p,isConvidado:false,convidadoDe:undefined}:p)})) : drawnTeams;
+                                        let psLocal = peladaState ? {...peladaState, bench: peladaState.bench.map(x=>String(x.id)===String(b.id)?{...x,isConvidado:false,convidadoDe:undefined}:x), teams: peladaState.teams.map(tm=>({...tm,players:tm.players.map(p=>String(p.id)===String(b.id)?{...p,isConvidado:false,convidadoDe:undefined}:p)}))} : null;
+                                        setBenchState(newBenchLocal); setDrawnTeams(newDTLocal); setPeladaStateLocal(psLocal);
+                                        saveDateState({drawnTeams:newDTLocal,initialBench:newBenchLocal,peladaState:psLocal});
+                                      }
+                                    }}
+                                    style={{border:"none",background:"transparent",color:"#1D9E75",cursor:"pointer",padding:"0 2px",fontSize:10,fontWeight:800}}
+                                    title="Promover a titular independente"
+                                  >⬆</button>
+                                )}
+                                {!isRealizada && (
+                                  <>
+                                    <button onClick={()=>setSubModal(b.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:0,marginLeft:2,marginRight:2,fontSize:10,fontWeight:800}} title="Substituir / Mover">↔</button>
+                                    <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:b.id,playerName:getPlayerName(b),teamName:"bench"});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,marginLeft:2,marginRight:2,fontSize:10,fontWeight:800}} title="Sair do jogo">🚑</button>
+                                    <button onClick={()=>removeFromRotation(b.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,marginLeft:2,fontWeight:800}}>×</button>
+                                  </>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ATLETAS QUE SAÍRAM / DESCANSANDO */}
+                {jogadoresPausados.length > 0 && (
+                  <div style={{...S.card, border: `1px solid ${t.cardBorder}`, marginBottom: 20}}>
+                    <div style={{fontSize:12, fontWeight:700, color:t.text, marginBottom:10, display:"flex", alignItems:"center", gap:6}}>
+                      <span>🚑 Atletas que Saíram / Descansando ({jogadoresPausados.length})</span>
+                    </div>
+                    <div style={{display:"flex", flexDirection:"column", gap:8}}>
+                      {jogadoresPausados.map((p) => {
+                        const guest = atletas.find(x => x.isConvidado && String(x.convidadoDe) === String(p.id));
+                        const isGuestActive = guest && (
+                          benchState.some(b => String(b.id) === String(guest.id)) ||
+                          (drawnTeams && drawnTeams.some(t => t.players.some(pl => String(pl.id) === String(guest.id)))) ||
+                          jogadoresPausados.some(j => String(j.id) === String(guest.id))
+                        );
+                        return (
+                          <div key={p.id} style={{display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:t.inputBg, borderRadius:10, border:`1px solid ${t.inputBorder}`}}>
+                            <div style={{display:"flex", alignItems:"center", gap:8}}>
+                              <PlayerAvatar atleta={p} size={24}/>
+                              <div>
+                                <div style={{fontWeight:600, fontSize:13, color:t.text}}>{getPlayerName(p)}</div>
+                                {guest && isGuestActive && (
+                                  <div style={{fontSize:11, color:"#7F77DD", marginTop:2, display:"flex", alignItems:"center", gap:4}}>
+                                    <input 
+                                      type="checkbox" 
+                                      id={`retornar-vinculo-${p.id}`}
+                                      defaultChecked={true}
+                                      style={{width:14, height:14, accentColor:"#7F77DD"}}
+                                    />
+                                    <label htmlFor={`retornar-vinculo-${p.id}`} style={{cursor:"pointer", fontSize: 11}}>Retornar com vínculo com {getPlayerName(guest)}</label>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {!isRealizada && (
+                              <button 
+                                onClick={() => {
+                                  const chk = document.getElementById(`retornar-vinculo-${p.id}`);
+                                  const retornarComVinculo = chk ? chk.checked : false;
+                                  retornarJogador(p.id, retornarComVinculo);
+                                }} 
+                                style={S.btn("#1D9E75")}
+                              >
+                                Retornar
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* GESTÃO GERAL DAS EQUIPES E REFAZER SORTEIO */}
+                {drawnTeams && (
+                  <div style={{marginTop:24, paddingTop:16, borderTop:`2px solid ${t.cardBorder}`, marginBottom: 20}}>
+                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 14, flexWrap:"wrap", gap: 10}}>
+                      <h3 style={{fontSize:14, fontWeight:700, margin:0, color:t.text}}>👥 Equipes Formadas</h3>
                       {!isRealizada && (
                         <button 
                           onClick={() => {
-                            const chk = document.getElementById(`retornar-vinculo-${p.id}`);
-                            const retornarComVinculo = chk ? chk.checked : false;
-                            retornarJogador(p.id, retornarComVinculo);
+                            if (confirm("Tem certeza que deseja refazer o sorteio desta data? Isso apagará as partidas e pontuações do dia!")) {
+                              setDrawnTeams(null);
+                              setBenchState([]);
+                              setPeladaStateLocal(null);
+                              saveDateState({
+                                drawnTeams: null,
+                                initialBench: [],
+                                peladaState: null,
+                                manualAssignments: {}
+                              });
+                            }
                           }} 
-                          style={S.btn("#1D9E75")}
+                          style={S.btnSm("#E24B4A22","#E24B4A")}
                         >
-                          Retornar
+                          🔄 Refazer Sorteio
                         </button>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
-          {(peladaState?.matchLog||[]).filter(m => String(m.dataRealizacaoId) === String(selDataSorteio)).length>0&&(
-            <div>
-              <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>📜 Histórico da Data</h3>
-               <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {(peladaState?.matchLog||[]).map((m, originalIndex) => ({m, originalIndex})).filter(({m}) => String(m.dataRealizacaoId) === String(selDataSorteio)).reverse().map(({m, originalIndex})=>(
-                  <div key={originalIndex} style={{...S.card,padding:"10px 12px",position:"relative"}}>
-                    {!isRealizada && (
-                      <button 
-                        onClick={() => {
-                          setEditMatchId(originalIndex);
-                          setEditScoreA(m.scoreA);
-                          setEditScoreB(m.scoreB);
-                          setEditSumula(m.sumula || {});
-                        }}
-                        style={{
-                          position: "absolute",
-                          top: 8,
-                          right: 8,
-                          background: "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          fontSize: 12,
-                          padding: 2
-                        }}
-                        title="Editar Partida e Súmula"
-                      >
-                        ✏️
-                      </button>
-                    )}
-                    <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:8}}>
-                      <span style={{fontWeight:800,fontSize:15,color:"#378ADD"}}>{m.scoreA} × {m.scoreB}</span>
-                      <div style={{marginTop:2,textAlign:"center"}}>
-                        <span style={{fontSize:10,color:"#1D9E75",fontWeight:600,display:"block"}}>🏆 {m.winner}</span>
-                        {m.dataRealizacaoId && datas.find(d=>String(d.id)===String(m.dataRealizacaoId)) && (
-                          <span style={{fontSize:9,color:t.textSec,display:"block",marginTop:2}}>
-                            📅 {formatarData(datas.find(d=>String(d.id)===String(m.dataRealizacaoId)).data)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
-                      <div style={{flex:1,textAlign:"left",minWidth:0}}>
-                        <div style={{fontSize:13,fontWeight:m.winner===m.teamA?700:500,color:m.winner===m.teamA?"#1D9E75":t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.teamA}</div>
-                        <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>
-                          {(m.playersA||[]).map((p,pi)=>{
-                            const gols = m.sumula?.[p.id] ? ` ⚽(${m.sumula[p.id]})` : "";
-                            return <div key={pi} style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{gols}</div>;
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
+                      {drawnTeams.map((tm,ti)=>(
+                        <div key={ti} style={{...S.card,borderColor:COLORS[ti%COLORS.length]+"55",padding:12}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}><div style={{width:10,height:10,borderRadius:"50%",background:COLORS[ti%COLORS.length]}}/><span style={{fontWeight:700,fontSize:13,color:t.text}}>{tm.name}</span></div>
+                          {tm.players.map((p,pi)=>{
+                            const pIsRev = p.isConvidado && p.convidadoDe;
+                            const pAnfNome = pIsRev ? (atletas.find(x=>x.id===p.convidadoDe)?.apelido||atletas.find(x=>x.id===p.convidadoDe)?.nome||"?") : null;
+                            return(
+                              <div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,padding:"3px 0",borderBottom:`1px solid ${t.cardBorder}`,background: pIsRev ? "#7F77DD08" : "transparent",borderRadius: pIsRev ? 4 : 0,paddingLeft: pIsRev ? 4 : 0}}>
+                                <PlayerAvatar atleta={p} size={18}/>
+                                <span>{(p.goleiro||p.isGoalkeeper)?"🧤":"⚽"}</span>
+                                <span style={{flex:1,fontWeight:500,color: pIsRev ? "#7F77DD" : t.text}}>{getPlayerName(p)}</span>
+                                {pIsRev && <span style={{fontSize:9,color:"#7F77DD",opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
+                                {!isRealizada && pIsRev && (
+                                  <button
+                                    onClick={()=>{
+                                      if(confirm(`Promover "${getPlayerName(p)}" a jogador independente?`)){
+                                        let newBenchLocal = benchState.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x);
+                                        let newDTLocal = drawnTeams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}));
+                                        let psLocal = peladaState ? {...peladaState,bench:peladaState.bench.map(x=>String(x.id)===String(p.id)?{...x,isConvidado:false,convidadoDe:undefined}:x),teams:peladaState.teams.map(team=>({...team,players:team.players.map(pl=>String(pl.id)===String(p.id)?{...pl,isConvidado:false,convidadoDe:undefined}:pl)}))} : null;
+                                        setBenchState(newBenchLocal); setDrawnTeams(newDTLocal); setPeladaStateLocal(psLocal);
+                                        saveDateState({drawnTeams:newDTLocal,initialBench:newBenchLocal,peladaState:psLocal});
+                                      }
+                                    }}
+                                    style={{border:"none",background:"transparent",color:"#1D9E75",cursor:"pointer",padding:"0 2px",fontSize:10,fontWeight:800}}
+                                    title="Promover a titular independente"
+                                  >⬆</button>
+                                )}
+                                {!isRealizada && (
+                                  <>
+                                    <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:11,fontWeight:700}} title="Substituir / Mover">🔄</button>
+                                    <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:tm.name});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:11}} title="Sair do jogo">🚑</button>
+                                    <button onClick={()=>removeFromRotation(p.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:12,fontWeight:700}}>×</button>
+                                  </>
+                                )}
+                              </div>
+                            );
                           })}
                         </div>
-                      </div>
-                      <div style={{flex:1,textAlign:"right",minWidth:0}}>
-                        <div style={{fontSize:13,fontWeight:m.winner===m.teamB?700:500,color:m.winner===m.teamB?"#1D9E75":t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.teamB}</div>
-                        <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>
-                          {(m.playersB||[]).map((p,pi)=>{
-                            const gols = m.sumula?.[p.id] ? ` (${m.sumula[p.id]})⚽` : "";
-                            return <div key={pi} style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{gols}</div>;
-                          })}
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
-                ))}
+                )}
+
+                {/* HISTÓRICO DA DATA */}
+                {(peladaState?.matchLog||[]).filter(m => String(m.dataRealizacaoId) === String(selDataSorteio)).length>0&&(
+                  <div style={{marginTop:20}}>
+                    <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>📜 Histórico da Data</h3>
+                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {(peladaState?.matchLog||[]).map((m, originalIndex) => ({m, originalIndex})).filter(({m}) => String(m.dataRealizacaoId) === String(selDataSorteio)).reverse().map(({m, originalIndex})=>(
+                        <div key={originalIndex} style={{...S.card,padding:"10px 12px",position:"relative"}}>
+                          {!isRealizada && (
+                            <button 
+                              onClick={() => {
+                                setEditMatchId(originalIndex);
+                                setEditScoreA(m.scoreA);
+                                setEditScoreB(m.scoreB);
+                                setEditSumula(m.sumula || {});
+                              }}
+                              style={{
+                                position: "absolute",
+                                top: 8,
+                                right: 8,
+                                background: "transparent",
+                                border: "none",
+                                cursor: "pointer",
+                                fontSize: 12,
+                                padding: 2
+                              }}
+                              title="Editar Partida e Súmula"
+                            >
+                              ✏️
+                            </button>
+                          )}
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:8}}>
+                            <span style={{fontWeight:800,fontSize:15,color:"#378ADD"}}>{m.scoreA} × {m.scoreB}</span>
+                            <div style={{marginTop:2,textAlign:"center"}}>
+                              <span style={{fontSize:10,color:"#1D9E75",fontWeight:600,display:"block"}}>🏆 {m.winner}</span>
+                              {m.dataRealizacaoId && datas.find(d=>String(d.id)===String(m.dataRealizacaoId)) && (
+                                <span style={{fontSize:9,color:t.textSec,display:"block",marginTop:2}}>
+                                  📅 {formatarData(datas.find(d=>String(d.id)===String(m.dataRealizacaoId)).data)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                            <div style={{flex:1,textAlign:"left",minWidth:0}}>
+                              <div style={{fontSize:13,fontWeight:m.winner===m.teamA?700:500,color:m.winner===m.teamA?"#1D9E75":t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.teamA}</div>
+                              <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>
+                                {(m.playersA||[]).map((p,pi)=>{
+                                  const gols = m.sumula?.[p.id] ? ` ⚽(${m.sumula[p.id]})` : "";
+                                  return <div key={pi} style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{gols}</div>;
+                                })}
+                              </div>
+                            </div>
+                            <div style={{flex:1,textAlign:"right",minWidth:0}}>
+                              <div style={{fontSize:13,fontWeight:m.winner===m.teamB?700:500,color:m.winner===m.teamB?"#1D9E75":t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.teamB}</div>
+                              <div style={{fontSize:10,color:t.textSec,marginTop:2,display:"flex",flexDirection:"column",gap:2}}>
+                                {(m.playersB||[]).map((p,pi)=>{
+                                  const gols = m.sumula?.[p.id] ? ` (${m.sumula[p.id]})⚽` : "";
+                                  return <div key={pi} style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{gols}</div>;
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )}
           </div>
         )
       )}
@@ -7205,7 +7327,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               )}
 
               {/* Opção: Substituir pelo Convidado */}
-              {convidadoEstaAtivo && !sairComConvidado && (
+              {sairModal.teamName !== "bench" && convidadoEstaAtivo && !sairComConvidado && (
                 <div style={{marginBottom:16,padding:"10px 12px",borderRadius:10,background:"#1D9E7510",border:"1px solid #1D9E7533"}}>
                   <label style={{display:"flex",alignItems:"flex-start",gap:10,cursor:"pointer"}}>
                     <input
@@ -7225,23 +7347,27 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               )}
 
               {/* Substituto do banco */}
-              {!substituirPorConvidado && substitutosDisponiveis.length > 0 && (
-                <div style={{marginBottom:16}}>
-                  <div style={{fontSize:11,fontWeight:700,color:t.textSec,textTransform:"uppercase",letterSpacing:0.8,marginBottom:8}}>Substituir por (opcional)</div>
-                  <select
-                    value={sairSubstitutoId}
-                    onChange={e=>setSairSubstitutoId(e.target.value)}
-                    style={{...S.select,fontSize:13}}
-                  >
-                    <option value="">— Nenhum (sai sem substituto) —</option>
-                    {substitutosDisponiveis.map(b=>(
-                      <option key={b.id} value={b.id}>{getPlayerName(b)}{b.goleiro ? " 🧤" : ""}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {!substituirPorConvidado && substitutosDisponiveis.length === 0 && (
-                <div style={{fontSize:12,color:t.textSec,marginBottom:16,background:t.inputBg,padding:"8px 12px",borderRadius:8}}>Banco vazio — o time jogará com um a menos.</div>
+              {sairModal.teamName !== "bench" && (
+                <>
+                  {!substituirPorConvidado && substitutosDisponiveis.length > 0 && (
+                    <div style={{marginBottom:16}}>
+                      <div style={{fontSize:11,fontWeight:700,color:t.textSec,textTransform:"uppercase",letterSpacing:0.8,marginBottom:8}}>Substituir por (opcional)</div>
+                      <select
+                        value={sairSubstitutoId}
+                        onChange={e=>setSairSubstitutoId(e.target.value)}
+                        style={{...S.select,fontSize:13}}
+                      >
+                        <option value="">— Nenhum (sai sem substituto) —</option>
+                        {substitutosDisponiveis.map(b=>(
+                          <option key={b.id} value={b.id}>{getPlayerName(b)}{b.goleiro ? " 🧤" : ""}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {!substituirPorConvidado && substitutosDisponiveis.length === 0 && (
+                    <div style={{fontSize:12,color:t.textSec,marginBottom:16,background:t.inputBg,padding:"8px 12px",borderRadius:8}}>Banco vazio — o time jogará com um a menos.</div>
+                  )}
+                </>
               )}
 
               {/* Ações */}
@@ -11499,18 +11625,15 @@ export default function App(){
   };
 
   const renderComLayout = (conteudo) => {
-    if (isMobile) {
-      return (
-        <div style={{display: "flex", flexDirection: "column", minHeight: "100vh", backgroundColor: t.bg}}>
-          <GEHeader />
-          <GEDrawer />
-          <div style={{flex: 1, padding: "10px", boxSizing: "border-box"}}>
-            {conteudo}
-          </div>
+    const layout = isMobile ? (
+      <div style={{display: "flex", flexDirection: "column", minHeight: "100vh", backgroundColor: t.bg}}>
+        <GEHeader />
+        <GEDrawer />
+        <div style={{flex: 1, padding: "10px", boxSizing: "border-box"}}>
+          {conteudo}
         </div>
-      );
-    }
-    return (
+      </div>
+    ) : (
       <div style={{display: "flex", flexDirection: "column", minHeight: "100vh", backgroundColor: t.bg}}>
         <GEHeader />
         <GEDrawer />
@@ -11521,6 +11644,65 @@ export default function App(){
           </div>
         </div>
       </div>
+    );
+
+    return (
+      <>
+        {layout}
+        {cloudConflict && (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
+            <div style={{...S.card,width:"100%",maxWidth:400,textAlign:"center"}}>
+              <div style={{fontSize:45,marginBottom:12}}>⚠️</div>
+              <h3 style={{fontSize:16,fontWeight:800,color:t.text,margin:"0 0 8px 0"}}>Conflito de Dados Detectado!</h3>
+              <p style={{fontSize:13,color:t.textSec,lineHeight:1.5,marginBottom:20}}>
+                Outro aparelho atualizou os dados na nuvem em um horário mais recente do que a última sincronização deste dispositivo.
+                <br/><br/>
+                <b>Nuvem:</b> Atualizado em {new Date(cloudConflict.nuvemTime).toLocaleString("pt-BR")} por <b>{cloudConflict.updatedBy}</b>.
+              </p>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <button 
+                  onClick={async () => {
+                    setAppState(cloudConflict.payload);
+                    localStorage.setItem("last_sync_time", String(new Date(cloudConflict.nuvemTime).getTime()));
+                    setCloudConflict(null);
+                    alert("Dados da nuvem carregados com sucesso! 🚀");
+                  }}
+                  style={S.btn("#1D9E75")}
+                >
+                  📥 Carregar Dados da Nuvem (Recomendado)
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (confirm("Atenção: Isso irá apagar a versão mais recente que está na nuvem e salvar os dados locais por cima. Tem certeza?")) {
+                      try {
+                        setCloudLoading(true);
+                        const docKey = (auth.role === "adm" || auth.role === "manager") ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
+                        const payload = {
+                          appState: appState,
+                          lastUpdated: new Date().toISOString(),
+                          updatedBy: auth.name || "Sem Nome"
+                        };
+                        const cleanPayload = JSON.parse(JSON.stringify(payload));
+                        await setDoc(doc(db, "sistema", docKey), cleanPayload);
+                        localStorage.setItem("last_sync_time", String(new Date(payload.lastUpdated).getTime()));
+                        setCloudConflict(null);
+                        alert("Dados locais salvos na nuvem com sucesso! 🚀");
+                      } catch (err) {
+                        alert("Erro ao salvar dados locais na nuvem: " + err.message);
+                      } finally {
+                        setCloudLoading(false);
+                      }
+                    }
+                  }}
+                  style={S.btnSm("#E24B4A22", "#E24B4A")}
+                >
+                  🚀 Sobrescrever Nuvem com meus Dados Locais
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   };
 
@@ -11716,6 +11898,7 @@ export default function App(){
   }, [appState?.campeonatos, appState?.peladas, appState?.managers, auth.email, auth.role, auth.scope]);
   const lastAuthUserEmail = useRef("");
   const [screen, setScreen] = useState("selection");
+  const [cloudConflict, setCloudConflict] = useState(null);
   const [cloudLoading, setCloudLoading] = useState(false);
   const [publicCloudChamp, setPublicCloudChamp] = useState(null);
 
@@ -11881,6 +12064,8 @@ export default function App(){
         const data = docSnap.data();
         if (data.appState) {
           setAppState(data.appState);
+          const syncTime = data.lastUpdated ? new Date(data.lastUpdated).getTime() : Date.now();
+          localStorage.setItem("last_sync_time", String(syncTime));
           console.log("Dados sincronizados automaticamente da nuvem no login!");
         }
       }
@@ -11889,14 +12074,36 @@ export default function App(){
     }
   };
 
-  // Auto-salvamento na Nuvem em background
+  // Auto-salvamento na Nuvem em background com controle de concorrência
   useEffect(() => {
-    if (!isFirebaseConfigured || loading) return;
+    if (!isFirebaseConfigured || loading || cloudConflict) return;
     if (auth.role !== "adm" && auth.role !== "manager") return;
 
     const timer = setTimeout(async () => {
       try {
         const docKey = (auth.role === "adm" || auth.role === "manager") ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
+        
+        // 1. Antes de salvar, busca na nuvem para verificar concorrência
+        const docSnap = await getDoc(doc(db, "sistema", docKey));
+        if (docSnap.exists()) {
+          const dataNuvem = docSnap.data();
+          if (dataNuvem.lastUpdated) {
+            const timeNuvem = new Date(dataNuvem.lastUpdated).getTime();
+            const timeLocalSync = localStorage.getItem("last_sync_time") ? Number(localStorage.getItem("last_sync_time")) : 0;
+            
+            // Margem de segurança de 2 segundos para evitar falsos conflitos causados por pequenos delays
+            if (timeNuvem > timeLocalSync + 2000) {
+              console.warn("Conflito de dados detectado! A nuvem tem dados mais recentes.");
+              setCloudConflict({
+                nuvemTime: dataNuvem.lastUpdated,
+                updatedBy: dataNuvem.updatedBy || "Outro Aparelho",
+                payload: dataNuvem.appState
+              });
+              return; // Bloqueia o auto-salvamento
+            }
+          }
+        }
+
         const payload = {
           appState: appState,
           lastUpdated: new Date().toISOString(),
@@ -11904,6 +12111,9 @@ export default function App(){
         };
         const cleanPayload = JSON.parse(JSON.stringify(payload));
         await setDoc(doc(db, "sistema", docKey), cleanPayload);
+        
+        // Atualiza a hora do último sincronismo bem sucedido
+        localStorage.setItem("last_sync_time", String(new Date(payload.lastUpdated).getTime()));
         console.log("Banco de dados sincronizado automaticamente na Nuvem!");
       } catch (e) {
         console.error("Erro no auto-salvamento na nuvem:", e);
@@ -11911,7 +12121,7 @@ export default function App(){
     }, 2000); // 2 segundos de debounce para evitar excesso de requisições ao Firestore
 
     return () => clearTimeout(timer);
-  }, [appState, auth, loading]);
+  }, [appState, auth, loading, cloudConflict]);
 
   const handleLogin = async ({email, password}) => {
     const trimmed = String(email||"").trim().toLowerCase();
@@ -11921,7 +12131,7 @@ export default function App(){
       if (!isFirebaseConfigured || !firebaseAuth) {
         throw new Error("O Firebase Auth não está configurado.");
       }
-
+      await setPersistence(firebaseAuth, browserSessionPersistence);
       await signInWithEmailAndPassword(firebaseAuth, trimmed, password);
       return "";
     } catch (error) {
@@ -12938,6 +13148,7 @@ export default function App(){
       
       const cleanPayload = JSON.parse(JSON.stringify(payload));
       await setDoc(doc(db, "sistema", docKey), cleanPayload);
+      localStorage.setItem("last_sync_time", String(new Date(payload.lastUpdated).getTime()));
       alert("Banco de dados completo otimizado e salvo na Nuvem com sucesso! 🚀");
     } catch (e) {
       console.error(e);
@@ -12966,6 +13177,8 @@ export default function App(){
       const data = docSnap.data();
       if (data.appState) {
         setAppState(data.appState);
+        const syncTime = data.lastUpdated ? new Date(data.lastUpdated).getTime() : Date.now();
+        localStorage.setItem("last_sync_time", String(syncTime));
         alert(`Dados restaurados com sucesso a partir da nuvem! 🚀\nAtualizado em: ${new Date(data.lastUpdated).toLocaleString("pt-BR")} por ${data.updatedBy}`);
         setScreen("home");
       } else {
