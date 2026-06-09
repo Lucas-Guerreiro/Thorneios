@@ -58,24 +58,34 @@ function useTheme(){
 }
 function makeStyles(t){
   const isDark = t.bg === "#0F1116";
+  const scale = typeof window !== 'undefined' ? (parseFloat(localStorage.getItem("app_font_scale")) || 1.0) : 1.0;
+  
+  const fs = (base) => Math.round(base * scale);
+  const pad = (str) => {
+    if (scale === 1.0) return str;
+    return str.replace(/(\d+)px/g, (match, p1) => {
+      return Math.round(parseInt(p1) * scale) + "px";
+    });
+  };
+
   return{
-    page:  {minHeight:"100vh",padding:"24px 0",maxWidth:1200,margin:"0 auto",background:t.bg,color:t.text,fontFamily:"'Outfit', sans-serif"},
-    card:  {background:t.card,borderRadius:16,padding:"16px",border:"1px solid " + t.cardBorder,boxShadow:!isDark?"0 4px 20px rgba(0,0,0,0.04)":"none",transition:"all 0.25s"},
-    input: {padding:"10px 14px",borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease",focus:{borderColor:t.accent}},
-    select:{padding:"10px 14px",borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:14,background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease"},
+    page:  {minHeight:"100vh",padding:pad("24px 0"),maxWidth:1200,margin:"0 auto",background:t.bg,color:t.text,fontFamily:"'Outfit', sans-serif"},
+    card:  {background:t.card,borderRadius:16,padding:pad("16px"),border:"1px solid " + t.cardBorder,boxShadow:!isDark?"0 4px 20px rgba(0,0,0,0.04)":"none",transition:"all 0.25s"},
+    input: {padding:pad("10px 14px"),borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:fs(14),background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease",focus:{borderColor:t.accent}},
+    select:{padding:pad("10px 14px"),borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:fs(14),background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease"},
     btn:   (bg,c)=>{
       const backColor = bg || t.accent || "#20E278";
       const isNeonGreen = backColor.toLowerCase() === "#20e278" || backColor.toLowerCase() === "#00e676" || backColor.toLowerCase() === "#1d9e75" || backColor.toLowerCase() === "#06aa48";
       const textColor = c || (isNeonGreen ? "#0F1116" : "#fff");
       return {
-        padding:"10px 18px",
+        padding:pad("10px 18px"),
         borderRadius:12,
         border:"none",
         background:backColor,
         color:textColor,
         cursor:"pointer",
         fontWeight:700,
-        fontSize:14,
+        fontSize:fs(14),
         display:"inline-flex",
         alignItems:"center",
         justifyContent:"center",
@@ -89,26 +99,26 @@ function makeStyles(t){
       const isNeonGreen = backColor.toLowerCase() === "#20e278" || backColor.toLowerCase() === "#00e676" || backColor.toLowerCase() === "#06aa48";
       const textColor = c || (isNeonGreen ? "#0F1116" : t.text);
       return {
-        padding:"6px 14px",
+        padding:pad("6px 14px"),
         borderRadius:10,
         border:"1px solid " + t.cardBorder,
         background:backColor,
         color:textColor,
         cursor:"pointer",
         fontWeight:700,
-        fontSize:12,
+        fontSize:fs(12),
         transition:"all 0.2s ease"
       };
     },
-    label: {fontSize:11,color:t.textSec,fontWeight:800,textTransform:"uppercase",letterSpacing:0.8,marginBottom:6,display:"block"},
+    label: {fontSize:fs(11),color:t.textSec,fontWeight:800,textTransform:"uppercase",letterSpacing:0.8,marginBottom:6,display:"block"},
     tab:   a=>({
-      padding:"10px 16px",
+      padding:pad("10px 16px"),
       border:"none",
       borderBottom:a?("3px solid " + (t.accent||"#20E278")):"3px solid transparent",
       background:"none",
       color:a?t.text:t.textSec,
       cursor:"pointer",
-      fontSize:13,
+      fontSize:fs(13),
       fontWeight:a?800:600,
       letterSpacing:"0.6px",
       textTransform:"uppercase",
@@ -117,50 +127,50 @@ function makeStyles(t){
     }),
     layoutContainer: isMobile => ({
       display: "flex",
-      gap: "20px",
+      gap: pad("20px"),
       flexDirection: isMobile ? "column" : "row",
       alignItems: "flex-start",
       width: "100%",
-      marginTop: "8px"
+      marginTop: pad("8px")
     }),
     sidebarLeft: isMobile => ({
-      width: isMobile ? "100%" : "280px",
+      width: isMobile ? "100%" : pad("280px"),
       flexShrink: 0,
       display: "flex",
       flexDirection: "column",
-      gap: "16px",
+      gap: pad("16px"),
       position: isMobile ? "static" : "sticky",
-      top: "24px"
+      top: pad("24px")
     }),
     sidebarRight: isMobile => ({
-      width: isMobile ? "100%" : "300px",
+      width: isMobile ? "100%" : pad("300px"),
       flexShrink: 0,
       display: "flex",
       flexDirection: "column",
-      gap: "16px",
+      gap: pad("16px"),
       position: isMobile ? "static" : "sticky",
-      top: "24px"
+      top: pad("24px")
     }),
     mainContent: {
       flex: 1,
       minWidth: 0,
       display: "flex",
       flexDirection: "column",
-      gap: "20px",
+      gap: pad("20px"),
       width: "100%"
     },
     sidebarItem: (active, activeColor) => ({
       display: "flex",
       alignItems: "center",
-      gap: "10px",
-      padding: "10px 12px",
+      gap: pad("10px"),
+      padding: pad("10px 12px"),
       borderRadius: "12px",
       border: "none",
       background: active ? activeColor + "15" : "transparent",
       color: active ? activeColor : t.text,
       cursor: "pointer",
       textAlign: "left",
-      fontSize: "13px",
+      fontSize: fs(13) + "px",
       fontWeight: active ? 700 : 500,
       width: "100%",
       transition: "all 0.2s ease"
@@ -3676,7 +3686,7 @@ function FinancialPanel({finance,onChange,autoIncome=0,filtro="geral",filtroData
   );
 }
 
-function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeonatos,datasRealizacao,setScreen,DarkBtn,t,atletas,auth}){
+function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeonatos,datasRealizacao,setScreen,DarkBtn,FontScaleBtn,t,atletas,auth}){
   const S=makeStyles(t);
   const getFiltroInicial = () => {
     if (!auth || auth.role === "adm" || auth.scope === "geral") return "geral";
@@ -3813,6 +3823,7 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <button onClick={() => window.print()} style={S.btnSm("#1D9E7522","#1D9E75")}>🖨️ Imprimir</button>
+          {FontScaleBtn && <FontScaleBtn/>}
           <DarkBtn/>
         </div>
       </div>
@@ -11245,6 +11256,36 @@ export default function App(){
   const{dark,setDark,t:themeBase}=useTheme();
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
   
+  const [fontScale, setFontScale] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("app_font_scale");
+      return saved !== null ? parseFloat(saved) : 1.0;
+    }
+    return 1.0;
+  });
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.body.classList.remove("scale-115", "scale-130", "scale-145");
+      if (fontScale === 1.15) document.body.classList.add("scale-115");
+      else if (fontScale === 1.30) document.body.classList.add("scale-130");
+      else if (fontScale === 1.45) document.body.classList.add("scale-145");
+    }
+  }, [fontScale]);
+
+  const toggleFontScale = () => {
+    setFontScale(prev => {
+      let next = 1.0;
+      if (prev === 1.0) next = 1.15;
+      else if (prev === 1.15) next = 1.30;
+      else if (prev === 1.30) next = 1.45;
+      else next = 1.0;
+      
+      localStorage.setItem("app_font_scale", String(next));
+      return next;
+    });
+  };
+  
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
     window.addEventListener("resize", handleResize);
@@ -11388,6 +11429,7 @@ export default function App(){
                   Olá, <strong>{auth.name || "Gestor"}</strong>
                 </span>
               )}
+              <FontScaleBtn />
               <DarkBtn />
             </div>
           </div>
@@ -13404,6 +13446,34 @@ export default function App(){
     );
   }
 
+  const FontScaleBtn = () => {
+    let text = "A";
+    let title = "Tamanho do Texto: Normal";
+    if (fontScale === 1.15) { text = "A+"; title = "Tamanho do Texto: Grande"; }
+    else if (fontScale === 1.30) { text = "A++"; title = "Tamanho do Texto: Extra Grande"; }
+    else if (fontScale === 1.45) { text = "A+++"; title = "Tamanho do Texto: Gigante"; }
+    
+    return (
+      <button 
+        onClick={toggleFontScale} 
+        style={{
+          ...S.btnSm(t.card, t.text),
+          padding: "8px 12px",
+          fontSize: 14,
+          fontWeight: 800,
+          border: `1px solid ${t.cardBorder}`,
+          borderRadius: 12,
+          display: "flex",
+          alignItems: "center",
+          gap: 4
+        }}
+        title={title}
+      >
+        🔎 {text}
+      </button>
+    );
+  };
+
   const DarkBtn=()=><button onClick={()=>setDark(d=>!d)} style={{...S.btnSm(t.card,t.text),padding:"8px 12px",fontSize:15,border:`1px solid ${t.cardBorder}`,borderRadius:12}}>{dark?"☀️":"🌙"}</button>;
 
   if(screen==="selection"){
@@ -13990,7 +14060,7 @@ export default function App(){
 
   /* ── FINANCEIRO ────────────────────────────────────────────────── */
   if(screen==="financeiro"){
-    return renderComLayout(<FinanceiroScreen financeiro={financeiroFiltered} setFinanceiro={setFinanceiroWrapped} participacoes={participacoes} peladas={peladas} campeonatos={campeonatos} datasRealizacao={datasRealizacao} setScreen={setScreen} DarkBtn={DarkBtn} t={t} atletas={atletas} auth={auth} />);
+    return renderComLayout(<FinanceiroScreen financeiro={financeiroFiltered} setFinanceiro={setFinanceiroWrapped} participacoes={participacoes} peladas={peladas} campeonatos={campeonatos} datasRealizacao={datasRealizacao} setScreen={setScreen} DarkBtn={DarkBtn} FontScaleBtn={FontScaleBtn} t={t} atletas={atletas} auth={auth} />);
   }
 
   /* ── BACKUP ────────────────────────────────────────────────────── */

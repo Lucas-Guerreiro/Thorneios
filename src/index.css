@@ -26,3 +26,43 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(120, 120, 120, 0.4);
 }
+
+/* Acessibilidade - Tamanho das Fontes e Elementos */
+body.scale-115 button,
+body.scale-115 input,
+body.scale-115 select,
+body.scale-115 textarea {
+  font-size: 1.15rem !important;
+}
+body.scale-115 td,
+body.scale-115 th,
+body.scale-115 span,
+body.scale-115 div {
+  font-size: 1.08rem;
+}
+
+body.scale-130 button,
+body.scale-130 input,
+body.scale-130 select,
+body.scale-130 textarea {
+  font-size: 1.3rem !important;
+}
+body.scale-130 td,
+body.scale-130 th,
+body.scale-130 span,
+body.scale-130 div {
+  font-size: 1.18rem;
+}
+
+body.scale-145 button,
+body.scale-145 input,
+body.scale-145 select,
+body.scale-145 textarea {
+  font-size: 1.45rem !important;
+}
+body.scale-145 td,
+body.scale-145 th,
+body.scale-145 span,
+body.scale-145 div {
+  font-size: 1.32rem;
+}
