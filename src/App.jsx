@@ -1322,16 +1322,126 @@ function drawBalancedTeams(athletes,numTeams,ppt){
 }
 function buildInitialPeladaState(drawnTeams,bench,existingMatchLog=[]){
   const queue=drawnTeams.map(t=>t.name);
-  return{teams:drawnTeams,queue,bench,matchLog:existingMatchLog,currentMatch:null};
+  const teamBases = {};
+  drawnTeams.forEach(t => {
+    teamBases[t.name] = t.players.map(p => p.id || p.atleta_id || p.idAtleta);
+  });
+  return{teams:drawnTeams,queue,bench,matchLog:existingMatchLog,currentMatch:null,teamBases};
 }
-function startNextMatch(ps,dataRealizacaoId=""){
+function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
   if(!ps||ps.queue.length<2)return ps;
   const[a,b]=[ps.queue[0],ps.queue[1]];
-  const teamAObj = ps.teams?.find(t=>t.name===a);
-  const teamBObj = ps.teams?.find(t=>t.name===b);
+  const modoRodizio = ps.modoRodizio || "auto";
+  const jogadoresPorTime = pptParam || ps?.playersPerTeam || 6;
+
+  let newTeams = ps.teams ? ps.teams.map(t => ({ ...t, players: [...t.players] })) : [];
+  let teamAEmprestados = [];
+  let teamBEmprestados = [];
+
+  if (modoRodizio === "misto" && ps.teamBases) {
+    newTeams = newTeams.map(t => {
+      const baseIds = ps.teamBases[t.name] || [];
+      const todosJogadores = [];
+      if (ps.teams) ps.teams.forEach(tm => todosJogadores.push(...tm.players));
+      if (ps.bench) todosJogadores.push(...ps.bench);
+      
+      const uniquePlayers = [];
+      const seenIds = new Set();
+      todosJogadores.forEach(p => {
+        const idStr = String(p.id || p.atleta_id || p.idAtleta);
+        if (!seenIds.has(idStr)) {
+          seenIds.add(idStr);
+          uniquePlayers.push(p);
+        }
+      });
+      
+      const originalPlayers = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+      return { ...t, players: originalPlayers };
+    });
+
+    const teamAObj = newTeams.find(t => t.name === a);
+    const teamBObj = newTeams.find(t => t.name === b);
+    const countA = teamAObj ? teamAObj.players.length : 0;
+    const countB = teamBObj ? teamBObj.players.length : 0;
+    const precisaA = Math.max(0, jogadoresPorTime - countA);
+    const precisaB = Math.max(0, jogadoresPorTime - countB);
+
+    if (precisaA > 0 || precisaB > 0) {
+      const timesDeFora = newTeams.filter(t => t.name !== a && t.name !== b);
+      let candidatos = [];
+      timesDeFora.forEach(t => {
+        candidatos.push(...t.players);
+      });
+
+      const ultimaPartida = ps.matchLog && ps.matchLog.length > 0 ? ps.matchLog[ps.matchLog.length - 1] : null;
+      const idJogadoresUltimaPartida = [];
+      if (ultimaPartida) {
+        const tA = newTeams.find(t => t.name === ultimaPartida.teamA);
+        const tB = newTeams.find(t => t.name === ultimaPartida.teamB);
+        if (tA) idJogadoresUltimaPartida.push(...tA.players.map(p => String(p.id || p.atleta_id || p.idAtleta)));
+        if (tB) idJogadoresUltimaPartida.push(...tB.players.map(p => String(p.id || p.atleta_id || p.idAtleta)));
+        if (ultimaPartida.teamAEmprestados) idJogadoresUltimaPartida.push(...ultimaPartida.teamAEmprestados.map(id => String(id)));
+        if (ultimaPartida.teamBEmprestados) idJogadoresUltimaPartida.push(...ultimaPartida.teamBEmprestados.map(id => String(id)));
+      }
+
+      const historicoEmprestimos = ps.historicoEmprestimos || {};
+
+      candidatos.sort((p1, p2) => {
+        const id1 = String(p1.id || p1.atleta_id || p1.idAtleta);
+        const id2 = String(p2.id || p2.atleta_id || p2.idAtleta);
+        const jogouUltima1 = idJogadoresUltimaPartida.includes(id1) ? 1 : 0;
+        const jogouUltima2 = idJogadoresUltimaPartida.includes(id2) ? 1 : 0;
+        if (jogouUltima1 !== jogouUltima2) {
+          return jogouUltima1 - jogouUltima2;
+        }
+        const count1 = historicoEmprestimos[id1] || 0;
+        const count2 = historicoEmprestimos[id2] || 0;
+        return count1 - count2;
+      });
+
+      let offset = 0;
+      if (teamAObj) {
+        for (let i = 0; i < precisaA && offset < candidatos.length; i++) {
+          const emp = candidatos[offset++];
+          teamAObj.players.push(emp);
+          teamAEmprestados.push(emp.id || emp.atleta_id || emp.idAtleta);
+        }
+      }
+      if (teamBObj) {
+        for (let i = 0; i < precisaB && offset < candidatos.length; i++) {
+          const emp = candidatos[offset++];
+          teamBObj.players.push(emp);
+          teamBEmprestados.push(emp.id || emp.atleta_id || emp.idAtleta);
+        }
+      }
+    }
+  }
+
+  const teamAObj = newTeams.find(t=>t.name===a);
+  const teamBObj = newTeams.find(t=>t.name===b);
   const defaultGoleiroA = teamAObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
   const defaultGoleiroB = teamBObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
-  return{...ps,currentMatch:{id:Date.now() + "_" + Math.floor(Math.random() * 1000),teamA:a,teamB:b,scoreA:"",scoreB:"",date:todayStr(),dataRealizacaoId,played:false,goleiroA:defaultGoleiroA,goleiroB:defaultGoleiroB,goleiroAInteiro:true,goleiroBInteiro:true}};
+
+  return {
+    ...ps,
+    teams: newTeams,
+    currentMatch: {
+      id: Date.now() + "_" + Math.floor(Math.random() * 1000),
+      teamA: a,
+      teamB: b,
+      scoreA: "",
+      scoreB: "",
+      date: todayStr(),
+      dataRealizacaoId,
+      played: false,
+      goleiroA: defaultGoleiroA,
+      goleiroB: defaultGoleiroB,
+      goleiroAInteiro: true,
+      goleiroBInteiro: true,
+      teamAEmprestados,
+      teamBEmprestados
+    }
+  };
 }
 function getVitoriasSeguidas(matchLog, teamName, dataRealizacaoId) {
   let vitorias = 0;
@@ -1476,6 +1586,37 @@ function resolveMatch(ps,scoreA,scoreB,dataRealizacaoId=""){
     }
   }
 
+  let historicoEmprestimos = { ...(ps.historicoEmprestimos || {}) };
+  if (modoRodizio === "misto") {
+    const emprestados = [
+      ...(ps.currentMatch?.teamAEmprestados || []),
+      ...(ps.currentMatch?.teamBEmprestados || [])
+    ];
+    emprestados.forEach(id => {
+      const idStr = String(id);
+      historicoEmprestimos[idStr] = (historicoEmprestimos[idStr] || 0) + 1;
+    });
+    if (ps.teamBases) {
+      newTeams = newTeams.map(t => {
+        const baseIds = ps.teamBases[t.name] || [];
+        const todosJogadores = [];
+        if (ps.teams) ps.teams.forEach(tm => todosJogadores.push(...tm.players));
+        if (ps.bench) todosJogadores.push(...ps.bench);
+        const uniquePlayers = [];
+        const seenIds = new Set();
+        todosJogadores.forEach(p => {
+          const idStr = String(p.id || p.atleta_id || p.idAtleta);
+          if (!seenIds.has(idStr)) {
+            seenIds.add(idStr);
+            uniquePlayers.push(p);
+          }
+        });
+        const originalPlayers = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+        return { ...t, players: originalPlayers };
+      });
+    }
+  }
+
   const rest = ps.queue.slice(2);
   let newQueue = [];
   if (ambosSairamEmpate) {
@@ -1500,7 +1641,7 @@ function resolveMatch(ps,scoreA,scoreB,dataRealizacaoId=""){
     newQueue = [winner, ...rest, loser];
   }
 
-  return {...ps, teams: newTeams, queue: newQueue, bench: newBench, matchLog: tempLog, currentMatch: null};
+  return {...ps, teams: newTeams, queue: newQueue, bench: newBench, matchLog: tempLog, currentMatch: null, historicoEmprestimos};
 }
 
 /* ─────────────────────────── CRONÔMETRO E AUDIO ─────────────────── */
@@ -6215,7 +6356,18 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
  
   const saveDateState = (updates) => {
     if (!selDataSorteio) return;
-    onUpdateData(selDataSorteio, updates);
+    let finalUpdates = { ...updates };
+    const dt = finalUpdates.drawnTeams !== undefined ? finalUpdates.drawnTeams : drawnTeams;
+    let ps = finalUpdates.peladaState !== undefined ? finalUpdates.peladaState : peladaState;
+    if (dt && ps) {
+      const teamBases = {};
+      dt.forEach(t => {
+        teamBases[t.name] = t.players.map(p => p.id || p.atleta_id || p.idAtleta);
+      });
+      ps = { ...ps, teamBases };
+      finalUpdates.peladaState = ps;
+    }
+    onUpdateData(selDataSorteio, finalUpdates);
   };
  
   useEffect(() => {
@@ -6272,7 +6424,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const rest = currentQueue.filter(t => t !== proxTimeA && t !== proxTimeB);
     const newQueue = [proxTimeA, proxTimeB, ...rest];
     
-    const ps = startNextMatch({ ...peladaState, queue: newQueue }, selDataSorteio);
+    const ps = startNextMatch({ ...peladaState, queue: newQueue }, selDataSorteio, ppt);
     setPeladaStateLocal(ps);
     saveDateState({ peladaState: ps });
   }
@@ -6428,7 +6580,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     setDrawnTeams(fullTeams);setBenchState(bench);
     const oldLog = peladaState?.matchLog || [];
     const cleanLog = oldLog.filter(m => String(m.dataRealizacaoId) !== String(selDataSorteio));
-    const ps=startNextMatch(buildInitialPeladaState(fullTeams,bench,cleanLog), selDataSorteio);
+    const ps=startNextMatch(buildInitialPeladaState(fullTeams,bench,cleanLog), selDataSorteio, ppt);
     setPeladaStateLocal(ps);
     saveDateState({
       drawnTeams: fullTeams,
@@ -6476,7 +6628,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     setDrawnTeams(fullTeams);setBenchState(bench);
     const oldLog = peladaState?.matchLog || [];
     const cleanLog = oldLog.filter(m => String(m.dataRealizacaoId) !== String(selDataSorteio));
-    const ps=startNextMatch(buildInitialPeladaState(fullTeams,bench,cleanLog), selDataSorteio);
+    const ps=startNextMatch(buildInitialPeladaState(fullTeams,bench,cleanLog), selDataSorteio, ppt);
     setPeladaStateLocal(ps);
     saveDateState({
       drawnTeams: fullTeams,
@@ -6745,7 +6897,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         sumula:sumulaGols
       }
     },scoreA,scoreB,selDataSorteio);
-    const ps3=startNextMatch(ps2, selDataSorteio);
+    const ps3=startNextMatch(ps2, selDataSorteio, ppt);
     setPeladaStateLocal(ps3);
     saveDateState({peladaState:ps3});
     setScoreA("");setScoreB("");
@@ -7282,6 +7434,62 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           </div>
         ) : (
           <div>
+            {/* Seletor de Modo de Rodízio */}
+            <div style={{...S.card, marginBottom: 14, padding: "12px 16px", background: t.card, border: `1px solid ${t.cardBorder}`}}>
+              <div style={{display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", gap: 10}}>
+                <div>
+                  <div style={{fontWeight: 700, fontSize: 13, color: t.text, display: "flex", alignItems: "center", gap: 6}}>
+                    <span>⚙️ Modo de Funcionamento da Rodada</span>
+                  </div>
+                  <div style={{fontSize: 11, color: t.textSec, marginTop: 4}}>
+                    Escolha como o sistema gerencia a fila de times, banco e os revezamentos de atletas nesta data.
+                  </div>
+                </div>
+                <div style={{display: "flex", background: t.inputBg, padding: 3, borderRadius: 20, border: `1px solid ${t.inputBorder}`, width: isMobile ? "100%" : "auto"}}>
+                  {[
+                    { key: "auto", label: "Automático", icon: "🤖", title: "Fila de times e rodízio de banco 100% automáticos" },
+                    { key: "misto", label: "Misto (Híbrido)", icon: "🤝", title: "Fila de times automática com empréstimos pontuais" },
+                    { key: "manual", label: "Manual", icon: "🎮", title: "Gestão livre: selecione quem joga e monte os times manualmente" }
+                  ].map(opt => {
+                    const isSelected = (peladaState?.modoRodizio || "auto") === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => {
+                          if (isRealizada) return;
+                          const ps = { ...peladaState, modoRodizio: opt.key };
+                          setPeladaStateLocal(ps);
+                          saveDateState({ peladaState: ps });
+                        }}
+                        disabled={isRealizada}
+                        title={opt.title}
+                        style={{
+                          flex: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 6,
+                          padding: "6px 12px",
+                          borderRadius: 18,
+                          border: "none",
+                          fontSize: 11,
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: isRealizada ? "default" : "pointer",
+                          background: isSelected ? "#7F77DD" : "transparent",
+                          color: isSelected ? "#FFFFFF" : t.textSec,
+                          transition: "all 0.2s ease"
+                        }}
+                      >
+                        <span>{opt.icon}</span>
+                        {!isMobile && <span>{opt.label}</span>}
+                        {isMobile && isSelected && <span>{opt.label}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             {isRealizada && !drawnTeams && (
               <div style={{...S.card, marginBottom: 14, background: "#1D9E7512", border: "1px solid #1D9E7533", color: "#1D9E75", display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 8}}>
                 <span>🔒</span>
@@ -7744,7 +7952,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                         <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>
                           {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=>(
                             <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                              <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}</span>
+                              <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, peladaState.currentMatch.teamA)}</span>
                               {isRealizada ? (
                                 sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517"}}>⚽({sumulaGols[p.id]})</span> : null
                               ) : (
@@ -7812,7 +8020,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                               ) : (
                                 <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'B')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/>
                               )}
-                              <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}</span>
+                              <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, peladaState.currentMatch.teamB)}</span>
                             </div>
                           ))}
                         </div>
@@ -7919,7 +8127,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <b style={{color:"#378ADD",display:"block",marginBottom:8}}>{proxTimeA}</b>
                             <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
                               {peladaState.teams?.find(tm=>tm.name===proxTimeA)?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, proxTimeA)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
                               </div>)}
                             </div>
                           </div>
@@ -7927,7 +8135,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <b style={{color:"#378ADD",display:"block",marginBottom:8}}>{proxTimeB}</b>
                             <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
                               {peladaState.teams?.find(tm=>tm.name===proxTimeB)?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, proxTimeB)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
                               </div>)}
                             </div>
                           </div>
@@ -7942,7 +8150,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[0]}</b>
                             <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
                               {peladaState.teams?.find(tm=>tm.name===peladaState.queue[0])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, peladaState.queue[0])} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
                               </div>)}
                             </div>
                           </div>
@@ -7950,12 +8158,12 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[1]}</b>
                             <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
                               {peladaState.teams?.find(tm=>tm.name===peladaState.queue[1])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, peladaState.queue[1])} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
                               </div>)}
                             </div>
                           </div>
                         </div>
-                        {!isRealizada && <button onClick={()=>{const ps=startNextMatch(peladaState, selDataSorteio);setPeladaStateLocal(ps);saveDateState({peladaState:ps});}} style={S.btn("#7F77DD")}>▶ Iniciar Próximo Jogo na data selecionada</button>}
+                        {!isRealizada && <button onClick={()=>{const ps=startNextMatch(peladaState, selDataSorteio, ppt);setPeladaStateLocal(ps);saveDateState({peladaState:ps});}} style={S.btn("#7F77DD")}>▶ Iniciar Próximo Jogo na data selecionada</button>}
                       </>
                     )}
                   </div>
@@ -12099,6 +12307,22 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
 export default function App(){
   const{dark,setDark,t:themeBase}=useTheme();
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
+
+  const getLoanTag = (atleta, currentTeamName) => {
+    if (!peladaState || !peladaState.teamBases || !currentTeamName) return null;
+    const athleteId = String(atleta.id || atleta.atleta_id || atleta.idAtleta);
+    const baseIds = peladaState.teamBases[currentTeamName] || [];
+    if (baseIds.some(id => String(id) === athleteId)) return null;
+    for (const teamName of Object.keys(peladaState.teamBases)) {
+      const ids = peladaState.teamBases[teamName] || [];
+      if (ids.some(id => String(id) === athleteId)) {
+        const matches = teamName.match(/\d+/);
+        const sigla = matches ? `T${matches[0]}` : teamName.substring(0, 3).toUpperCase();
+        return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado do ${teamName}`}>🤝 ({sigla})</span>;
+      }
+    }
+    return null;
+  };
   
   const [fontScale, setFontScale] = useState(() => {
     if (typeof window !== "undefined") {
