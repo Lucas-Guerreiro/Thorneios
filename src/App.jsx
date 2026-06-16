@@ -6658,6 +6658,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       };
     }
     
+    if (!newPs.teamBases) newPs.teamBases = {};
+    newPs.teamBases[newTeamName] = [];
+    newPs = sincronizarBasesDosTimes(newPs);
+    
     setDrawnTeams(newDrawnTeams);
     setPeladaStateLocal(newPs);
     saveDateState({
@@ -6946,6 +6950,22 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     saveDateState({drawnTeams:newDrawnTeams,initialBench:newBench,peladaState:ps});
   }
 
+  function sincronizarBasesDosTimes(ps) {
+    if (!ps || !ps.teams) return ps;
+    if (!ps.teamBases) ps.teamBases = {};
+    const emprestadosIds = new Set([
+      ...(ps.currentMatch?.teamAEmprestados || []),
+      ...(ps.currentMatch?.teamBEmprestados || [])
+    ].map(id => String(id)));
+    
+    ps.teams.forEach(t => {
+      ps.teamBases[t.name] = t.players
+        .map(p => p.id || p.atleta_id || p.idAtleta)
+        .filter(id => id && !emprestadosIds.has(String(id)));
+    });
+    return ps;
+  }
+
   function movePlayerInRotation(playerId, target) {
     let newBench = [...benchState];
     let newDrawnTeams = drawnTeams ? deepClone(drawnTeams) : [];
@@ -7055,6 +7075,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           ps.teams.push({ name: teamName, players: playersObjList });
         }
       }
+      ps = sincronizarBasesDosTimes(ps);
     }
 
     setBenchState(newBench);
@@ -7371,6 +7392,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       if (ps && !ps.bench.some(b => String(b.id) === String(playerId))) {
         ps.bench.push(player);
       }
+    }
+
+    if (ps) {
+      ps = sincronizarBasesDosTimes(ps);
     }
 
     setJogadoresPausados(newPausados);
