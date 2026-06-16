@@ -8076,7 +8076,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                   <div style={{...S.card,textAlign:"center",marginBottom:16,border:`2px solid ${isRealizada ? t.cardBorder : "#7F77DD55"}`}}>
                     <div style={{fontWeight:600,color:t.text,marginBottom:12}}>Próximo Jogo {isRealizada && "(Congelado)"}</div>
                     
-                    {(peladaState.modoRodizio || "auto") === "manual" && !isRealizada ? (
+                    {(peladaState?.modoRodizio || "auto") === "manual" && !isRealizada ? (
                       <div>
                         {/* SELEÇÃO MANUAL DE TIMES */}
                         <div style={{display: "flex", gap: 12, justifyContent: "center", alignItems: "center", marginBottom: 16, flexWrap: "wrap"}}>
@@ -12309,7 +12309,7 @@ export default function App(){
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
 
   const getLoanTag = (atleta, currentTeamName) => {
-    if (!peladaState || !peladaState.teamBases || !currentTeamName) return null;
+    if (!atleta || !peladaState || !peladaState.teamBases || !currentTeamName) return null;
     const athleteId = String(atleta.id || atleta.atleta_id || atleta.idAtleta);
     const baseIds = peladaState.teamBases[currentTeamName] || [];
     if (baseIds.some(id => String(id) === athleteId)) return null;
