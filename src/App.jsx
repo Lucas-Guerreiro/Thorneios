@@ -6284,8 +6284,16 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       if (destinoSobras === "bench") {
         ps.bench.push(...sobressalentes);
       } else if (destinoSobras === "newTeam") {
-        const nextLetter = String.fromCharCode(65 + ps.teams.length);
-        const novoTimeNome = `Time ${nextLetter}`;
+        let maxNum = 0;
+        ps.teams.forEach(tm => {
+          const m = tm.name.match(/Time\s+(\d+)/i);
+          if (m) {
+            const num = parseInt(m[1], 10);
+            if (num > maxNum) maxNum = num;
+          }
+        });
+        const nextNum = maxNum > 0 ? maxNum + 1 : ps.teams.length + 1;
+        const novoTimeNome = `Time ${nextNum}`;
         const novoTimeObj = {
           name: novoTimeNome,
           players: [...sobressalentes]
@@ -6310,8 +6318,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       ps.currentMatch.goleiroB = teamBObj?.players?.find(p => p.goleiro || p.isGoalkeeper)?.id || "";
     }
 
+    setDrawnTeams(ps.teams);
     setPeladaStateLocal(ps);
-    saveDateState({ peladaState: ps });
+    saveDateState({ peladaState: ps, drawnTeams: ps.teams });
     setSobrasModalData(null);
     alert("Jogadores restaurados com sucesso para as equipes e banco originais!");
   };
