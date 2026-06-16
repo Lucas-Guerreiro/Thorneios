@@ -1327,7 +1327,11 @@ function buildInitialPeladaState(drawnTeams,bench,existingMatchLog=[]){
 function startNextMatch(ps,dataRealizacaoId=""){
   if(!ps||ps.queue.length<2)return ps;
   const[a,b]=[ps.queue[0],ps.queue[1]];
-  return{...ps,currentMatch:{id:Date.now() + "_" + Math.floor(Math.random() * 1000),teamA:a,teamB:b,scoreA:"",scoreB:"",date:todayStr(),dataRealizacaoId,played:false}};
+  const teamAObj = ps.teams?.find(t=>t.name===a);
+  const teamBObj = ps.teams?.find(t=>t.name===b);
+  const defaultGoleiroA = teamAObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
+  const defaultGoleiroB = teamBObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
+  return{...ps,currentMatch:{id:Date.now() + "_" + Math.floor(Math.random() * 1000),teamA:a,teamB:b,scoreA:"",scoreB:"",date:todayStr(),dataRealizacaoId,played:false,goleiroA:defaultGoleiroA,goleiroB:defaultGoleiroB,goleiroAInteiro:true,goleiroBInteiro:true}};
 }
 function resolveMatch(ps,scoreA,scoreB){
   const sA=parseInt(scoreA),sB=parseInt(scoreB);
@@ -1343,7 +1347,9 @@ function resolveMatch(ps,scoreA,scoreB){
   let newBench = [...ps.bench];
   const loserObj = newTeams.find(t=>t.name===loser);
   
-  if(loserObj && newBench.length > 0) {
+  const modoRodizio = ps.modoRodizio || "auto";
+  
+  if(modoRodizio === "auto" && loserObj && newBench.length > 0) {
     const timeUnidades = agruparUnidades(loserObj.players);
     const bancoUnidades = agruparUnidades(newBench);
     
@@ -3204,6 +3210,7 @@ function StandingsTable({standings,teams,colorOf,accent,t,emblems}){
 /* ─────────────────────────── RELATÓRIO PELADAS ───────────────────── */
 function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSortBy, setRepSortBy, formatarData, t }) {
   const S = makeStyles(t);
+  const [activeRankTab, setActiveRankTab] = useState("linha");
   
   const colorOfTeam = n => {
     const i = (peladaState?.teams || []).findIndex(x => x.name === n);
@@ -3255,122 +3262,234 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
   const buildReportData = () => {
     const filteredMatches = getFilteredMatches();
     const stats = {};
+    const totalPartidas = filteredMatches.length;
 
     filteredMatches.forEach(m => {
       const scoreA = parseInt(m.scoreA) || 0;
       const scoreB = parseInt(m.scoreB) || 0;
       const sumula = m.sumula || {};
 
-      // Players do time A
+      // Time A
       const playersA = getPlayersFallback(m, 'A');
       playersA.forEach(p => {
         const pId = String(p.id || p.atleta_id || '');
         if (!pId) return;
         const atletaAtual = getAtletaAtualizado(p);
+        
         if (!stats[pId]) {
-          stats[pId] = { player: atletaAtual, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0 };
+          stats[pId] = { 
+            player: atletaAtual, 
+            j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0, sgTime: 0, 
+            bonusFidelidade: 0, ptsFinais: 0, mpj: 0, pctPresenca: 0,
+            jogosGoleiro: 0,
+            ptsGoleiro: 0,
+            gcGoleiro: 0,
+            sgGoleiro: 0,
+            vGoleiro: 0,
+            eGoleiro: 0,
+            dGoleiro: 0,
+            bonusFidelidadeGoleiro: 0,
+            ptsFinaisGoleiro: 0,
+            mpjGoleiro: 0
+          };
         }
         const s = stats[pId];
         s.j++;
-        s.gp += parseInt(sumula[pId]) || parseInt(sumula[Number(pId)]) || 0;
+        const golsInd = parseInt(sumula[pId]) || parseInt(sumula[Number(pId)]) || 0;
+        s.gp += golsInd;
         s.gc += scoreB;
+        s.sgTime += (scoreA - scoreB);
+
+        const foiGoleiroPartidaInteira = String(pId) === String(m.goleiroA) && m.goleiroAInteiro !== false;
+
+        // Regras de Pontuação Base:
+        let pontosPartida = 5; // 5 pontos de Presença por jogar
+        
         if (scoreA > scoreB) {
           s.v++;
-          s.pts += 3;
+          pontosPartida += 10; // 10 pontos por Vitória
         } else if (scoreA === scoreB) {
           s.e++;
-          s.pts += 1;
+          pontosPartida += 5; // 5 pontos por Empate
         } else {
           s.d++;
         }
+
+        if (foiGoleiroPartidaInteira) {
+          // Bônus Baliza Zero para Goleiro: se o adversário (Time B) sofreu 0 gols, ganha 5 pontos
+          if (scoreB === 0) {
+            pontosPartida += 5;
+          }
+        } else {
+          // Gols do Time: 2 pontos por gol marcado pelo time A
+          pontosPartida += (scoreA * 2);
+        }
+
+        s.pts += pontosPartida;
+
+        // Estatísticas específicas de atuação como goleiro na partida inteira
+        if (foiGoleiroPartidaInteira) {
+          s.jogosGoleiro++;
+          s.ptsGoleiro += pontosPartida;
+          s.gcGoleiro += scoreB;
+          s.sgGoleiro += (scoreA - scoreB);
+          if (scoreA > scoreB) {
+            s.vGoleiro++;
+          } else if (scoreA === scoreB) {
+            s.eGoleiro++;
+          } else {
+            s.dGoleiro++;
+          }
+        }
       });
 
-      // Players do time B
+      // Time B
       const playersB = getPlayersFallback(m, 'B');
       playersB.forEach(p => {
         const pId = String(p.id || p.atleta_id || '');
         if (!pId) return;
         const atletaAtual = getAtletaAtualizado(p);
+        
         if (!stats[pId]) {
-          stats[pId] = { player: atletaAtual, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0 };
+          stats[pId] = { 
+            player: atletaAtual, 
+            j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, pts: 0, sgTime: 0, 
+            bonusFidelidade: 0, ptsFinais: 0, mpj: 0, pctPresenca: 0,
+            jogosGoleiro: 0,
+            ptsGoleiro: 0,
+            gcGoleiro: 0,
+            sgGoleiro: 0,
+            vGoleiro: 0,
+            eGoleiro: 0,
+            dGoleiro: 0,
+            bonusFidelidadeGoleiro: 0,
+            ptsFinaisGoleiro: 0,
+            mpjGoleiro: 0
+          };
         }
         const s = stats[pId];
         s.j++;
-        s.gp += parseInt(sumula[pId]) || parseInt(sumula[Number(pId)]) || 0;
+        const golsInd = parseInt(sumula[pId]) || parseInt(sumula[Number(pId)]) || 0;
+        s.gp += golsInd;
         s.gc += scoreA;
+        s.sgTime += (scoreB - scoreA);
+
+        const foiGoleiroPartidaInteira = String(pId) === String(m.goleiroB) && m.goleiroBInteiro !== false;
+
+        // Regras de Pontuação Base:
+        let pontosPartida = 5; // 5 pontos de Presença por jogar
+        
         if (scoreB > scoreA) {
           s.v++;
-          s.pts += 3;
+          pontosPartida += 10; // 10 pontos por Vitória
         } else if (scoreB === scoreA) {
           s.e++;
-          s.pts += 1;
+          pontosPartida += 5; // 5 pontos por Empate
         } else {
           s.d++;
+        }
+
+        if (foiGoleiroPartidaInteira) {
+          // Bônus Baliza Zero para Goleiro: se o adversário (Time A) sofreu 0 gols, ganha 5 pontos
+          if (scoreA === 0) {
+            pontosPartida += 5;
+          }
+        } else {
+          // Gols do Time: 2 pontos por gol marcado pelo time B
+          pontosPartida += (scoreB * 2);
+        }
+
+        s.pts += pontosPartida;
+
+        // Estatísticas específicas de atuação como goleiro na partida inteira
+        if (foiGoleiroPartidaInteira) {
+          s.jogosGoleiro++;
+          s.ptsGoleiro += pontosPartida;
+          s.gcGoleiro += scoreA;
+          s.sgGoleiro += (scoreB - scoreA);
+          if (scoreB > scoreA) {
+            s.vGoleiro++;
+          } else if (scoreB === scoreA) {
+            s.eGoleiro++;
+          } else {
+            s.dGoleiro++;
+          }
         }
       });
     });
 
     const arr = Object.values(stats);
-    if (repSortBy === "pts") {
-      return arr.sort((a, b) => b.pts - a.pts || b.gp - a.gp || b.v - a.v || a.j - b.j);
-    } else {
-      return arr.sort((a, b) => b.gp - a.gp || b.pts - a.pts || b.v - a.v || a.j - b.j);
-    }
-  };
+    arr.forEach(s => {
+      s.pctPresenca = totalPartidas > 0 ? parseFloat(((s.j / totalPartidas) * 100).toFixed(1)) : 0;
+      s.bonusFidelidade = parseFloat((s.j * 0.1).toFixed(2));
+      s.ptsFinais = parseFloat((s.pts + s.bonusFidelidade).toFixed(2));
+      s.mpj = s.j > 0 ? parseFloat((s.ptsFinais / s.j).toFixed(2)) : 0;
 
-  const getFilteredStandings = () => {
-    const teamsList = peladaState?.teams || [];
-    const st = teamsList.map(t => ({ name: t.name, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, pts: 0 }));
-    const filteredMatches = getFilteredMatches();
-    
-    filteredMatches.forEach(m => {
-      let h = st.find(x => x.name === m.teamA);
-      if (!h && m.teamA) {
-        h = { name: m.teamA, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, pts: 0 };
-        st.push(h);
-      }
-      let a = st.find(x => x.name === m.teamB);
-      if (!a && m.teamB) {
-        a = { name: m.teamB, j: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0, sg: 0, pts: 0 };
-        st.push(a);
-      }
-      if (!h || !a) return;
-      const hs = parseInt(m.scoreA) || 0;
-      const as2 = parseInt(m.scoreB) || 0;
-      h.j++; a.j++;
-      h.gp += hs; h.gc += as2;
-      a.gp += as2; a.gc += hs;
-      h.sg = h.gp - h.gc;
-      a.sg = a.gp - a.gc;
-      if (hs > as2) {
-        h.v++; h.pts += 3; a.d++;
-      } else if (hs === as2) {
-        h.e++; h.pts++; a.e++; a.pts++;
-      } else {
-        a.v++; a.pts += 3; h.d++;
-      }
-    });
-    return st.sort((a, b) => b.pts - a.pts || b.sg - a.sg || b.gp - a.gp);
-  };
-
-  const getMostWinningTeam = () => {
-    const filteredMatches = getFilteredMatches();
-    const winCounts = {};
-    filteredMatches.forEach(m => {
-      if (m.winner) {
-        winCounts[m.winner] = (winCounts[m.winner] || 0) + 1;
-      }
+      s.bonusFidelidadeGoleiro = parseFloat((s.jogosGoleiro * 0.1).toFixed(2));
+      s.ptsFinaisGoleiro = parseFloat((s.ptsGoleiro + s.bonusFidelidadeGoleiro).toFixed(2));
+      s.mpjGoleiro = s.jogosGoleiro > 0 ? parseFloat((s.ptsFinaisGoleiro / s.jogosGoleiro).toFixed(2)) : 0;
     });
 
-    const entries = Object.entries(winCounts);
-    if (entries.length === 0) return "Nenhum";
-    
-    entries.sort((a, b) => b[1] - a[1]);
-    return `${entries[0][0]} (${entries[0][1]} ${entries[0][1] === 1 ? "Vitória" : "Vitórias"})`;
+    return arr;
   };
 
-  const reportData = buildReportData().slice(0, 10);
   const totalPartidas = getFilteredMatches().length;
+  const allStats = buildReportData();
+
+  const sortRanking = (a, b) => {
+    // 1. Qualificado primeiro
+    const aQual = a.pctPresenca >= 50 ? 1 : 0;
+    const bQual = b.pctPresenca >= 50 ? 1 : 0;
+    if (aQual !== bQual) return bQual - aQual;
+
+    // 2. Pontuação Final descrescente
+    if (b.ptsFinais !== a.ptsFinais) return b.ptsFinais - a.ptsFinais;
+
+    // 3. MPJ descrescente
+    if (b.mpj !== a.mpj) return b.mpj - a.mpj;
+
+    // 4. Saldo de Gols do Time descrescente
+    if (b.sgTime !== a.sgTime) return b.sgTime - a.sgTime;
+
+    // 5. Menor número de jogos
+    return a.j - b.j;
+  };
+
+  const sortRankingGoleiros = (a, b) => {
+    // 1. Qualificado primeiro (50% de presença como goleiro)
+    const pctA = totalPartidas > 0 ? (a.jogosGoleiro / totalPartidas) * 100 : 0;
+    const pctB = totalPartidas > 0 ? (b.jogosGoleiro / totalPartidas) * 100 : 0;
+    const aQual = pctA >= 50 ? 1 : 0;
+    const bQual = pctB >= 50 ? 1 : 0;
+    if (aQual !== bQual) return bQual - aQual;
+
+    // 2. Pontuação Final de Goleiro descrescente
+    if (b.ptsFinaisGoleiro !== a.ptsFinaisGoleiro) return b.ptsFinaisGoleiro - a.ptsFinaisGoleiro;
+
+    // 3. MPJ de Goleiro descrescente
+    if (b.mpjGoleiro !== a.mpjGoleiro) return b.mpjGoleiro - a.mpjGoleiro;
+
+    // 4. Saldo de Gols de Goleiro descrescente
+    if (b.sgGoleiro !== a.sgGoleiro) return b.sgGoleiro - a.sgGoleiro;
+
+    // 5. Menor número de jogos como goleiro
+    return a.jogosGoleiro - b.jogosGoleiro;
+  };
+
+  // 1. Artilheiros
+  const rankingArtilheiros = [...allStats]
+    .filter(s => s.gp > 0)
+    .sort((a, b) => b.gp - a.gp || b.mpj - a.mpj || a.j - b.j);
+
+  // 2. Goleiros
+  const rankingGoleiros = [...allStats]
+    .filter(s => s.player.goleiro === true)
+    .sort(sortRankingGoleiros);
+
+  // 3. Jogadores de Linha
+  const rankingJogadoresLinha = [...allStats]
+    .filter(s => !s.player.goleiro)
+    .sort(sortRanking);
 
   const getSelectedDateText = () => {
     if (String(selDataSorteio) === "todas") return "Todas as Datas";
@@ -3409,7 +3528,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
       <div className="no-print">
         {/* Seletor de Cores do Relatório & Sistema */}
         <div style={{ ...S.card, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, borderColor: (t.accent || "#0095F6") + "55" }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: t.text }}>🎨 Tema de Cor (Relatório & Sistema):</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: t.text }}>🎨 Tema de Cor (Ranking & Sistema):</div>
           <div style={{ display: "flex", gap: 8 }}>
             {[
               { name: "Azul Instagram", color: "#0095F6" },
@@ -3444,130 +3563,251 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
             <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>PARTIDAS JOGADAS</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: t.accent || "#0095F6", marginTop: 4 }}>{totalPartidas}</div>
           </div>
-          
-          <div style={{ ...S.card, flex: 1, minWidth: 140, padding: 12, textAlign: "center", borderColor: "#1D9E7533", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <div style={{ fontSize: 11, color: t.textSec, fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "#1D9E75", marginTop: 8 }}>{getMostWinningTeam()}</div>
-          </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6, justifyContent: "center", minWidth: 160 }}>
             <button 
-              onClick={() => setRepSortBy("pts")} 
-              style={S.btnSm(repSortBy === "pts" ? (t.accent || "#0095F6") : "transparent", repSortBy === "pts" ? "#fff" : t.textSec)}
-            >
-              Classificar por Pontos
-            </button>
-            <button 
-              onClick={() => setRepSortBy("gols")} 
-              style={S.btnSm(repSortBy === "gols" ? (t.accent || "#0095F6") : "transparent", repSortBy === "gols" ? "#fff" : t.textSec)}
-            >
-              Classificar por Gols
-            </button>
-            <button 
               onClick={() => window.print()} 
-              style={{...S.btnSm(t.accent || "#0095F6", "#fff"), fontWeight: 700}}
+              style={{...S.btnSm(t.accent || "#0095F6", "#fff"), fontWeight: 700, padding: "10px 14px"}}
             >
-              📄 Exportar PDF
+              📄 Exportar PDF do Ranking
             </button>
           </div>
         </div>
 
-        {/* Classificação dos Times */}
-        <div style={{ ...S.card, marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>🏆 Classificação dos Times</div>
-          <StandingsTable standings={getFilteredStandings()} teams={(peladaState?.teams||[]).map(x=>x.name)} colorOf={colorOfTeam} accent={t.accent || "#0095F6"} t={t} />
+        {/* Abas internas do Ranking */}
+        <div style={{ display: "flex", gap: 6, borderBottom: `1px solid ${t.tabBorder}`, overflowX: "auto", marginBottom: 16 }} className="no-print">
+          {[
+            { id: "linha", label: "👟 Jogadores de Linha" },
+            { id: "goleiros", label: "🧤 Goleiros" },
+            { id: "artilharia", label: "⚽ Artilharia" }
+          ].map(tb => (
+            <button 
+              key={tb.id} 
+              onClick={() => setActiveRankTab(tb.id)} 
+              style={{
+                padding: "8px 14px",
+                border: "none",
+                borderBottom: activeRankTab === tb.id ? `3px solid ${t.accent || "#0095F6"}` : "3px solid transparent",
+                background: "none",
+                color: activeRankTab === tb.id ? t.text : t.textSec,
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: activeRankTab === tb.id ? 800 : 600,
+                whiteSpace: "nowrap",
+                transition: "all 0.2s ease"
+              }}
+            >
+              {tb.label}
+            </button>
+          ))}
         </div>
 
-        {/* Tabela do Relatório */}
-        <div style={S.card}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>📈 Desempenho dos Jogadores (Top 10)</div>
-          {reportData.length === 0 ? (
-            <div style={{ textAlign: "center", color: t.textSec, padding: 20, fontSize: 13 }}>Nenhuma partida jogada com o filtro selecionado.</div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 320 }}>
-                <thead>
-                  <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
-                    {["Rank", "Jogador", "J", "V", "E", "D", "GP (Gols)", "Pts"].map((h, hi) => (
-                      <th key={hi} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Jogador" ? "left" : "center", color: t.textSec }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportData.map((item, idx) => {
-                    let badge = idx + 1;
-                    if (idx === 0) badge = "🥇";
-                    else if (idx === 1) badge = "🥈";
-                    else if (idx === 2) badge = "🥉";
-                    
-                    return (
-                      <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? (t.accent ? t.accent + "11" : "#0095F611") : "transparent" }}>
-                        <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, fontSize: 13 }}>{badge}</td>
-                        <td style={{ padding: "9px 6px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <PlayerAvatar atleta={item.player} size={22} />
-                            <span style={{ fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: "9px 6px", textAlign: "center", color: t.text }}>{item.j}</td>
-                        <td style={{ padding: "9px 6px", textAlign: "center", color: "#1D9E75", fontWeight: 500 }}>{item.v}</td>
-                        <td style={{ padding: "9px 6px", textAlign: "center", color: t.textSec }}>{item.e}</td>
-                        <td style={{ padding: "9px 6px", textAlign: "center", color: "#E24B4A", fontWeight: 500 }}>{item.d}</td>
-                        <td style={{ padding: "9px 6px", textAlign: "center", color: t.text, fontWeight: repSortBy === "gols" ? 700 : 400, fontSize: repSortBy === "gols" ? 13 : 12 }}>
-                          {item.gp}
-                        </td>
-                        <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: t.accent || "#0095F6", fontSize: repSortBy === "pts" ? 14 : 12 }}>
-                          {item.pts}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {/* Tabela do Ranking (Linha) */}
+        {activeRankTab === "linha" && (
+          <div style={S.card}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>👟 Melhores Jogadores de Linha</div>
+            {rankingJogadoresLinha.length === 0 ? (
+              <div style={{ textAlign: "center", color: t.textSec, padding: 20, fontSize: 13 }}>Nenhum jogador de linha com partidas no filtro selecionado.</div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 400 }}>
+                  <thead>
+                    <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
+                      {["Rank", "Jogador", "J", "Pts Base", "Fidelidade", "Pontuação Final", "MPJ", "SG Time"].map((h, hi) => {
+                        let className = "";
+                        if (["Pts Base", "Fidelidade", "SG Time"].includes(h)) {
+                          className = "hide-on-mobile";
+                        }
+                        return (
+                          <th key={hi} className={className} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Jogador" ? "left" : "center", color: t.textSec }}>
+                            {h}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankingJogadoresLinha.map((item, idx) => {
+                      let badge = idx + 1;
+                      if (idx === 0) badge = "🥇";
+                      else if (idx === 1) badge = "🥈";
+                      else if (idx === 2) badge = "🥉";
+                      
+                      const isInqualificavel = item.pctPresenca < 50;
+                      
+                      return (
+                        <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? (t.accent ? t.accent + "11" : "#0095F611") : "transparent", opacity: isInqualificavel ? 0.75 : 1 }}>
+                          <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, fontSize: 13 }}>{badge}</td>
+                          <td style={{ padding: "9px 6px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <PlayerAvatar atleta={item.player} size={22} />
+                              <span style={{ fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</span>
+                              {isInqualificavel && (
+                                <span 
+                                  style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "#E24B4A22", color: "#E24B4A", fontWeight: 700 }}
+                                  title={`Inqualificável: ${item.pctPresenca}% de presença (mínimo 50% para qualificação)`}
+                                >
+                                  Inqualificável
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", color: t.text }}>{item.j}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", color: t.textSec }} className="hide-on-mobile">{item.pts}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", color: t.textSec }} className="hide-on-mobile">+{item.bonusFidelidade.toFixed(1)}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: t.accent || "#0095F6", fontSize: 13 }}>{item.ptsFinais.toFixed(1)}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, color: t.accent || "#0095F6" }}>{item.mpj.toFixed(2)}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", color: item.sgTime > 0 ? "#1D9E75" : item.sgTime < 0 ? "#E24B4A" : t.textSec, fontWeight: 600 }} className="hide-on-mobile">
+                            {item.sgTime > 0 ? `+${item.sgTime}` : item.sgTime}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tabela do Ranking (Goleiros) */}
+        {activeRankTab === "goleiros" && (
+          <div style={S.card}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>🧤 Melhores Goleiros</div>
+            {rankingGoleiros.length === 0 ? (
+              <div style={{ textAlign: "center", color: t.textSec, padding: 20, fontSize: 13 }}>Nenhum goleiro com partidas no filtro selecionado.</div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 400 }}>
+                  <thead>
+                    <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
+                      {["Rank", "Goleiro", "J", "Pts Base", "Fidelidade", "Pontuação Final", "MPJ", "SG Time"].map((h, hi) => {
+                        let className = "";
+                        if (["Pts Base", "Fidelidade", "SG Time"].includes(h)) {
+                          className = "hide-on-mobile";
+                        }
+                        return (
+                          <th key={hi} className={className} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Goleiro" ? "left" : "center", color: t.textSec }}>
+                            {h}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankingGoleiros.map((item, idx) => {
+                      let badge = idx + 1;
+                      if (idx === 0) badge = "🥇";
+                      else if (idx === 1) badge = "🥈";
+                      else if (idx === 2) badge = "🥉";
+                      
+                      const pctGoleiro = totalPartidas > 0 ? (item.jogosGoleiro / totalPartidas) * 100 : 0;
+                      const isInqualificavel = pctGoleiro < 50;
+                      
+                      return (
+                        <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? (t.accent ? t.accent + "11" : "#0095F611") : "transparent", opacity: isInqualificavel ? 0.75 : 1 }}>
+                          <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, fontSize: 13 }}>{badge}</td>
+                          <td style={{ padding: "9px 6px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <PlayerAvatar atleta={item.player} size={22} />
+                              <span style={{ fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</span>
+                              {isInqualificavel && (
+                                <span 
+                                  style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "#E24B4A22", color: "#E24B4A", fontWeight: 700 }}
+                                  title={`Inqualificável: ${pctGoleiro.toFixed(1)}% de presença como goleiro (mínimo 50% para qualificação)`}
+                                >
+                                  Inqualificável
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", color: t.text }}>{item.jogosGoleiro}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", color: t.textSec }} className="hide-on-mobile">{item.ptsGoleiro}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", color: t.textSec }} className="hide-on-mobile">+{item.bonusFidelidadeGoleiro.toFixed(1)}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: t.accent || "#0095F6", fontSize: 13 }}>{item.ptsFinaisGoleiro.toFixed(1)}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, color: t.accent || "#0095F6" }}>{item.mpjGoleiro.toFixed(2)}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", color: item.sgGoleiro > 0 ? "#1D9E75" : item.sgGoleiro < 0 ? "#E24B4A" : t.textSec, fontWeight: 600 }} className="hide-on-mobile">
+                            {item.sgGoleiro > 0 ? `+${item.sgGoleiro}` : item.sgGoleiro}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tabela do Ranking (Artilharia) */}
+        {activeRankTab === "artilharia" && (
+          <div style={S.card}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: t.text, marginBottom: 12 }}>⚽ Artilheiros (Gols Individuais)</div>
+            {rankingArtilheiros.length === 0 ? (
+              <div style={{ textAlign: "center", color: t.textSec, padding: 20, fontSize: 13 }}>Nenhum gol marcado no filtro selecionado.</div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 320 }}>
+                  <thead>
+                    <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
+                      {["Rank", "Jogador", "J", "Gols", "MPJ"].map((h, hi) => (
+                        <th key={hi} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Jogador" ? "left" : "center", color: t.textSec }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankingArtilheiros.map((item, idx) => {
+                      let badge = idx + 1;
+                      if (idx === 0) badge = "🥇";
+                      else if (idx === 1) badge = "🥈";
+                      else if (idx === 2) badge = "🥉";
+                      
+                      return (
+                        <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? (t.accent ? t.accent + "11" : "#0095F611") : "transparent" }}>
+                          <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, fontSize: 13 }}>{badge}</td>
+                          <td style={{ padding: "9px 6px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <PlayerAvatar atleta={item.player} size={22} />
+                              <span style={{ fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", color: t.text }}>{item.j}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: t.accent || "#0095F6", fontSize: 13 }}>{item.gp}</td>
+                          <td style={{ padding: "9px 6px", textAlign: "center", color: t.textSec }}>{item.mpj.toFixed(2)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Visão de Impressão Exclusiva (PDF) */}
       <div id="printable-relatorio" style={{ display: "none" }}>
         <h2 style={{ fontSize: 18, fontWeight: 800, textAlign: "center", marginBottom: 20, color: t.text }}>
-          Relatório da Pelada do dia {getSelectedDateText()}
+          Ranking da Pelada do dia {getSelectedDateText()}
         </h2>
 
         {/* Resumo em Impressão */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginBottom: 20 }}>
           <div style={{ border: `1px solid ${t.cardBorder}`, background: t.card, padding: 12, borderRadius: 8, textAlign: "center" }}>
             <div style={{ fontSize: 10, color: t.textSec, fontWeight: 600 }}>PARTIDAS JOGADAS</div>
             <div style={{ fontSize: 20, fontWeight: 800, color: t.accent || "#0095F6", marginTop: 4 }}>{totalPartidas}</div>
           </div>
-          <div style={{ border: `1px solid ${t.cardBorder}`, background: t.card, padding: 12, borderRadius: 8, textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: t.textSec, fontWeight: 600 }}>TIME MAIS VENCEDOR</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#1D9E75", marginTop: 8 }}>{getMostWinningTeam()}</div>
-          </div>
         </div>
 
-        {/* Classificação na Impressão */}
+        {/* 1. Ranking de Jogadores de Linha - Impressão */}
         <div style={{ border: `1px solid ${t.cardBorder}`, background: t.card, padding: 14, borderRadius: 8, marginBottom: 20 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: t.text, marginBottom: 12 }}>🏆 Classificação dos Times</div>
-          <StandingsTable 
-            standings={getFilteredStandings()} 
-            teams={(peladaState?.teams||[]).map(x=>x.name)} 
-            colorOf={colorOfTeam} 
-            accent={t.accent || "#0095F6"} 
-            t={t} 
-          />
-        </div>
-
-        {/* Desempenho na Impressão */}
-        <div style={{ border: `1px solid ${t.cardBorder}`, background: t.card, padding: 14, borderRadius: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: t.text, marginBottom: 12 }}>📈 Desempenho dos Jogadores (Top 10)</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: t.text, marginBottom: 12 }}>👟 Melhores Jogadores de Linha</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
-                {["Rank", "Jogador", "J", "V", "E", "D", "GP (Gols)", "Pts"].map((h, hi) => (
+                {["Rank", "Jogador", "Status", "J", "Pts Base", "Fidelidade", "Pontuação Final", "MPJ", "SG Time"].map((h, hi) => (
                   <th key={hi} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Jogador" ? "left" : "center", color: t.textSec }}>
                     {h}
                   </th>
@@ -3575,31 +3815,85 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
               </tr>
             </thead>
             <tbody>
-              {reportData.map((item, idx) => {
-                let badge = idx + 1;
-                if (idx === 0) badge = "🥇";
-                else if (idx === 1) badge = "🥈";
-                else if (idx === 2) badge = "🥉";
-                
+              {rankingJogadoresLinha.map((item, idx) => (
+                <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, opacity: item.pctPresenca < 50 ? 0.75 : 1 }}>
+                  <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700 }}>{idx + 1}</td>
+                  <td style={{ padding: "9px 6px", fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</td>
+                  <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, color: item.pctPresenca < 50 ? "#E24B4A" : "#1D9E75" }}>
+                    {item.pctPresenca < 50 ? "Inqualificável" : "Qualificado"}
+                  </td>
+                  <td style={{ padding: "9px 6px", textAlign: "center" }}>{item.j}</td>
+                  <td style={{ padding: "9px 6px", textAlign: "center" }}>{item.pts}</td>
+                  <td style={{ padding: "9px 6px", textAlign: "center" }}>+{item.bonusFidelidade.toFixed(1)}</td>
+                  <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700 }}>{item.ptsFinais.toFixed(1)}</td>
+                  <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700 }}>{item.mpj.toFixed(2)}</td>
+                  <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700 }}>{item.sgTime > 0 ? `+${item.sgTime}` : item.sgTime}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 2. Ranking de Goleiros - Impressão */}
+        <div style={{ border: `1px solid ${t.cardBorder}`, background: t.card, padding: 14, borderRadius: 8, marginBottom: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: t.text, marginBottom: 12 }}>🧤 Melhores Goleiros</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
+                {["Rank", "Goleiro", "Status", "J", "Pts Base", "Fidelidade", "Pontuação Final", "MPJ", "SG Time"].map((h, hi) => (
+                  <th key={hi} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Goleiro" ? "left" : "center", color: t.textSec }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rankingGoleiros.map((item, idx) => {
+                const pctGoleiro = totalPartidas > 0 ? (item.jogosGoleiro / totalPartidas) * 100 : 0;
+                const isInqualificavel = pctGoleiro < 50;
                 return (
-                  <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? (t.accent ? t.accent + "11" : "#0095F611") : "transparent" }}>
-                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, fontSize: 12 }}>{badge}</td>
-                    <td style={{ padding: "9px 6px" }}>
-                      <span style={{ fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</span>
+                  <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, opacity: isInqualificavel ? 0.75 : 1 }}>
+                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700 }}>{idx + 1}</td>
+                    <td style={{ padding: "9px 6px", fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700, color: isInqualificavel ? "#E24B4A" : "#1D9E75" }}>
+                      {isInqualificavel ? "Inqualificável" : "Qualificado"}
                     </td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", color: t.text }}>{item.j}</td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#1D9E75", fontWeight: 500 }}>{item.v}</td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", color: t.textSec }}>{item.e}</td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", color: "#E24B4A", fontWeight: 500 }}>{item.d}</td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", color: t.text, fontWeight: repSortBy === "gols" ? 700 : 400 }}>
-                      {item.gp}
-                    </td>
-                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 800, color: t.accent || "#0095F6" }}>
-                      {item.pts}
-                    </td>
+                    <td style={{ padding: "9px 6px", textAlign: "center" }}>{item.jogosGoleiro}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center" }}>{item.ptsGoleiro}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center" }}>+{item.bonusFidelidadeGoleiro.toFixed(1)}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700 }}>{item.ptsFinaisGoleiro.toFixed(1)}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700 }}>{item.mpjGoleiro.toFixed(2)}</td>
+                    <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700 }}>{item.sgGoleiro > 0 ? `+${item.sgGoleiro}` : item.sgGoleiro}</td>
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 3. Ranking de Artilharia - Impressão */}
+        <div style={{ border: `1px solid ${t.cardBorder}`, background: t.card, padding: 14, borderRadius: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: t.text, marginBottom: 12 }}>⚽ Artilheiros (Gols Individuais)</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${t.cardBorder}` }}>
+                {["Rank", "Jogador", "J", "Gols", "MPJ"].map((h, hi) => (
+                  <th key={hi} style={{ padding: "8px 6px", fontWeight: 600, textAlign: h === "Jogador" ? "left" : "center", color: t.textSec }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rankingArtilheiros.map((item, idx) => (
+                <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}` }}>
+                  <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700 }}>{idx + 1}</td>
+                  <td style={{ padding: "9px 6px", fontWeight: 600, color: t.text }}>{getPlayerName(item.player)}</td>
+                  <td style={{ padding: "9px 6px", textAlign: "center" }}>{item.j}</td>
+                  <td style={{ padding: "9px 6px", textAlign: "center", fontWeight: 700 }}>{item.gp}</td>
+                  <td style={{ padding: "9px 6px", textAlign: "center" }}>{item.mpj.toFixed(2)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -5596,7 +5890,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const currentAba = aba || localAba;
   const currentSetAba = setAba || setLocalAba;
   const isDonoOuAdmin = auth.role === "adm" || (auth.role === "manager" && pelada.manager_id === auth.manager_id);
-  const ABAS=["datas","atletas","participações","jogos","placar","relatório"];
+  const ABAS=["datas","atletas","participações","jogos","placar","ranking"];
   if (isDonoOuAdmin) {
     ABAS.push("colaboradores");
   }
@@ -5634,6 +5928,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[ppt,setPpt]=useState(pelada.playersPerTeam||7);
   const [pptInput, setPptInput] = useState(String(pelada.playersPerTeam||7));
   const[scoreA,setScoreA]=useState("");const[scoreB,setScoreB]=useState("");
+  const[proxTimeA,setProxTimeA]=useState("");
+  const[proxTimeB,setProxTimeB]=useState("");
  
   const[modoSorteio,setModoSorteio]=useState("auto");
   const[showSorteioConfig,setShowSorteioConfig]=useState(false);
@@ -5646,6 +5942,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[editScoreA,setEditScoreA]=useState("");
   const[editScoreB,setEditScoreB]=useState("");
   const[editSumula,setEditSumula]=useState({});
+  const[editGoleiroA,setEditGoleiroA]=useState("");
+  const[editGoleiroB,setEditGoleiroB]=useState("");
+  const[editGoleiroAInteiro,setEditGoleiroAInteiro]=useState(true);
+  const[editGoleiroBInteiro,setEditGoleiroBInteiro]=useState(true);
  
   // Estado para modal de "Sair do Jogo"
   const[sairModal,setSairModal]=useState(null); // {playerId, playerName, teamName}
@@ -5815,6 +6115,34 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       lastLoadedDateIdRef.current = null;
     }
   }, [selDataSorteio, datas]);
+
+  useEffect(() => {
+    if (peladaState && peladaState.queue && peladaState.queue.length >= 2) {
+      const q = peladaState.queue;
+      if (!proxTimeA || !q.includes(proxTimeA)) {
+        setProxTimeA(q[0]);
+      }
+      if (!proxTimeB || !q.includes(proxTimeB) || proxTimeB === proxTimeA) {
+        const nextDiff = q.find(name => name !== (proxTimeA || q[0]));
+        setProxTimeB(nextDiff || q[1]);
+      }
+    }
+  }, [peladaState, proxTimeA, proxTimeB]);
+
+  function iniciarPartidaManual() {
+    if (!peladaState || !proxTimeA || !proxTimeB) return;
+    if (proxTimeA === proxTimeB) {
+      alert("Selecione dois times diferentes para jogar!");
+      return;
+    }
+    const currentQueue = peladaState.queue || [];
+    const rest = currentQueue.filter(t => t !== proxTimeA && t !== proxTimeB);
+    const newQueue = [proxTimeA, proxTimeB, ...rest];
+    
+    const ps = startNextMatch({ ...peladaState, queue: newQueue }, selDataSorteio);
+    setPeladaStateLocal(ps);
+    saveDateState({ peladaState: ps });
+  }
 
   const[addBenchId,setAddBenchId]=useState("");
 
@@ -6309,7 +6637,11 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         scoreB: editScoreB,
         winner,
         loser,
-        sumula: editSumula
+        sumula: editSumula,
+        goleiroA: editGoleiroA,
+        goleiroB: editGoleiroB,
+        goleiroAInteiro: editGoleiroAInteiro,
+        goleiroBInteiro: editGoleiroBInteiro
       };
 
       setPeladaStateLocal(ps);
@@ -6974,6 +7306,69 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
             {drawnTeams && (
               /* --- JOGOS E BANCO / FILA / GESTÃO --- */
               <div>
+                {/* SELETOR DE MODO DE RODÍZIO */}
+                {!isRealizada && (
+                  <div style={{
+                    ...S.card,
+                    marginBottom: 16,
+                    padding: "12px 16px",
+                    background: t.inputBg,
+                    border: `1px solid ${t.cardBorder}`,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 12
+                  }}>
+                    <div>
+                      <div style={{fontWeight: 700, fontSize: 13, color: t.text}}>⚙️ Modo de Rodízio dos Atletas</div>
+                      <div style={{fontSize: 11, color: t.textSec, marginTop: 2}}>
+                        Escolha se o revezamento de atletas com o banco de reservas ocorre de forma automática ou manual.
+                      </div>
+                    </div>
+                    <div style={{display: "flex", gap: 8}}>
+                      <button
+                        onClick={() => {
+                          const ps = { ...peladaState, modoRodizio: "auto" };
+                          setPeladaStateLocal(ps);
+                          saveDateState({ peladaState: ps });
+                        }}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 6,
+                          fontWeight: 600,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          background: (peladaState?.modoRodizio || "auto") === "auto" ? "#1D9E75" : "transparent",
+                          color: (peladaState?.modoRodizio || "auto") === "auto" ? "#fff" : t.textSec,
+                          border: `1px solid ${(peladaState?.modoRodizio || "auto") === "auto" ? "#1D9E75" : t.cardBorder}`
+                        }}
+                      >
+                        🤖 Automático
+                      </button>
+                      <button
+                        onClick={() => {
+                          const ps = { ...peladaState, modoRodizio: "manual" };
+                          setPeladaStateLocal(ps);
+                          saveDateState({ peladaState: ps });
+                        }}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 6,
+                          fontWeight: 600,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          background: (peladaState?.modoRodizio || "auto") === "manual" ? "#378ADD" : "transparent",
+                          color: (peladaState?.modoRodizio || "auto") === "manual" ? "#fff" : t.textSec,
+                          border: `1px solid ${(peladaState?.modoRodizio || "auto") === "manual" ? "#378ADD" : t.cardBorder}`
+                        }}
+                      >
+                        🖐️ Manual
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* GESTÃO GERAL DAS EQUIPES E REFAZER SORTEIO */}
                 <div style={{marginTop:8, paddingTop:4, marginBottom: 20}}>
                   <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${t.cardBorder}`, paddingBottom: 8, marginBottom: 14}}>
@@ -7130,6 +7525,48 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             </div>
                           ))}
                         </div>
+                        <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end"}}>
+                          <div style={{display: "flex", alignItems: "center", gap: 4}}>
+                            <span style={{fontSize: 10, color: t.textSec}}>🧤 Goleiro:</span>
+                            <select 
+                              value={peladaState.currentMatch.goleiroA || ""} 
+                              onChange={e => {
+                                if (isRealizada) return;
+                                const ps = {
+                                  ...peladaState,
+                                  currentMatch: { ...peladaState.currentMatch, goleiroA: e.target.value }
+                                };
+                                setPeladaStateLocal(ps);
+                                saveDateState({ peladaState: ps });
+                              }}
+                              disabled={isRealizada}
+                              style={{...S.select, padding: "1px 4px", fontSize: 10, width: "auto", height: 20}}
+                            >
+                              <option value="">Nenhum</option>
+                              {(peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players || []).map(p => (
+                                <option key={p.id} value={p.id}>{getPlayerName(p)}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <label style={{display: "flex", alignItems: "center", gap: 3, fontSize: 9, color: t.textSec, cursor: isRealizada ? "default" : "pointer"}}>
+                            <input 
+                              type="checkbox" 
+                              checked={peladaState.currentMatch.goleiroAInteiro !== false} 
+                              onChange={e => {
+                                if (isRealizada) return;
+                                const ps = {
+                                  ...peladaState,
+                                  currentMatch: { ...peladaState.currentMatch, goleiroAInteiro: e.target.checked }
+                                };
+                                setPeladaStateLocal(ps);
+                                saveDateState({ peladaState: ps });
+                              }}
+                              disabled={isRealizada}
+                              style={{width: 10, height: 10, margin: 0}}
+                            />
+                            Jogou todo o jogo
+                          </label>
+                        </div>
                       </div>
                       <div style={{...S.card,border:`2px solid ${colorOfTeam(peladaState.currentMatch.teamB)}55`,padding:6,minWidth:0,overflow:"hidden"}}>
                         <div style={{display:"flex",alignItems:"center",gap:4,minWidth:0,overflow:"hidden"}}><div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamB),flexShrink:0}}/><span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{peladaState.currentMatch.teamB}</span></div>
@@ -7147,6 +7584,48 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             </div>
                           ))}
                         </div>
+                        <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start"}}>
+                          <div style={{display: "flex", alignItems: "center", gap: 4}}>
+                            <span style={{fontSize: 10, color: t.textSec}}>🧤 Goleiro:</span>
+                            <select 
+                              value={peladaState.currentMatch.goleiroB || ""} 
+                              onChange={e => {
+                                if (isRealizada) return;
+                                const ps = {
+                                  ...peladaState,
+                                  currentMatch: { ...peladaState.currentMatch, goleiroB: e.target.value }
+                                };
+                                setPeladaStateLocal(ps);
+                                saveDateState({ peladaState: ps });
+                              }}
+                              disabled={isRealizada}
+                              style={{...S.select, padding: "1px 4px", fontSize: 10, width: "auto", height: 20}}
+                            >
+                              <option value="">Nenhum</option>
+                              {(peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players || []).map(p => (
+                                <option key={p.id} value={p.id}>{getPlayerName(p)}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <label style={{display: "flex", alignItems: "center", gap: 3, fontSize: 9, color: t.textSec, cursor: isRealizada ? "default" : "pointer"}}>
+                            <input 
+                              type="checkbox" 
+                              checked={peladaState.currentMatch.goleiroBInteiro !== false} 
+                              onChange={e => {
+                                if (isRealizada) return;
+                                const ps = {
+                                  ...peladaState,
+                                  currentMatch: { ...peladaState.currentMatch, goleiroBInteiro: e.target.checked }
+                                };
+                                setPeladaStateLocal(ps);
+                                saveDateState({ peladaState: ps });
+                              }}
+                              disabled={isRealizada}
+                              style={{width: 10, height: 10, margin: 0}}
+                            />
+                            Jogou todo o jogo
+                          </label>
+                        </div>
                       </div>
                     </div>
                     {!isRealizada && <button onClick={saveMatchLocal} style={{...S.btn(),width:"100%",justifyContent:"center"}}>✓ Registrar</button>}
@@ -7156,25 +7635,97 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 {!peladaState?.currentMatch&&peladaState?.queue?.length>=2&&(
                   <div style={{...S.card,textAlign:"center",marginBottom:16,border:`2px solid ${isRealizada ? t.cardBorder : "#7F77DD55"}`}}>
                     <div style={{fontWeight:600,color:t.text,marginBottom:12}}>Próximo Jogo {isRealizada && "(Congelado)"}</div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-                      <div style={{background:"#7F77DD11",padding:10,borderRadius:12}}>
-                        <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[0]}</b>
-                        <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
-                          {peladaState.teams?.find(tm=>tm.name===peladaState.queue[0])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                            <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
-                          </div>)}
+                    
+                    {(peladaState.modoRodizio || "auto") === "manual" && !isRealizada ? (
+                      <div>
+                        {/* SELEÇÃO MANUAL DE TIMES */}
+                        <div style={{display: "flex", gap: 12, justifyContent: "center", alignItems: "center", marginBottom: 16, flexWrap: "wrap"}}>
+                          <div style={{display: "flex", flexDirection: "column", gap: 4, minWidth: 140, textAlign: "left"}}>
+                            <label style={{...S.label, margin: 0, fontSize: 11}}>Time A:</label>
+                            <select 
+                              value={proxTimeA} 
+                              onChange={e => {
+                                const val = e.target.value;
+                                setProxTimeA(val);
+                                if (val === proxTimeB) {
+                                  const other = peladaState.queue.find(t => t !== val);
+                                  if (other) setProxTimeB(other);
+                                }
+                              }} 
+                              style={S.select}
+                            >
+                              {peladaState.queue.map(name => (
+                                <option key={name} value={name}>{name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <span style={{fontWeight: 700, color: t.textSec, fontSize: 16, marginTop: 14}}>vs</span>
+                          <div style={{display: "flex", flexDirection: "column", gap: 4, minWidth: 140, textAlign: "left"}}>
+                            <label style={{...S.label, margin: 0, fontSize: 11}}>Time B:</label>
+                            <select 
+                              value={proxTimeB} 
+                              onChange={e => {
+                                const val = e.target.value;
+                                setProxTimeB(val);
+                                if (val === proxTimeA) {
+                                  const other = peladaState.queue.find(t => t !== val);
+                                  if (other) setProxTimeA(other);
+                                }
+                              }} 
+                              style={S.select}
+                            >
+                              {peladaState.queue.map(name => (
+                                <option key={name} value={name}>{name}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
-                      </div>
-                      <div style={{background:"#7F77DD11",padding:10,borderRadius:12}}>
-                        <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[1]}</b>
-                        <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
-                          {peladaState.teams?.find(tm=>tm.name===peladaState.queue[1])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                            <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
-                          </div>)}
+
+                        {/* LISTA DE JOGADORES DO TIMES SELECIONADOS NO MODO MANUAL */}
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                          <div style={{background:"#378ADD11",padding:10,borderRadius:12}}>
+                            <b style={{color:"#378ADD",display:"block",marginBottom:8}}>{proxTimeA}</b>
+                            <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
+                              {peladaState.teams?.find(tm=>tm.name===proxTimeA)?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                              </div>)}
+                            </div>
+                          </div>
+                          <div style={{background:"#378ADD11",padding:10,borderRadius:12}}>
+                            <b style={{color:"#378ADD",display:"block",marginBottom:8}}>{proxTimeB}</b>
+                            <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
+                              {peladaState.teams?.find(tm=>tm.name===proxTimeB)?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                              </div>)}
+                            </div>
+                          </div>
                         </div>
+
+                        <button onClick={iniciarPartidaManual} style={S.btn("#378ADD")}>▶ Iniciar Partida Manual</button>
                       </div>
-                    </div>
-                    {!isRealizada && <button onClick={()=>{const ps=startNextMatch(peladaState, selDataSorteio);setPeladaStateLocal(ps);saveDateState({peladaState:ps});}} style={S.btn("#7F77DD")}>▶ Iniciar Próximo Jogo na data selecionada</button>}
+                    ) : (
+                      <>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                          <div style={{background:"#7F77DD11",padding:10,borderRadius:12}}>
+                            <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[0]}</b>
+                            <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
+                              {peladaState.teams?.find(tm=>tm.name===peladaState.queue[0])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                              </div>)}
+                            </div>
+                          </div>
+                          <div style={{background:"#7F77DD11",padding:10,borderRadius:12}}>
+                            <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[1]}</b>
+                            <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
+                              {peladaState.teams?.find(tm=>tm.name===peladaState.queue[1])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                              </div>)}
+                            </div>
+                          </div>
+                        </div>
+                        {!isRealizada && <button onClick={()=>{const ps=startNextMatch(peladaState, selDataSorteio);setPeladaStateLocal(ps);saveDateState({peladaState:ps});}} style={S.btn("#7F77DD")}>▶ Iniciar Próximo Jogo na data selecionada</button>}
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -7348,6 +7899,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                 setEditScoreA(m.scoreA);
                                 setEditScoreB(m.scoreB);
                                 setEditSumula(m.sumula || {});
+                                setEditGoleiroA(m.goleiroA || "");
+                                setEditGoleiroB(m.goleiroB || "");
+                                setEditGoleiroAInteiro(m.goleiroAInteiro !== false);
+                                setEditGoleiroBInteiro(m.goleiroBInteiro !== false);
                               }}
                               style={{
                                 position: "absolute",
@@ -7406,7 +7961,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         )
       )}
       {currentAba==="placar"&&<StandingsTable standings={peladaStandings()} teams={(String(selDataSorteio) === "todas" ? (consolidatedPeladaState?.teams || []) : (peladaState?.teams || [])).map(x=>x.name)} colorOf={colorOfTeam} accent="#378ADD" t={t}/>}
-      {currentAba==="relatório"&&<AbaRelatorioPelada peladaState={consolidatedPeladaState} datas={datas} atletas={atletas} selDataSorteio={selDataSorteio} repSortBy={repSortBy} setRepSortBy={setRepSortBy} formatarData={formatarData} t={t} />}
+      {currentAba==="ranking"&&<AbaRelatorioPelada peladaState={consolidatedPeladaState} datas={datas} atletas={atletas} selDataSorteio={selDataSorteio} repSortBy={repSortBy} setRepSortBy={setRepSortBy} formatarData={formatarData} t={t} />}
 
       {subModal && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
@@ -7646,6 +8201,63 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Goleiros das Equipes */}
+            <div style={{borderTop:`1px solid ${t.cardBorder}`,paddingTop:10,marginBottom:16,display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{fontWeight:700,fontSize:12,color:t.text}}>🧤 Goleiros da Partida</div>
+              
+              {/* Goleiro Time A */}
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                <div style={{fontSize:11,fontWeight:600,color:colorOfTeam(peladaState.matchLog[editMatchId].teamA)}}>{peladaState.matchLog[editMatchId].teamA}:</div>
+                <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"space-between"}}>
+                  <select 
+                    value={editGoleiroA} 
+                    onChange={e => setEditGoleiroA(e.target.value)}
+                    style={{...S.select,padding:"3px 6px",fontSize:11,width:"60%"}}
+                  >
+                    <option value="">Nenhum</option>
+                    {(peladaState.matchLog[editMatchId].playersA || []).map(p => (
+                      <option key={p.id} value={p.id}>{getPlayerName(p)}</option>
+                    ))}
+                  </select>
+                  <label style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:t.textSec,cursor:"pointer"}}>
+                    <input 
+                      type="checkbox" 
+                      checked={editGoleiroAInteiro} 
+                      onChange={e => setEditGoleiroAInteiro(e.target.checked)}
+                      style={{width:12,height:12,margin:0}}
+                    />
+                    Todo o jogo
+                  </label>
+                </div>
+              </div>
+
+              {/* Goleiro Time B */}
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                <div style={{fontSize:11,fontWeight:600,color:colorOfTeam(peladaState.matchLog[editMatchId].teamB)}}>{peladaState.matchLog[editMatchId].teamB}:</div>
+                <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"space-between"}}>
+                  <select 
+                    value={editGoleiroB} 
+                    onChange={e => setEditGoleiroB(e.target.value)}
+                    style={{...S.select,padding:"3px 6px",fontSize:11,width:"60%"}}
+                  >
+                    <option value="">Nenhum</option>
+                    {(peladaState.matchLog[editMatchId].playersB || []).map(p => (
+                      <option key={p.id} value={p.id}>{getPlayerName(p)}</option>
+                    ))}
+                  </select>
+                  <label style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:t.textSec,cursor:"pointer"}}>
+                    <input 
+                      type="checkbox" 
+                      checked={editGoleiroBInteiro} 
+                      onChange={e => setEditGoleiroBInteiro(e.target.checked)}
+                      style={{width:12,height:12,margin:0}}
+                    />
+                    Todo o jogo
+                  </label>
                 </div>
               </div>
             </div>

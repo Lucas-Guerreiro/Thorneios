@@ -92,4 +92,9 @@ body.scale-145 #root {
     width: 22px !important;
     height: 22px !important;
   }
+
+  /* Ocultar colunas secundárias do Ranking no mobile para evitar overflow horizontal */
+  .hide-on-mobile {
+    display: none !important;
+  }
 }
