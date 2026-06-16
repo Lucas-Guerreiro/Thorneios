@@ -6239,12 +6239,15 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   };
 
   const reverterTimesOriginais = () => {
-    if (!peladaState || !peladaState.teamBases) {
+    const dataObj = datas.find(d => String(d.id) === String(selDataSorteio)) || pelada;
+    const origTeams = dataObj?.drawnTeams || pelada?.drawnTeams;
+
+    if (!origTeams || origTeams.length === 0) {
       alert("Não há dados de times originais salvos para esta rodada.");
       return;
     }
     
-    if (!window.confirm("Deseja realmente voltar todos os jogadores para seus times originais de sorteio? Isso desfará trocas manuais e empréstimos ativos.")) {
+    if (!window.confirm("Deseja realmente voltar todos os jogadores para seus times originais de sorteio? Isso desfará trocas manuais, novos times criados pelo banco e empréstimos ativos.")) {
       return;
     }
 
@@ -6262,15 +6265,19 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       }
     });
 
-    const baseIds = [];
-    Object.keys(peladaState.teamBases).forEach(tName => {
-      baseIds.push(...(peladaState.teamBases[tName] || []));
+    const origTeamNames = origTeams.map(t => t.name);
+    const origTeamBases = {};
+    origTeams.forEach(t => {
+      origTeamBases[t.name] = t.players.map(p => String(p.id || p.atleta_id || p.idAtleta));
     });
-    const benchIds = pelada.initialBench || [];
+
+    const origBenchIds = (dataObj?.initialBench || pelada?.initialBench || []).map(id => String(id));
 
     const sobressalentes = uniquePlayers.filter(p => {
       const idStr = String(p.id || p.atleta_id || p.idAtleta);
-      return !baseIds.some(id => String(id) === idStr) && !benchIds.some(id => String(id) === idStr);
+      const pertenceATimeOrig = origTeamNames.some(tName => origTeamBases[tName].includes(idStr));
+      const pertenceAoBancoOrig = origBenchIds.includes(idStr);
+      return !pertenceATimeOrig && !pertenceAoBancoOrig;
     });
 
     if (sobressalentes.length > 0) {
@@ -6282,20 +6289,51 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
   const executarReversaoDirect = (uniquePlayers, sobressalentes, destinoSobras) => {
     let ps = deepClone(peladaState);
+    const dataObj = datas.find(d => String(d.id) === String(selDataSorteio)) || pelada;
+    const origTeams = dataObj?.drawnTeams || pelada?.drawnTeams || [];
     
-    ps.teams = ps.teams.map(t => {
-      const baseIds = ps.teamBases[t.name] || [];
-      const originalPlayers = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
-      return { ...t, players: originalPlayers };
+    const origTeamNames = origTeams.map(t => t.name);
+    const origTeamBases = {};
+    origTeams.forEach(t => {
+      origTeamBases[t.name] = t.players.map(p => String(p.id || p.atleta_id || p.idAtleta));
     });
 
-    const bancoOriginalIds = pelada.initialBench || [];
-    const originalBenchPlayers = bancoOriginalIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+    ps.teams = origTeams.map(origT => {
+      const baseIds = origTeamBases[origT.name] || [];
+      const originalPlayers = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+      return { name: origT.name, players: originalPlayers };
+    });
+
+    ps.teamBases = { ...origTeamBases };
+
+    const origBenchIds = (dataObj?.initialBench || pelada?.initialBench || []).map(id => String(id));
+    const originalBenchPlayers = origBenchIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
     ps.bench = originalBenchPlayers;
+
+    const todosJogadoresQueEstavamEmSobressalentes = [];
+    if (peladaState.teams) {
+      peladaState.teams.forEach(t => {
+        if (!origTeamNames.includes(t.name)) {
+          todosJogadoresQueEstavamEmSobressalentes.push(...t.players);
+        }
+      });
+    }
+
+    todosJogadoresQueEstavamEmSobressalentes.forEach(p => {
+      const pIdStr = String(p.id || p.atleta_id || p.idAtleta);
+      if (!ps.bench.some(bp => String(bp.id || bp.atleta_id || bp.idAtleta) === pIdStr)) {
+        ps.bench.push(p);
+      }
+    });
 
     if (sobressalentes.length > 0) {
       if (destinoSobras === "bench") {
-        ps.bench.push(...sobressalentes);
+        sobressalentes.forEach(p => {
+          const pIdStr = String(p.id || p.atleta_id || p.idAtleta);
+          if (!ps.bench.some(bp => String(bp.id || bp.atleta_id || bp.idAtleta) === pIdStr)) {
+            ps.bench.push(p);
+          }
+        });
       } else if (destinoSobras === "newTeam") {
         let maxNum = 0;
         ps.teams.forEach(tm => {
@@ -6321,6 +6359,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         ps.teamBases[novoTimeNome] = sobressalentes.map(p => p.id || p.atleta_id || p.idAtleta);
       }
     }
+
+    ps.queue = ps.queue.filter(qName => ps.teams.some(t => t.name === qName));
 
     if (ps.currentMatch) {
       ps.currentMatch.teamAEmprestados = [];
