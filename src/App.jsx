@@ -6235,11 +6235,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       return;
     }
 
-    let ps = deepClone(peladaState);
-    
     const todosJogadores = [];
-    if (ps.teams) ps.teams.forEach(tm => todosJogadores.push(...tm.players));
-    if (ps.bench) todosJogadores.push(...ps.bench);
+    if (peladaState.teams) peladaState.teams.forEach(tm => todosJogadores.push(...tm.players));
+    if (peladaState.bench) peladaState.bench.forEach(p => todosJogadores.push(p));
     
     const uniquePlayers = [];
     const seenIds = new Set();
@@ -6251,6 +6249,27 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       }
     });
 
+    const baseIds = [];
+    Object.keys(peladaState.teamBases).forEach(tName => {
+      baseIds.push(...(peladaState.teamBases[tName] || []));
+    });
+    const benchIds = pelada.initialBench || [];
+
+    const sobressalentes = uniquePlayers.filter(p => {
+      const idStr = String(p.id || p.atleta_id || p.idAtleta);
+      return !baseIds.some(id => String(id) === idStr) && !benchIds.some(id => String(id) === idStr);
+    });
+
+    if (sobressalentes.length > 0) {
+      setSobrasModalData({ sobressalentes, uniquePlayers });
+    } else {
+      executarReversaoDirect(uniquePlayers, [], "bench");
+    }
+  };
+
+  const executarReversaoDirect = (uniquePlayers, sobressalentes, destinoSobras) => {
+    let ps = deepClone(peladaState);
+    
     ps.teams = ps.teams.map(t => {
       const baseIds = ps.teamBases[t.name] || [];
       const originalPlayers = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
@@ -6260,6 +6279,27 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const bancoOriginalIds = pelada.initialBench || [];
     const originalBenchPlayers = bancoOriginalIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
     ps.bench = originalBenchPlayers;
+
+    if (sobressalentes.length > 0) {
+      if (destinoSobras === "bench") {
+        ps.bench.push(...sobressalentes);
+      } else if (destinoSobras === "newTeam") {
+        const nextLetter = String.fromCharCode(65 + ps.teams.length);
+        const novoTimeNome = `Time ${nextLetter}`;
+        const novoTimeObj = {
+          name: novoTimeNome,
+          players: [...sobressalentes]
+        };
+        ps.teams.push(novoTimeObj);
+        if (ps.queue) {
+          ps.queue.push(novoTimeNome);
+        } else {
+          ps.queue = [novoTimeNome];
+        }
+        if (!ps.teamBases) ps.teamBases = {};
+        ps.teamBases[novoTimeNome] = sobressalentes.map(p => p.id || p.atleta_id || p.idAtleta);
+      }
+    }
 
     if (ps.currentMatch) {
       ps.currentMatch.teamAEmprestados = [];
@@ -6272,6 +6312,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
     setPeladaStateLocal(ps);
     saveDateState({ peladaState: ps });
+    setSobrasModalData(null);
     alert("Jogadores restaurados com sucesso para as equipes e banco originais!");
   };
 
@@ -6284,6 +6325,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[manualAssignments,setManualAssignments]=useState({});
   const[assignModal,setAssignModal]=useState(null);
   const[subModal,setSubModal]=useState(null);
+  const [sobrasModalData, setSobrasModalData] = useState(null);
   const[repSortBy,setRepSortBy]=useState("pts");
   const[sumulaGols,setSumulaGols]=useState({});
   const[editMatchId,setEditMatchId]=useState(null);
@@ -8498,6 +8540,47 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               ))}
               <button onClick={()=>movePlayerInRotation(subModal, "bench")} style={{...S.btn("#BA751722","#BA7517"),justifyContent:"center",fontWeight:700}}>Banco (Espera)</button>
               <button onClick={()=>setSubModal(null)} style={{...S.btn(t.card,t.textSec),justifyContent:"center",marginTop:8,border:`1px solid ${t.cardBorder}`}}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sobrasModalData && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
+          <div style={{...S.card,width:"100%",maxWidth:400,textAlign:"center"}}>
+            <div style={{fontWeight:700,fontSize:15,color:t.text,marginBottom:8}}>⚠️ Jogadores sem Time de Origem</div>
+            <div style={{fontSize:12,color:t.textSec,marginBottom:14}}>
+              Os seguintes atletas foram adicionados após o sorteio ou não faziam parte das equipes/banco originais:
+            </div>
+            
+            <div style={{maxHeight:120,overflowY:"auto",background:t.inputBg,border:`1px solid ${t.inputBorder}`,borderRadius:8,padding:8,marginBottom:16,display:"flex",flexDirection:"column",gap:4,textAlign:"left"}}>
+              {sobrasModalData.sobressalentes.map((p,pi)=>(
+                <div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
+                  <PlayerAvatar atleta={p} size={18}/><span>{getPlayerName(p)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{fontSize:12,fontWeight:600,color:t.text,marginBottom:12}}>O que deseja fazer com estes jogadores?</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <button 
+                onClick={() => executarReversaoDirect(sobrasModalData.uniquePlayers, sobrasModalData.sobressalentes, "bench")} 
+                style={{...S.btn("#1D9E7522","#1D9E75"),justifyContent:"center",fontWeight:700}}
+              >
+                📥 Enviar todos para o Banco de Espera
+              </button>
+              <button 
+                onClick={() => executarReversaoDirect(sobrasModalData.uniquePlayers, sobrasModalData.sobressalentes, "newTeam")} 
+                style={{...S.btn("#378ADD22","#378ADD"),justifyContent:"center",fontWeight:700}}
+              >
+                ➕ Criar um novo Time com eles
+              </button>
+              <button 
+                onClick={() => setSobrasModalData(null)} 
+                style={{...S.btn(t.card,t.textSec),justifyContent:"center",marginTop:8,border:`1px solid ${t.cardBorder}`}}
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
