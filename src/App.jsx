@@ -1481,7 +1481,21 @@ function resolveMatch(ps,scoreA,scoreB,dataRealizacaoId=""){
   if (ambosSairamEmpate) {
     newQueue = [...rest, ps.currentMatch.teamA, ps.currentMatch.teamB];
   } else if (vencedorAtingiuLimite) {
-    newQueue = [...rest, loser, winner];
+    const destinoVencedorLimite = ps.destinoVencedorLimite || "finalFila";
+    if (destinoVencedorLimite === "esperarUmJogo") {
+      const nextA = rest[0];
+      const nextB = rest[1];
+      const remaining = rest.slice(2);
+      if (nextA && nextB) {
+        newQueue = [nextA, nextB, winner, ...remaining, loser];
+      } else if (nextA) {
+        newQueue = [nextA, winner, loser];
+      } else {
+        newQueue = [winner, loser];
+      }
+    } else {
+      newQueue = [...rest, loser, winner];
+    }
   } else {
     newQueue = [winner, ...rest, loser];
   }
@@ -3429,7 +3443,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
           pontosPartida += 10; // 10 pontos por Vitória
         } else if (scoreA === scoreB) {
           s.e++;
-          pontosPartida += m.ambosSairam ? 1 : 5; // 1 ponto se ambos saíram no empate, senão 5
+          pontosPartida += 5; // 5 pontos por Empate
         } else {
           s.d++;
         }
@@ -3503,7 +3517,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
           pontosPartida += 10; // 10 pontos por Vitória
         } else if (scoreB === scoreA) {
           s.e++;
-          pontosPartida += m.ambosSairam ? 1 : 5; // 1 ponto se ambos saíram no empate, senão 5
+          pontosPartida += 5; // 5 pontos por Empate
         } else {
           s.d++;
         }
@@ -7559,6 +7573,31 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                         <option value={5}>5 vitórias seguidas</option>
                       </select>
                     </div>
+
+                    {/* Destino ao atingir o limite */}
+                    {(peladaState?.limiteVitorias || 0) > 0 && (
+                      <>
+                        <div style={{height: 1, background: t.cardBorder}}/>
+                        <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8}}>
+                          <div>
+                            <div style={{fontWeight: 600, fontSize: 12, color: t.text}}>Ação ao atingir o limite de vitórias</div>
+                            <div style={{fontSize: 10, color: t.textSec}}>Escolha para onde o time vencedor vai ao atingir o limite.</div>
+                          </div>
+                          <select
+                            value={peladaState?.destinoVencedorLimite || "finalFila"}
+                            onChange={e => {
+                              const ps = { ...peladaState, destinoVencedorLimite: e.target.value };
+                              setPeladaStateLocal(ps);
+                              saveDateState({ peladaState: ps });
+                            }}
+                            style={{...S.select, width: "auto", fontSize: 11, padding: "4px 8px", height: 26}}
+                          >
+                            <option value="finalFila">Ir para o final da fila de espera</option>
+                            <option value="esperarUmJogo">Esperar 1 jogo fora e voltar logo em seguida</option>
+                          </select>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
