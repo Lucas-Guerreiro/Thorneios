@@ -6208,6 +6208,22 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const [numTeamsInput, setNumTeamsInput] = useState("2");
   const[ppt,setPpt]=useState(pelada.playersPerTeam||7);
   const [pptInput, setPptInput] = useState(String(pelada.playersPerTeam||7));
+  
+  const getLoanTag = (atleta, currentTeamName) => {
+    if (!atleta || !peladaState || !peladaState.teamBases || !currentTeamName) return null;
+    const athleteId = String(atleta.id || atleta.atleta_id || atleta.idAtleta);
+    const baseIds = peladaState.teamBases[currentTeamName] || [];
+    if (baseIds.some(id => String(id) === athleteId)) return null;
+    for (const teamName of Object.keys(peladaState.teamBases)) {
+      const ids = peladaState.teamBases[teamName] || [];
+      if (ids.some(id => String(id) === athleteId)) {
+        const matches = teamName.match(/\d+/);
+        const sigla = matches ? `T${matches[0]}` : teamName.substring(0, 3).toUpperCase();
+        return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado do ${teamName}`}>🤝 ({sigla})</span>;
+      }
+    }
+    return null;
+  };
   const[scoreA,setScoreA]=useState("");const[scoreB,setScoreB]=useState("");
   const[proxTimeA,setProxTimeA]=useState("");
   const[proxTimeB,setProxTimeB]=useState("");
@@ -12315,21 +12331,7 @@ export default function App(){
   const{dark,setDark,t:themeBase}=useTheme();
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
 
-  const getLoanTag = (atleta, currentTeamName) => {
-    if (!atleta || !peladaState || !peladaState.teamBases || !currentTeamName) return null;
-    const athleteId = String(atleta.id || atleta.atleta_id || atleta.idAtleta);
-    const baseIds = peladaState.teamBases[currentTeamName] || [];
-    if (baseIds.some(id => String(id) === athleteId)) return null;
-    for (const teamName of Object.keys(peladaState.teamBases)) {
-      const ids = peladaState.teamBases[teamName] || [];
-      if (ids.some(id => String(id) === athleteId)) {
-        const matches = teamName.match(/\d+/);
-        const sigla = matches ? `T${matches[0]}` : teamName.substring(0, 3).toUpperCase();
-        return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado do ${teamName}`}>🤝 ({sigla})</span>;
-      }
-    }
-    return null;
-  };
+
   
   const [fontScale, setFontScale] = useState(() => {
     if (typeof window !== "undefined") {
