@@ -7488,6 +7488,80 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                   </div>
                 )}
 
+                {/* CONFIGURAÇÕES DE ROTAÇÃO DE EQUIPES */}
+                {!isRealizada && (
+                  <div style={{
+                    ...S.card,
+                    marginBottom: 16,
+                    padding: "14px 16px",
+                    background: t.inputBg,
+                    border: `1px solid ${t.cardBorder}`,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12
+                  }}>
+                    <div style={{fontWeight: 700, fontSize: 13, color: t.text}}>⚙️ Regras de Rodízio de Equipes</div>
+                    
+                    {/* Regra de Empate (Ambos Saem) */}
+                    <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8}}>
+                      <div>
+                        <div style={{fontWeight: 600, fontSize: 12, color: t.text}}>No empate, saem os dois times</div>
+                        <div style={{fontSize: 10, color: t.textSec}}>Os dois times voltam para o final da fila e pontuam 1 no ranking.</div>
+                      </div>
+                      <label style={{position: 'relative', display: 'inline-block', width: 44, height: 22}}>
+                        <input 
+                          type="checkbox" 
+                          checked={peladaState?.empateAmbosSaem === true} 
+                          onChange={e => {
+                            const ps = { ...peladaState, empateAmbosSaem: e.target.checked };
+                            setPeladaStateLocal(ps);
+                            saveDateState({ peladaState: ps });
+                          }}
+                          style={{opacity: 0, width: 0, height: 0}}
+                        />
+                        <span style={{
+                          position: 'absolute', cursor: 'pointer', inset: 0,
+                          background: peladaState?.empateAmbosSaem ? '#1D9E75' : '#ccc',
+                          borderRadius: 22, transition: '0.3s',
+                          display: 'flex', alignItems: 'center', padding: '0 4px'
+                        }}>
+                          <span style={{
+                            width: 16, height: 16, background: '#fff', borderRadius: '50%',
+                            transition: '0.3s',
+                            transform: peladaState?.empateAmbosSaem ? 'translateX(20px)' : 'translateX(0px)'
+                          }}/>
+                        </span>
+                      </label>
+                    </div>
+
+                    <div style={{height: 1, background: t.cardBorder}}/>
+
+                    {/* Limite de Vitórias Seguidas */}
+                    <div style={{display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8}}>
+                      <div>
+                        <div style={{fontWeight: 600, fontSize: 12, color: t.text}}>Limite de vitórias seguidas (permanência)</div>
+                        <div style={{fontSize: 10, color: t.textSec}}>O time que atingir o limite sai da quadra na próxima rodada.</div>
+                      </div>
+                      <select
+                        value={peladaState?.limiteVitorias || 0}
+                        onChange={e => {
+                          const val = parseInt(e.target.value) || 0;
+                          const ps = { ...peladaState, limiteVitorias: val };
+                          setPeladaStateLocal(ps);
+                          saveDateState({ peladaState: ps });
+                        }}
+                        style={{...S.select, width: "auto", fontSize: 11, padding: "4px 8px", height: 26}}
+                      >
+                        <option value={0}>Sem limite (padrão)</option>
+                        <option value={2}>2 vitórias seguidas</option>
+                        <option value={3}>3 vitórias seguidas</option>
+                        <option value={4}>4 vitórias seguidas</option>
+                        <option value={5}>5 vitórias seguidas</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
                 {/* GESTÃO GERAL DAS EQUIPES E REFAZER SORTEIO */}
                 <div style={{marginTop:8, paddingTop:4, marginBottom: 20}}>
                   <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${t.cardBorder}`, paddingBottom: 8, marginBottom: 14}}>
