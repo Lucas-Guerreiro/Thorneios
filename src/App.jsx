@@ -1333,10 +1333,43 @@ function startNextMatch(ps,dataRealizacaoId=""){
   const defaultGoleiroB = teamBObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
   return{...ps,currentMatch:{id:Date.now() + "_" + Math.floor(Math.random() * 1000),teamA:a,teamB:b,scoreA:"",scoreB:"",date:todayStr(),dataRealizacaoId,played:false,goleiroA:defaultGoleiroA,goleiroB:defaultGoleiroB,goleiroAInteiro:true,goleiroBInteiro:true}};
 }
-function resolveMatch(ps,scoreA,scoreB){
+function getVitoriasSeguidas(matchLog, teamName, dataRealizacaoId) {
+  let vitorias = 0;
+  const partidasDoDia = (matchLog || []).filter(m => m.played && String(m.dataRealizacaoId) === String(dataRealizacaoId));
+  for (let i = partidasDoDia.length - 1; i >= 0; i--) {
+    const m = partidasDoDia[i];
+    if (m.winner === teamName) {
+      vitorias++;
+    } else {
+      break;
+    }
+  }
+  return vitorias;
+}
+function resolveMatch(ps,scoreA,scoreB,dataRealizacaoId=""){
   const sA=parseInt(scoreA),sB=parseInt(scoreB);
-  const winner=sA>sB?ps.currentMatch.teamA:sA<sB?ps.currentMatch.teamB:ps.currentMatch.teamA;
-  const loser=winner===ps.currentMatch.teamA?ps.currentMatch.teamB:ps.currentMatch.teamA;
+  
+  const empateAmbosSaem = ps.empateAmbosSaem === true;
+  const limiteVitorias = parseInt(ps.limiteVitorias) || 0;
+  
+  let winner = "";
+  let loser = "";
+  let ambosSairamEmpate = false;
+  let vencedorAtingiuLimite = false;
+  
+  if (sA === sB) {
+    if (empateAmbosSaem) {
+      ambosSairamEmpate = true;
+      winner = "Empate (Ambos Saíram)";
+      loser = "Ambos";
+    } else {
+      winner = ps.currentMatch.teamA;
+      loser = ps.currentMatch.teamB;
+    }
+  } else {
+    winner = sA > sB ? ps.currentMatch.teamA : ps.currentMatch.teamB;
+    loser = winner === ps.currentMatch.teamA ? ps.currentMatch.teamB : ps.currentMatch.teamA;
+  }
   
   const teamAObj = ps.teams.find(t=>t.name===ps.currentMatch.teamA);
   const teamBObj = ps.teams.find(t=>t.name===ps.currentMatch.teamB);
@@ -1345,29 +1378,115 @@ function resolveMatch(ps,scoreA,scoreB){
 
   let newTeams = [...ps.teams];
   let newBench = [...ps.bench];
-  const loserObj = newTeams.find(t=>t.name===loser);
-  
   const modoRodizio = ps.modoRodizio || "auto";
   
-  if(modoRodizio === "auto" && loserObj && newBench.length > 0) {
-    const timeUnidades = agruparUnidades(loserObj.players);
-    const bancoUnidades = agruparUnidades(newBench);
-    
-    const swapCount = Math.min(bancoUnidades.length, timeUnidades.length);
-    
-    const leavingUnidades = timeUnidades.slice(-swapCount);
-    const remainingUnidades = timeUnidades.slice(0, timeUnidades.length - swapCount);
-    const incomingUnidades = bancoUnidades.slice(0, swapCount);
-    
-    const newLoserPlayers = [...incomingUnidades, ...remainingUnidades].flat();
-    newBench = [...bancoUnidades.slice(swapCount), ...leavingUnidades].flat();
-    
-    newTeams = newTeams.map(t=>t.name===loser ? {...t, players: newLoserPlayers} : t);
+  const currentMatchLogEntry = {
+    ...ps.currentMatch,
+    scoreA,
+    scoreB,
+    winner,
+    loser,
+    played: true,
+    playersA,
+    playersB,
+    ambosSairam: ambosSairamEmpate
+  };
+  
+  const tempLog = [...ps.matchLog, currentMatchLogEntry];
+  
+  if (!ambosSairamEmpate && limiteVitorias > 0) {
+    const vitoriasSeguidas = getVitoriasSeguidas(tempLog, winner, dataRealizacaoId || ps.currentMatch.dataRealizacaoId);
+    if (vitoriasSeguidas >= limiteVitorias) {
+      vencedorAtingiuLimite = true;
+      currentMatchLogEntry.limiteAtingido = true;
+    }
   }
   
-  const log=[...ps.matchLog,{...ps.currentMatch,scoreA,scoreB,winner,loser,played:true,playersA,playersB}];
-  const rest=ps.queue.slice(2);
-  return{...ps,teams:newTeams,queue:[winner,...rest,loser],bench:newBench,matchLog:log,currentMatch:null};
+  if (modoRodizio === "auto" && newBench.length > 0) {
+    if (ambosSairamEmpate) {
+      // Time A
+      const tA = newTeams.find(t=>t.name===ps.currentMatch.teamA);
+      if (tA) {
+        const timeUnidades = agruparUnidades(tA.players);
+        const bancoUnidades = agruparUnidades(newBench);
+        const swapCount = Math.min(bancoUnidades.length, timeUnidades.length);
+        const leaving = timeUnidades.slice(-swapCount);
+        const remaining = timeUnidades.slice(0, timeUnidades.length - swapCount);
+        const incoming = bancoUnidades.slice(0, swapCount);
+        const newPlayers = [...incoming, ...remaining].flat();
+        newBench = [...bancoUnidades.slice(swapCount), ...leaving].flat();
+        newTeams = newTeams.map(t=>t.name===ps.currentMatch.teamA ? {...t, players: newPlayers} : t);
+      }
+      
+      // Time B
+      const tB = newTeams.find(t=>t.name===ps.currentMatch.teamB);
+      if (tB && newBench.length > 0) {
+        const timeUnidades = agruparUnidades(tB.players);
+        const bancoUnidades = agruparUnidades(newBench);
+        const swapCount = Math.min(bancoUnidades.length, timeUnidades.length);
+        const leaving = timeUnidades.slice(-swapCount);
+        const remaining = timeUnidades.slice(0, timeUnidades.length - swapCount);
+        const incoming = bancoUnidades.slice(0, swapCount);
+        const newPlayers = [...incoming, ...remaining].flat();
+        newBench = [...bancoUnidades.slice(swapCount), ...leaving].flat();
+        newTeams = newTeams.map(t=>t.name===ps.currentMatch.teamB ? {...t, players: newPlayers} : t);
+      }
+    } else if (vencedorAtingiuLimite) {
+      // Primeiro o perdedor
+      const tLoser = newTeams.find(t=>t.name===loser);
+      if (tLoser) {
+        const timeUnidades = agruparUnidades(tLoser.players);
+        const bancoUnidades = agruparUnidades(newBench);
+        const swapCount = Math.min(bancoUnidades.length, timeUnidades.length);
+        const leaving = timeUnidades.slice(-swapCount);
+        const remaining = timeUnidades.slice(0, timeUnidades.length - swapCount);
+        const incoming = bancoUnidades.slice(0, swapCount);
+        const newPlayers = [...incoming, ...remaining].flat();
+        newBench = [...bancoUnidades.slice(swapCount), ...leaving].flat();
+        newTeams = newTeams.map(t=>t.name===loser ? {...t, players: newPlayers} : t);
+      }
+      
+      // Depois o vencedor
+      const tWinner = newTeams.find(t=>t.name===winner);
+      if (tWinner && newBench.length > 0) {
+        const timeUnidades = agruparUnidades(tWinner.players);
+        const bancoUnidades = agruparUnidades(newBench);
+        const swapCount = Math.min(bancoUnidades.length, timeUnidades.length);
+        const leaving = timeUnidades.slice(-swapCount);
+        const remaining = timeUnidades.slice(0, timeUnidades.length - swapCount);
+        const incoming = bancoUnidades.slice(0, swapCount);
+        const newPlayers = [...incoming, ...remaining].flat();
+        newBench = [...bancoUnidades.slice(swapCount), ...leaving].flat();
+        newTeams = newTeams.map(t=>t.name===winner ? {...t, players: newPlayers} : t);
+      }
+    } else {
+      // Caso padrão: apenas perdedor
+      const tLoser = newTeams.find(t=>t.name===loser);
+      if (tLoser) {
+        const timeUnidades = agruparUnidades(tLoser.players);
+        const bancoUnidades = agruparUnidades(newBench);
+        const swapCount = Math.min(bancoUnidades.length, timeUnidades.length);
+        const leaving = timeUnidades.slice(-swapCount);
+        const remaining = timeUnidades.slice(0, timeUnidades.length - swapCount);
+        const incoming = bancoUnidades.slice(0, swapCount);
+        const newPlayers = [...incoming, ...remaining].flat();
+        newBench = [...bancoUnidades.slice(swapCount), ...leaving].flat();
+        newTeams = newTeams.map(t=>t.name===loser ? {...t, players: newPlayers} : t);
+      }
+    }
+  }
+
+  const rest = ps.queue.slice(2);
+  let newQueue = [];
+  if (ambosSairamEmpate) {
+    newQueue = [...rest, ps.currentMatch.teamA, ps.currentMatch.teamB];
+  } else if (vencedorAtingiuLimite) {
+    newQueue = [...rest, loser, winner];
+  } else {
+    newQueue = [winner, ...rest, loser];
+  }
+
+  return {...ps, teams: newTeams, queue: newQueue, bench: newBench, matchLog: tempLog, currentMatch: null};
 }
 
 /* ─────────────────────────── CRONÔMETRO E AUDIO ─────────────────── */
@@ -3310,7 +3429,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
           pontosPartida += 10; // 10 pontos por Vitória
         } else if (scoreA === scoreB) {
           s.e++;
-          pontosPartida += 5; // 5 pontos por Empate
+          pontosPartida += m.ambosSairam ? 1 : 5; // 1 ponto se ambos saíram no empate, senão 5
         } else {
           s.d++;
         }
@@ -3384,7 +3503,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
           pontosPartida += 10; // 10 pontos por Vitória
         } else if (scoreB === scoreA) {
           s.e++;
-          pontosPartida += 5; // 5 pontos por Empate
+          pontosPartida += m.ambosSairam ? 1 : 5; // 1 ponto se ambos saíram no empate, senão 5
         } else {
           s.d++;
         }
@@ -6611,7 +6730,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         played:true,
         sumula:sumulaGols
       }
-    },scoreA,scoreB);
+    },scoreA,scoreB,selDataSorteio);
     const ps3=startNextMatch(ps2, selDataSorteio);
     setPeladaStateLocal(ps3);
     saveDateState({peladaState:ps3});
