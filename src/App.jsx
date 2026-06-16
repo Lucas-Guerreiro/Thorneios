@@ -6224,6 +6224,57 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     }
     return null;
   };
+
+  const reverterTimesOriginais = () => {
+    if (!peladaState || !peladaState.teamBases) {
+      alert("Não há dados de times originais salvos para esta rodada.");
+      return;
+    }
+    
+    if (!window.confirm("Deseja realmente voltar todos os jogadores para seus times originais de sorteio? Isso desfará trocas manuais e empréstimos ativos.")) {
+      return;
+    }
+
+    let ps = deepClone(peladaState);
+    
+    const todosJogadores = [];
+    if (ps.teams) ps.teams.forEach(tm => todosJogadores.push(...tm.players));
+    if (ps.bench) todosJogadores.push(...ps.bench);
+    
+    const uniquePlayers = [];
+    const seenIds = new Set();
+    todosJogadores.forEach(p => {
+      const idStr = String(p.id || p.atleta_id || p.idAtleta);
+      if (!seenIds.has(idStr)) {
+        seenIds.add(idStr);
+        uniquePlayers.push(p);
+      }
+    });
+
+    ps.teams = ps.teams.map(t => {
+      const baseIds = ps.teamBases[t.name] || [];
+      const originalPlayers = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+      return { ...t, players: originalPlayers };
+    });
+
+    const bancoOriginalIds = pelada.initialBench || [];
+    const originalBenchPlayers = bancoOriginalIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+    ps.bench = originalBenchPlayers;
+
+    if (ps.currentMatch) {
+      ps.currentMatch.teamAEmprestados = [];
+      ps.currentMatch.teamBEmprestados = [];
+      const teamAObj = ps.teams.find(tm => tm.name === ps.currentMatch.teamA);
+      const teamBObj = ps.teams.find(tm => tm.name === ps.currentMatch.teamB);
+      ps.currentMatch.goleiroA = teamAObj?.players?.find(p => p.goleiro || p.isGoalkeeper)?.id || "";
+      ps.currentMatch.goleiroB = teamBObj?.players?.find(p => p.goleiro || p.isGoalkeeper)?.id || "";
+    }
+
+    setPeladaStateLocal(ps);
+    saveDateState({ peladaState: ps });
+    alert("Jogadores restaurados com sucesso para as equipes e banco originais!");
+  };
+
   const[scoreA,setScoreA]=useState("");const[scoreB,setScoreB]=useState("");
   const[proxTimeA,setProxTimeA]=useState("");
   const[proxTimeB,setProxTimeB]=useState("");
@@ -7511,6 +7562,17 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                   })}
                 </div>
               </div>
+              {peladaState?.teamBases && !isRealizada && (
+                <div style={{marginTop: 12, paddingTop: 12, borderTop: `1px solid ${t.cardBorder}`, display: "flex", justifyContent: "flex-end"}}>
+                  <button
+                    onClick={reverterTimesOriginais}
+                    style={S.btnSm("#E24B4A22", "#E24B4A")}
+                    title="Devolve todos os jogadores às escalações originais de sorteio e restaura o banco"
+                  >
+                    🔄 Voltar jogadores aos seus times originais
+                  </button>
+                </div>
+              )}
             </div>
 
             {isRealizada && !drawnTeams && (
