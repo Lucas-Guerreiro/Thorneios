@@ -6325,6 +6325,63 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     alert("Jogadores restaurados com sucesso para as equipes e banco originais!");
   };
 
+  useEffect(() => {
+    if (!peladaState || isRealizada) return;
+    const ps = { ...peladaState };
+    const M = ps.minAtletasNovoTime || 3;
+    const bench = ps.bench || [];
+    const N = bench.length;
+    const isFixo = ps.modoRodizioFixo || false;
+    let changed = false;
+
+    if (!isFixo) {
+      if (N >= M) {
+        let maxNum = 0;
+        const teams = ps.teams || [];
+        teams.forEach(tm => {
+          const m = tm.name.match(/Time\s+(\d+)/i);
+          if (m) {
+            const num = parseInt(m[1], 10);
+            if (num > maxNum) maxNum = num;
+          }
+        });
+        const nextNum = maxNum > 0 ? maxNum + 1 : teams.length + 1;
+        const novoTimeNome = `Time ${nextNum}`;
+        const novoTimeObj = {
+          name: novoTimeNome,
+          players: [...bench]
+        };
+        
+        ps.teams = [...teams, novoTimeObj];
+        ps.bench = [];
+        if (ps.queue) {
+          ps.queue.push(novoTimeNome);
+        } else {
+          ps.queue = [novoTimeNome];
+        }
+        if (!ps.teamBases) ps.teamBases = {};
+        ps.teamBases[novoTimeNome] = bench.map(p => p.id || p.atleta_id || p.idAtleta);
+        
+        ps.modoRodizio = "misto";
+        changed = true;
+        
+        alert(`O banco atingiu ${N} atletas (mínimo de ${M}). Um novo time (${novoTimeNome}) foi criado automaticamente e o modo de rodízio foi definido como Misto.`);
+      } 
+      else if (N >= 1 && N < M) {
+        if (ps.modoRodizio !== "auto") {
+          ps.modoRodizio = "auto";
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      setDrawnTeams(ps.teams);
+      setPeladaStateLocal(ps);
+      saveDateState({ peladaState: ps, drawnTeams: ps.teams });
+    }
+  }, [peladaState?.bench?.length, peladaState?.minAtletasNovoTime, peladaState?.modoRodizioFixo, isRealizada]);
+
   const[scoreA,setScoreA]=useState("");const[scoreB,setScoreB]=useState("");
   const[proxTimeA,setProxTimeA]=useState("");
   const[proxTimeB,setProxTimeB]=useState("");
@@ -7559,71 +7616,143 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           </div>
         ) : (
           <div>
-            {/* Seletor de Modo de Rodízio */}
-            <div style={{...S.card, marginBottom: 14, padding: "12px 16px", background: t.card, border: `1px solid ${t.cardBorder}`}}>
-              <div style={{display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", gap: 10}}>
-                <div>
-                  <div style={{fontWeight: 700, fontSize: 13, color: t.text, display: "flex", alignItems: "center", gap: 6}}>
-                    <span>⚙️ Modo de Funcionamento da Rodada</span>
-                  </div>
-                  <div style={{fontSize: 11, color: t.textSec, marginTop: 4}}>
-                    Escolha como o sistema gerencia a fila de times, banco e os revezamentos de atletas nesta data.
-                  </div>
-                </div>
-                <div style={{display: "flex", background: t.inputBg, padding: 3, borderRadius: 20, border: `1px solid ${t.inputBorder}`, width: isMobile ? "100%" : "auto"}}>
-                  {[
-                    { key: "auto", label: "Automático", icon: "🤖", title: "Fila de times e rodízio de banco 100% automáticos" },
-                    { key: "misto", label: "Misto (Híbrido)", icon: "🤝", title: "Fila de times automática com empréstimos pontuais" },
-                    { key: "manual", label: "Manual", icon: "🎮", title: "Gestão livre: selecione quem joga e monte os times manualmente" }
-                  ].map(opt => {
-                    const isSelected = (peladaState?.modoRodizio || "auto") === opt.key;
-                    return (
+            {/* Seletor de Modo de Rodízio e Ajustes de Regra */}
+            <div style={{...S.card, marginBottom: 14, padding: "14px 18px", background: t.card, border: `1px solid ${t.cardBorder}`, borderRadius: 12}}>
+              <div style={{display: "flex", flexDirection: "column", gap: 14}}>
+                
+                {/* Linha Superior: Título, Modo Atual e Cadeado */}
+                <div style={{display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 12}}>
+                  <div>
+                    <div style={{fontWeight: 700, fontSize: 13, color: t.text, display: "flex", alignItems: "center", gap: 6}}>
+                      <span>⚙️ Modo de Funcionamento da Rodada</span>
                       <button
-                        key={opt.key}
                         onClick={() => {
                           if (isRealizada) return;
-                          const ps = { ...peladaState, modoRodizio: opt.key };
+                          const ps = { ...peladaState, modoRodizioFixo: !(peladaState?.modoRodizioFixo) };
                           setPeladaStateLocal(ps);
                           saveDateState({ peladaState: ps });
                         }}
                         disabled={isRealizada}
-                        title={opt.title}
+                        title={peladaState?.modoRodizioFixo ? "Cadeado Fechado: Modo fixado manualmente pelo gestor" : "Cadeado Aberto: Modo ajustado automaticamente pelas regras do banco"}
                         style={{
-                          flex: 1,
+                          background: "transparent",
+                          border: "none",
+                          cursor: isRealizada ? "default" : "pointer",
+                          fontSize: 16,
+                          padding: "2px 6px",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          gap: 6,
-                          padding: "6px 12px",
-                          borderRadius: 18,
-                          border: "none",
-                          fontSize: 11,
-                          fontWeight: isSelected ? 700 : 500,
-                          cursor: isRealizada ? "default" : "pointer",
-                          background: isSelected ? "#7F77DD" : "transparent",
-                          color: isSelected ? "#FFFFFF" : t.textSec,
-                          transition: "all 0.2s ease"
+                          transition: "transform 0.2s ease",
                         }}
+                        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.15)"}
+                        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
                       >
-                        <span>{opt.icon}</span>
-                        {!isMobile && <span>{opt.label}</span>}
-                        {isMobile && isSelected && <span>{opt.label}</span>}
+                        {peladaState?.modoRodizioFixo ? "🔒" : "🔓"}
                       </button>
-                    );
-                  })}
+                    </div>
+                    <div style={{fontSize: 11, color: t.textSec, marginTop: 4}}>
+                      Defina o comportamento do revezamento. Ative o cadeado para fixar o modo manualmente.
+                    </div>
+                  </div>
+                  
+                  <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                    <div style={{display: "flex", background: t.inputBg, padding: 3, borderRadius: 20, border: `1px solid ${t.inputBorder}`, width: isMobile ? "100%" : "auto"}}>
+                      {[
+                        { key: "auto", label: "Automático", icon: "🤖", title: "Fila de times e rodízio de banco 100% automáticos" },
+                        { key: "misto", label: "Misto (Híbrido)", icon: "🤝", title: "Fila de times automática com empréstimos pontuais" },
+                        { key: "manual", label: "Manual", icon: "🎮", title: "Gestão livre: selecione quem joga e monte os times manualmente" }
+                      ].map(opt => {
+                        const isSelected = (peladaState?.modoRodizio || "auto") === opt.key;
+                        return (
+                          <button
+                            key={opt.key}
+                            onClick={() => {
+                              if (isRealizada) return;
+                              // Ao clicar manualmente em um modo, ativa o cadeado fixando a escolha do gestor!
+                              const ps = { ...peladaState, modoRodizio: opt.key, modoRodizioFixo: true };
+                              setPeladaStateLocal(ps);
+                              saveDateState({ peladaState: ps });
+                            }}
+                            disabled={isRealizada}
+                            title={opt.title}
+                            style={{
+                              flex: 1,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 6,
+                              padding: "6px 12px",
+                              borderRadius: 18,
+                              border: "none",
+                              fontSize: 11,
+                              fontWeight: isSelected ? 700 : 500,
+                              cursor: isRealizada ? "default" : "pointer",
+                              background: isSelected ? "#7F77DD" : "transparent",
+                              color: isSelected ? "#FFFFFF" : t.textSec,
+                              transition: "all 0.2s ease"
+                            }}
+                          >
+                            <span>{opt.icon}</span>
+                            {!isMobile && <span>{opt.label}</span>}
+                            {isMobile && isSelected && <span>{opt.label}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
+                
+                {/* Linha Inferior: Controle do Mínimo de Atletas para formar novo time e Botão Voltar Originais */}
+                <div style={{display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 12, paddingTop: 10, borderTop: `1px solid ${t.cardBorder}`}}>
+                  <div style={{display: "flex", alignItems: "center", gap: 10}}>
+                    <span style={{fontSize: 12, fontWeight: 600, color: t.text}}>⚽ Mínimo para formar time:</span>
+                    <div style={{display: "flex", alignItems: "center", gap: 4, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 8, padding: "2px 6px"}}>
+                      <button
+                        onClick={() => {
+                          if (isRealizada) return;
+                          const currentMin = peladaState?.minAtletasNovoTime || 3;
+                          if (currentMin <= 1) return;
+                          const ps = { ...peladaState, minAtletasNovoTime: currentMin - 1 };
+                          setPeladaStateLocal(ps);
+                          saveDateState({ peladaState: ps });
+                        }}
+                        disabled={isRealizada || (peladaState?.minAtletasNovoTime || 3) <= 1}
+                        style={{border: "none", background: "transparent", color: t.text, cursor: "pointer", fontSize: 13, fontWeight: "bold", padding: "2px 6px"}}
+                      >
+                        -
+                      </button>
+                      <span style={{fontSize: 12, fontWeight: 700, color: t.text, minWidth: 16, textAlign: "center"}}>
+                        {peladaState?.minAtletasNovoTime || 3}
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (isRealizada) return;
+                          const currentMin = peladaState?.minAtletasNovoTime || 3;
+                          const ps = { ...peladaState, minAtletasNovoTime: currentMin + 1 };
+                          setPeladaStateLocal(ps);
+                          saveDateState({ peladaState: ps });
+                        }}
+                        disabled={isRealizada}
+                        style={{border: "none", background: "transparent", color: t.text, cursor: "pointer", fontSize: 13, fontWeight: "bold", padding: "2px 6px"}}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {peladaState?.teamBases && !isRealizada && (
+                    <button
+                      onClick={reverterTimesOriginais}
+                      style={S.btnSm("#E24B4A22", "#E24B4A")}
+                      title="Devolve todos os jogadores às escalações originais de sorteio e restaura o banco"
+                    >
+                      🔄 Voltar jogadores originais
+                    </button>
+                  )}
+                </div>
+                
               </div>
-              {peladaState?.teamBases && !isRealizada && (
-                <div style={{marginTop: 12, paddingTop: 12, borderTop: `1px solid ${t.cardBorder}`, display: "flex", justifyContent: "flex-end"}}>
-                  <button
-                    onClick={reverterTimesOriginais}
-                    style={S.btnSm("#E24B4A22", "#E24B4A")}
-                    title="Devolve todos os jogadores às escalações originais de sorteio e restaura o banco"
-                  >
-                    🔄 Voltar jogadores aos seus times originais
-                  </button>
-                </div>
-              )}
             </div>
 
             {isRealizada && !drawnTeams && (
