@@ -6325,63 +6325,6 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     alert("Jogadores restaurados com sucesso para as equipes e banco originais!");
   };
 
-  useEffect(() => {
-    if (!peladaState || isRealizada) return;
-    const ps = { ...peladaState };
-    const M = ps.minAtletasNovoTime || 3;
-    const bench = ps.bench || [];
-    const N = bench.length;
-    const isFixo = ps.modoRodizioFixo || false;
-    let changed = false;
-
-    if (!isFixo) {
-      if (N >= M) {
-        let maxNum = 0;
-        const teams = ps.teams || [];
-        teams.forEach(tm => {
-          const m = tm.name.match(/Time\s+(\d+)/i);
-          if (m) {
-            const num = parseInt(m[1], 10);
-            if (num > maxNum) maxNum = num;
-          }
-        });
-        const nextNum = maxNum > 0 ? maxNum + 1 : teams.length + 1;
-        const novoTimeNome = `Time ${nextNum}`;
-        const novoTimeObj = {
-          name: novoTimeNome,
-          players: [...bench]
-        };
-        
-        ps.teams = [...teams, novoTimeObj];
-        ps.bench = [];
-        if (ps.queue) {
-          ps.queue.push(novoTimeNome);
-        } else {
-          ps.queue = [novoTimeNome];
-        }
-        if (!ps.teamBases) ps.teamBases = {};
-        ps.teamBases[novoTimeNome] = bench.map(p => p.id || p.atleta_id || p.idAtleta);
-        
-        ps.modoRodizio = "misto";
-        changed = true;
-        
-        alert(`O banco atingiu ${N} atletas (mínimo de ${M}). Um novo time (${novoTimeNome}) foi criado automaticamente e o modo de rodízio foi definido como Misto.`);
-      } 
-      else if (N >= 1 && N < M) {
-        if (ps.modoRodizio !== "auto") {
-          ps.modoRodizio = "auto";
-          changed = true;
-        }
-      }
-    }
-
-    if (changed) {
-      setDrawnTeams(ps.teams);
-      setPeladaStateLocal(ps);
-      saveDateState({ peladaState: ps, drawnTeams: ps.teams });
-    }
-  }, [peladaState?.bench?.length, peladaState?.minAtletasNovoTime, peladaState?.modoRodizioFixo, isRealizada]);
-
   const[scoreA,setScoreA]=useState("");const[scoreB,setScoreB]=useState("");
   const[proxTimeA,setProxTimeA]=useState("");
   const[proxTimeB,setProxTimeB]=useState("");
@@ -7404,6 +7347,63 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
   const selectedDateObj = datas.find(d => String(d.id) === String(selDataSorteio));
   const isRealizada = selectedDateObj?.status === "realizado";
+
+  useEffect(() => {
+    if (!peladaState || isRealizada) return;
+    const ps = { ...peladaState };
+    const M = ps.minAtletasNovoTime || 3;
+    const bench = ps.bench || [];
+    const N = bench.length;
+    const isFixo = ps.modoRodizioFixo || false;
+    let changed = false;
+
+    if (!isFixo) {
+      if (N >= M) {
+        let maxNum = 0;
+        const teams = ps.teams || [];
+        teams.forEach(tm => {
+          const m = tm.name.match(/Time\s+(\d+)/i);
+          if (m) {
+            const num = parseInt(m[1], 10);
+            if (num > maxNum) maxNum = num;
+          }
+        });
+        const nextNum = maxNum > 0 ? maxNum + 1 : teams.length + 1;
+        const novoTimeNome = `Time ${nextNum}`;
+        const novoTimeObj = {
+          name: novoTimeNome,
+          players: [...bench]
+        };
+        
+        ps.teams = [...teams, novoTimeObj];
+        ps.bench = [];
+        if (ps.queue) {
+          ps.queue.push(novoTimeNome);
+        } else {
+          ps.queue = [novoTimeNome];
+        }
+        if (!ps.teamBases) ps.teamBases = {};
+        ps.teamBases[novoTimeNome] = bench.map(p => p.id || p.atleta_id || p.idAtleta);
+        
+        ps.modoRodizio = "misto";
+        changed = true;
+        
+        alert(`O banco atingiu ${N} atletas (mínimo de ${M}). Um novo time (${novoTimeNome}) foi criado automaticamente e o modo de rodízio foi definido como Misto.`);
+      } 
+      else if (N >= 1 && N < M) {
+        if (ps.modoRodizio !== "auto") {
+          ps.modoRodizio = "auto";
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      setDrawnTeams(ps.teams);
+      setPeladaStateLocal(ps);
+      saveDateState({ peladaState: ps, drawnTeams: ps.teams });
+    }
+  }, [peladaState?.bench?.length, peladaState?.minAtletasNovoTime, peladaState?.modoRodizioFixo, isRealizada]);
 
   const consolidatedPeladaState = React.useMemo(() => {
     const allMatches = [];
