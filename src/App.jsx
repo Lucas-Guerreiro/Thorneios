@@ -1320,13 +1320,26 @@ function drawBalancedTeams(athletes,numTeams,ppt){
   const bench=cryptoShuffle(teams.reduce((acc,t)=>acc.concat(t.players.slice(ppt)),[]));
   return{fullTeams:teams.map(t=>({name:t.name,players:t.players.slice(0,ppt)})),bench};
 }
-function buildInitialPeladaState(drawnTeams,bench,existingMatchLog=[]){
+function buildInitialPeladaState(drawnTeams,bench,existingMatchLog=[],oldState=null){
   const queue=drawnTeams.map(t=>t.name);
   const teamBases = {};
   drawnTeams.forEach(t => {
     teamBases[t.name] = t.players.map(p => p.id || p.atleta_id || p.idAtleta);
   });
-  return{teams:drawnTeams,queue,bench,matchLog:existingMatchLog,currentMatch:null,teamBases};
+  const baseState = {
+    teams:drawnTeams,
+    queue,
+    bench,
+    matchLog:existingMatchLog,
+    currentMatch:null,
+    teamBases
+  };
+  if (oldState) {
+    if (oldState.minAtletasNovoTime !== undefined) baseState.minAtletasNovoTime = oldState.minAtletasNovoTime;
+    if (oldState.modoRodizio !== undefined) baseState.modoRodizio = oldState.modoRodizio;
+    if (oldState.modoRodizioFixo !== undefined) baseState.modoRodizioFixo = oldState.modoRodizioFixo;
+  }
+  return baseState;
 }
 function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
   if(!ps||ps.queue.length<2)return ps;
@@ -6392,6 +6405,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   };
  
   const[selDataSorteio,setSelDataSorteio]=useState(datas[0]?.id||"");
+  const [isEditingMinAtletas, setIsEditingMinAtletas] = useState(false);
   
   // Filtros de Ano, Mês e Dia
   const [filtroAno, setFiltroAno] = useState("");
@@ -6705,7 +6719,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     setDrawnTeams(fullTeams);setBenchState(bench);
     const oldLog = peladaState?.matchLog || [];
     const cleanLog = oldLog.filter(m => String(m.dataRealizacaoId) !== String(selDataSorteio));
-    const ps=startNextMatch(buildInitialPeladaState(fullTeams,bench,cleanLog), selDataSorteio, ppt);
+    const ps=startNextMatch(buildInitialPeladaState(fullTeams,bench,cleanLog,peladaState), selDataSorteio, ppt);
     setPeladaStateLocal(ps);
     saveDateState({
       drawnTeams: fullTeams,
@@ -6753,7 +6767,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     setDrawnTeams(fullTeams);setBenchState(bench);
     const oldLog = peladaState?.matchLog || [];
     const cleanLog = oldLog.filter(m => String(m.dataRealizacaoId) !== String(selDataSorteio));
-    const ps=startNextMatch(buildInitialPeladaState(fullTeams,bench,cleanLog), selDataSorteio, ppt);
+    const ps=startNextMatch(buildInitialPeladaState(fullTeams,bench,cleanLog,peladaState), selDataSorteio, ppt);
     setPeladaStateLocal(ps);
     saveDateState({
       drawnTeams: fullTeams,
@@ -7707,38 +7721,86 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 <div style={{display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 12, paddingTop: 10, borderTop: `1px solid ${t.cardBorder}`}}>
                   <div style={{display: "flex", alignItems: "center", gap: 10}}>
                     <span style={{fontSize: 12, fontWeight: 600, color: t.text}}>⚽ Mínimo para formar time:</span>
-                    <div style={{display: "flex", alignItems: "center", gap: 4, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 8, padding: "2px 6px"}}>
-                      <button
-                        onClick={() => {
-                          if (isRealizada) return;
-                          const currentMin = peladaState?.minAtletasNovoTime || 3;
-                          if (currentMin <= 1) return;
-                          const ps = { ...peladaState, minAtletasNovoTime: currentMin - 1 };
-                          setPeladaStateLocal(ps);
-                          saveDateState({ peladaState: ps });
-                        }}
-                        disabled={isRealizada || (peladaState?.minAtletasNovoTime || 3) <= 1}
-                        style={{border: "none", background: "transparent", color: t.text, cursor: "pointer", fontSize: 13, fontWeight: "bold", padding: "2px 6px"}}
-                      >
-                        -
-                      </button>
-                      <span style={{fontSize: 12, fontWeight: 700, color: t.text, minWidth: 16, textAlign: "center"}}>
-                        {peladaState?.minAtletasNovoTime || 3}
-                      </span>
-                      <button
-                        onClick={() => {
-                          if (isRealizada) return;
-                          const currentMin = peladaState?.minAtletasNovoTime || 3;
-                          const ps = { ...peladaState, minAtletasNovoTime: currentMin + 1 };
-                          setPeladaStateLocal(ps);
-                          saveDateState({ peladaState: ps });
-                        }}
-                        disabled={isRealizada}
-                        style={{border: "none", background: "transparent", color: t.text, cursor: "pointer", fontSize: 13, fontWeight: "bold", padding: "2px 6px"}}
-                      >
-                        +
-                      </button>
-                    </div>
+                    
+                    {!isEditingMinAtletas ? (
+                      <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                        <span style={{fontSize: 13, fontWeight: 700, color: t.text, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 6, padding: "2px 8px"}}>
+                          {peladaState?.minAtletasNovoTime || 3} atletas
+                        </span>
+                        {!isRealizada && (
+                          <button
+                            onClick={() => setIsEditingMinAtletas(true)}
+                            title="Editar mínimo de atletas para novo time"
+                            style={{
+                              border: "none",
+                              background: "transparent",
+                              cursor: "pointer",
+                              fontSize: 14,
+                              color: t.accent,
+                              padding: "2px 6px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4
+                            }}
+                          >
+                            📝 <span style={{fontSize: 11, fontWeight: 600}}>Editar</span>
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{display: "flex", alignItems: "center", gap: 8}}>
+                        <div style={{display: "flex", alignItems: "center", gap: 4, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 8, padding: "2px 6px"}}>
+                          <button
+                            onClick={() => {
+                              if (isRealizada) return;
+                              const currentMin = peladaState?.minAtletasNovoTime || 3;
+                              if (currentMin <= 1) return;
+                              const ps = { ...peladaState, minAtletasNovoTime: currentMin - 1 };
+                              setPeladaStateLocal(ps);
+                              saveDateState({ peladaState: ps });
+                            }}
+                            disabled={isRealizada || (peladaState?.minAtletasNovoTime || 3) <= 1}
+                            style={{border: "none", background: "transparent", color: t.text, cursor: "pointer", fontSize: 13, fontWeight: "bold", padding: "2px 6px"}}
+                          >
+                            -
+                          </button>
+                          <span style={{fontSize: 12, fontWeight: 700, color: t.text, minWidth: 16, textAlign: "center"}}>
+                            {peladaState?.minAtletasNovoTime || 3}
+                          </span>
+                          <button
+                            onClick={() => {
+                              if (isRealizada) return;
+                              const currentMin = peladaState?.minAtletasNovoTime || 3;
+                              const ps = { ...peladaState, minAtletasNovoTime: currentMin + 1 };
+                              setPeladaStateLocal(ps);
+                              saveDateState({ peladaState: ps });
+                            }}
+                            disabled={isRealizada}
+                            style={{border: "none", background: "transparent", color: t.text, cursor: "pointer", fontSize: 13, fontWeight: "bold", padding: "2px 6px"}}
+                          >
+                            +
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => setIsEditingMinAtletas(false)}
+                          style={{
+                            border: "none",
+                            background: "#1D9E7522",
+                            color: "#1D9E75",
+                            cursor: "pointer",
+                            borderRadius: 6,
+                            padding: "4px 8px",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4
+                          }}
+                        >
+                          💾 Salvar
+                        </button>
+                      </div>
+                    )}
                   </div>
                   
                   {peladaState?.teamBases && !isRealizada && (
