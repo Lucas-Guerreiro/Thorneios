@@ -6518,19 +6518,27 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const lastLoadedDateIdRef = useRef(null);
  
   const getInitialPeladaStateForDate = (d) => {
-    if (d.peladaState) return d.peladaState;
-    if (d.confrontos && d.confrontos.length > 0) {
+    let ps = null;
+    if (d.peladaState) {
+      ps = d.peladaState;
+    } else if (d.confrontos && d.confrontos.length > 0) {
       const teams = d.drawnTeams || d.formacoes || [];
       const bench = d.initialBench || [];
-      return {
+      ps = {
         teams,
         queue: teams.map(t => t.name),
         bench,
         matchLog: d.confrontos,
         currentMatch: null
       };
+    } else {
+      ps = pelada.peladaState || null;
     }
-    return pelada.peladaState || null;
+
+    if (ps) {
+      ps = higienizarJogadoresDuplicados(ps);
+    }
+    return ps;
   };
  
   const saveDateState = (updates) => {
@@ -6950,6 +6958,44 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     saveDateState({drawnTeams:newDrawnTeams,initialBench:newBench,peladaState:ps});
   }
 
+  function higienizarJogadoresDuplicados(ps) {
+    if (!ps || !ps.teams) return ps;
+    const idsVistos = new Set();
+    
+    ps.teams.forEach(t => {
+      t.players = t.players.filter(p => {
+        const idStr = String(p.id || p.atleta_id || p.idAtleta);
+        if (idsVistos.has(idStr)) return false;
+        idsVistos.add(idStr);
+        return true;
+      });
+    });
+    
+    if (ps.bench) {
+      ps.bench = ps.bench.filter(p => {
+        const idStr = String(p.id || p.atleta_id || p.idAtleta);
+        if (idsVistos.has(idStr)) return false;
+        idsVistos.add(idStr);
+        return true;
+      });
+    }
+    
+    if (ps.teamBases) {
+      const basesVistas = new Set();
+      Object.keys(ps.teamBases).forEach(teamName => {
+        if (Array.isArray(ps.teamBases[teamName])) {
+          ps.teamBases[teamName] = ps.teamBases[teamName].filter(id => {
+            const idStr = String(id);
+            if (basesVistas.has(idStr)) return false;
+            basesVistas.add(idStr);
+            return true;
+          });
+        }
+      });
+    }
+    return ps;
+  }
+
   function removerEmprestadosTemporarios(teams, currentMatch) {
     if (!teams || !currentMatch) return teams;
     const { teamA, teamB, teamAEmprestados = [], teamBEmprestados = [] } = currentMatch;
@@ -7024,6 +7070,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
   function sincronizarBasesDosTimes(ps) {
     if (!ps || !ps.teams) return ps;
+    ps = higienizarJogadoresDuplicados(ps);
     if (!ps.teamBases) ps.teamBases = {};
     const emprestadosIds = new Set([
       ...(ps.currentMatch?.teamAEmprestados || []),
