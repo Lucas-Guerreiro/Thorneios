@@ -6160,6 +6160,13 @@ function AbaParticipacoes({
 /* ─────────────────────────── GERENCIAR PELADA ───────────────────── */
 function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdatePelada,onRemovePelada,onAddData,onUpdateData,onRemoveData,onAddPart,onUpdatePart,onRemovePart,onUpdateAtleta,onAddFinanceiro,onAddAtleta,onBack,t,aba,setAba, auth, managers, assegurarManagerColaborador, onSavePartsLote, quadras}){
   const S=makeStyles(t);
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   const [localAba, setLocalAba] = useState("datas");
   const currentAba = aba || localAba;
   const currentSetAba = setAba || setLocalAba;
