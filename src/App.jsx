@@ -3792,10 +3792,9 @@ function CloudPublicChampScreen({champ,onBack,t}){
 /* ──────────────────────── VISUALIZAÇÃO PELADA PÚBLICA ──────────────── */
 function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   const S = makeStyles(t);
-  const { appState, peladaId, selDataId, docKey } = peladaData;
-  const pelada = (appState.peladas || []).find(p => p.id === peladaId) || {};
-  const datas = (appState.datasRealizacao || []).filter(d => d.pelada_id === peladaId);
-  const atletas = appState.atletas || [];
+  const { pelada, selDataId } = peladaData;
+  const datas = pelada.datasRealizacao || [];
+  const atletas = pelada.atletas || [];
 
   const [dataSelId, setDataSelId] = useState(selDataId || (datas[0]?.id || ""));
   const [countdown, setCountdown] = useState(15);
@@ -8822,8 +8821,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 <div style={{display: "flex", gap: 8}}>
                   <button 
                     onClick={() => {
-                      const docKey = (auth.role === "adm" || auth.role === "manager") ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
-                      const link = window.location.origin + window.location.pathname + `?p=${docKey}&pelada=${pelada.id}&data=${selDataSorteio}`;
+                      const link = window.location.origin + window.location.pathname + `?p=${pelada.id}&data=${selDataSorteio}`;
                       navigator.clipboard.writeText(link);
                       alert("Link copiado com sucesso! Compartilhe com os atletas.");
                     }}
@@ -8834,8 +8832,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                   
                   <button 
                     onClick={() => {
-                      const docKey = (auth.role === "adm" || auth.role === "manager") ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
-                      const link = window.location.origin + window.location.pathname + `?p=${docKey}&pelada=${pelada.id}&data=${selDataSorteio}`;
+                      const link = window.location.origin + window.location.pathname + `?p=${pelada.id}&data=${selDataSorteio}`;
                       setQrCodeModalUrl(link);
                     }}
                     style={S.btnSm("#1D9E7522", "#1D9E75")}
@@ -15217,17 +15214,15 @@ export default function App(){
     if (!publicPeladaData) return;
     try {
       if (!isFirebaseConfigured) return;
-      const docRef = doc(db, "sistema", publicPeladaData.docKey);
+      const docRef = doc(db, "publicPeladas", publicPeladaData.docKey);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.appState) {
-          setPublicPeladaData(prev => ({
-            ...prev,
-            appState: data.appState
-          }));
-          console.log("Pelada pública atualizada!");
-        }
+        const publicData = docSnap.data();
+        setPublicPeladaData(prev => ({
+          ...prev,
+          pelada: publicData
+        }));
+        console.log("Pelada pública atualizada!");
       }
     } catch (e) {
       console.error("Erro ao atualizar pelada pública:", e);
@@ -15380,7 +15375,7 @@ export default function App(){
         };
 
         loadFromFirestore();
-      } else if (pCode && peladaId) {
+      } else if (pCode) {
         setCloudLoading(true);
         const loadPeladaFromFirestore = async () => {
           try {
@@ -15388,24 +15383,19 @@ export default function App(){
               throw new Error("O Firebase Firestore não está configurado.");
             }
             
-            const docRef = doc(db, "sistema", pCode);
+            const docRef = doc(db, "publicPeladas", pCode);
             const docSnap = await getDoc(docRef);
             
             if (docSnap.exists()) {
-              const data = docSnap.data();
-              if (data.appState) {
-                setPublicPeladaData({
-                  appState: data.appState,
-                  peladaId: peladaId,
-                  selDataId: urlDataId || "",
-                  docKey: pCode
-                });
-                setScreen("publicPelada");
-              } else {
-                throw new Error("Dados da pelada vazios.");
-              }
+              const publicData = docSnap.data();
+              setPublicPeladaData({
+                pelada: publicData,
+                selDataId: urlDataId || "",
+                docKey: pCode
+              });
+              setScreen("publicPelada");
             } else {
-              throw new Error("Código do gestor não encontrado.");
+              throw new Error("Pelada pública não encontrada ou ainda não sincronizada pelo gestor.");
             }
           } catch (err) {
             console.error(err);
@@ -15497,6 +15487,50 @@ export default function App(){
         };
         const cleanPayload = JSON.parse(JSON.stringify(payload));
         await setDoc(doc(db, "sistema", docKey), cleanPayload);
+
+        // Publica as peladas na coleção pública de forma segura contra permissões restritas
+        if (appState && Array.isArray(appState.peladas)) {
+          for (const pel of appState.peladas) {
+            try {
+              const datasPel = (appState.datasRealizacao || [])
+                .filter(d => d.pelada_id === pel.id)
+                .map(d => ({
+                  id: d.id,
+                  dateStr: d.dateStr,
+                  peladaState: d.peladaState ? {
+                    currentMatch: d.peladaState.currentMatch || null,
+                    queue: d.peladaState.queue || [],
+                    bench: d.peladaState.bench || [],
+                    matchLog: d.peladaState.matchLog || [],
+                    teams: d.peladaState.teams || [],
+                    regraEmpate: d.peladaState.regraEmpate || null,
+                    empateAmbosSaem: d.peladaState.empateAmbosSaem || false
+                  } : null
+                }));
+
+              const atletasSimplificados = (appState.atletas || []).map(a => ({
+                id: a.id,
+                nome: a.nome,
+                apelido: a.apelido || "",
+                fotoUrl: a.fotoUrl || ""
+              }));
+
+              const publicPayload = {
+                id: pel.id,
+                name: pel.name,
+                datasRealizacao: datasPel,
+                atletas: atletasSimplificados,
+                lastUpdated: new Date().toISOString()
+              };
+
+              const cleanPublicPayload = JSON.parse(JSON.stringify(publicPayload));
+              await setDoc(doc(db, "publicPeladas", String(pel.id)), cleanPublicPayload);
+              console.log(`Pelada pública ${pel.name} sincronizada com sucesso!`);
+            } catch (errPublic) {
+              console.error(`Erro ao publicar pelada ${pel.name} na nuvem:`, errPublic);
+            }
+          }
+        }
         
         // Atualiza a hora do último sincronismo bem sucedido
         localStorage.setItem("last_sync_time", String(new Date(payload.lastUpdated).getTime()));
