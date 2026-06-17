@@ -15214,7 +15214,7 @@ export default function App(){
     if (!publicPeladaData) return;
     try {
       if (!isFirebaseConfigured) return;
-      const docRef = doc(db, "publicPeladas", publicPeladaData.docKey);
+      const docRef = doc(db, "campeonatos", "pelada_" + publicPeladaData.docKey);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const publicData = docSnap.data();
@@ -15383,7 +15383,7 @@ export default function App(){
               throw new Error("O Firebase Firestore não está configurado.");
             }
             
-            const docRef = doc(db, "publicPeladas", pCode);
+            const docRef = doc(db, "campeonatos", "pelada_" + pCode);
             const docSnap = await getDoc(docRef);
             
             if (docSnap.exists()) {
@@ -15520,11 +15520,12 @@ export default function App(){
                 name: pel.name,
                 datasRealizacao: datasPel,
                 atletas: atletasSimplificados,
+                isPublicPelada: true,
                 lastUpdated: new Date().toISOString()
               };
 
               const cleanPublicPayload = JSON.parse(JSON.stringify(publicPayload));
-              await setDoc(doc(db, "publicPeladas", String(pel.id)), cleanPublicPayload);
+              await setDoc(doc(db, "campeonatos", "pelada_" + String(pel.id)), cleanPublicPayload);
               console.log(`Pelada pública ${pel.name} sincronizada com sucesso!`);
             } catch (errPublic) {
               console.error(`Erro ao publicar pelada ${pel.name} na nuvem:`, errPublic);
