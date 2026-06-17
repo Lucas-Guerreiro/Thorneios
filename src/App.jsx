@@ -13,7 +13,7 @@ import {
   createUserWithEmailAndPassword, 
   sendPasswordResetEmail,
   setPersistence,
-  browserSessionPersistence
+  browserLocalPersistence
 } from "firebase/auth";
 
 
@@ -15240,20 +15240,7 @@ export default function App(){
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
       console.log("[DEBUG AUTH] onAuthStateChanged disparado! Usuário:", user ? user.email : "null");
       if (user) {
-        const activeSession = sessionStorage.getItem("active_session");
-        if (!activeSession) {
-          console.log("[DEBUG AUTH] Sessão persistente anterior inválida nesta aba. Deslogando...");
-          try {
-            await signOut(firebaseAuth);
-          } catch(e) {
-            console.error("Erro ao limpar sessao local:", e);
-          }
-          setAuth({ role: "", name: "", manager_id: null, scope: "geral", email: "" });
-          lastAuthUserEmail.current = "";
-          setScreen("selection");
-          setAuthLoading(false);
-          return;
-        }
+        // Mantém a autenticação reativa nativa sem dependência restritiva de sessionStorage de nova aba
         const trimmedEmail = String(user.email || "").toLowerCase().trim();
         const isNewLogin = lastAuthUserEmail.current !== trimmedEmail;
         console.log("[DEBUG AUTH] trimmedEmail:", trimmedEmail, "lastAuthUserEmail.current:", lastAuthUserEmail.current, "isNewLogin:", isNewLogin);
@@ -15322,7 +15309,7 @@ export default function App(){
   }, [isFirebaseConfigured]);
 
   // Proteção de Rotas Internas Reativa
-  const publicScreens = ["selection", "login", "public", "publicCloud"];
+  const publicScreens = ["selection", "login", "public", "publicCloud", "publicPelada"];
   const isInternalScreen = !publicScreens.includes(screen);
   const isAuthenticated = auth.role === "adm" || auth.role === "manager";
 
@@ -15333,11 +15320,13 @@ export default function App(){
   }, [screen, auth, loading, authLoading, isInternalScreen, isAuthenticated]);
 
   useEffect(() => {
+    // Só processa os parâmetros da URL após a inicialização da sessão de autenticação do Firebase
+    if (authLoading) return;
+
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("c") || params.get("campeonato");
       const pCode = params.get("p");
-      const peladaId = params.get("pelada");
       const urlDataId = params.get("data");
 
       if (code) {
@@ -15408,7 +15397,7 @@ export default function App(){
         loadPeladaFromFirestore();
       }
     }
-  }, []);
+  }, [authLoading, isFirebaseConfigured]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -15552,7 +15541,7 @@ export default function App(){
       if (!isFirebaseConfigured || !firebaseAuth) {
         throw new Error("O Firebase Auth não está configurado.");
       }
-      await setPersistence(firebaseAuth, browserSessionPersistence);
+      await setPersistence(firebaseAuth, browserLocalPersistence);
       sessionStorage.setItem("active_session", "true");
       await signInWithEmailAndPassword(firebaseAuth, trimmed, password);
       return "";
