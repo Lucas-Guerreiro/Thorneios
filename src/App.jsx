@@ -3916,6 +3916,22 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   const queue = ps?.queue || [];
   const bench = ps?.bench || [];
 
+  const ppt = activeDate?.playersPerTeam || pelada.playersPerTeam || 4;
+  const { paraA: proxParaA = [], paraB: proxParaB = [] } = obterCandidatosEmprestimoProximaPartida(ps, ppt);
+  const proxCandidatosEmprestimoIds = [...proxParaA, ...proxParaB].map(p => String(p.id || p.atleta_id || p.idAtleta));
+
+  const getOrigemTeamName = (atletaId) => {
+    if (!ps || !ps.teamBases) return "";
+    const targetId = String(atletaId);
+    for (const teamName of Object.keys(ps.teamBases)) {
+      const ids = ps.teamBases[teamName] || [];
+      if (ids.some(id => String(id) === targetId)) {
+        return teamName;
+      }
+    }
+    return "";
+  };
+
   const limiteVitorias = ps ? (parseInt(ps.limiteVitorias) || 0) : 0;
   const vitoriasA = (ps && currentMatch) ? getVitoriasSeguidas(ps.matchLog, currentMatch.teamA, dataSelId) : 0;
   const vitoriasB = (ps && currentMatch) ? getVitoriasSeguidas(ps.matchLog, currentMatch.teamB, dataSelId) : 0;
@@ -4249,7 +4265,23 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
             <div style={{display: "flex", flexDirection: "column", gap: 8}}>
               {queue.slice(2).map((teamName, qIdx) => {
                 const teamObj = ps?.teams?.find(tm => tm.name === teamName);
-                const players = teamObj?.players || [];
+                let playersToRender = teamObj ? [...teamObj.players] : [];
+                const isProxEntrando = (qIdx === 0);
+                const emAndamento = currentMatch && !currentMatch.played;
+                
+                if (isProxEntrando && emAndamento && proxParaA && proxParaA.length > 0) {
+                  // Adiciona os jogadores estimados de empréstimo para completar a visualização
+                  proxParaA.forEach(p => {
+                    const pIdStr = String(p.id || p.atleta_id || p.idAtleta);
+                    if (!playersToRender.some(orig => String(orig.id || orig.atleta_id || orig.idAtleta) === pIdStr)) {
+                      playersToRender.push({
+                        ...p,
+                        isEstimadoEmprestimo: true
+                      });
+                    }
+                  });
+                }
+
                 return (
                   <div key={teamName} style={{background: t.inputBg, borderRadius: 10, padding: 10, border: `1px solid ${t.cardBorder}`}}>
                     <div style={{fontSize:12, fontWeight:700, color:"#7F77DD", marginBottom:8, display:"flex", alignItems:"center", gap:6}}>
@@ -4257,24 +4289,58 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                       <span>{qIdx === 0 ? "Próximo a entrar" : `${qIdx + 1}º na Fila`}: {teamName}</span>
                     </div>
                     <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
-                      {players.map((p, pi) => (
-                        <div 
-                          key={pi} 
-                          style={{
-                            display:"inline-flex", 
-                            alignItems:"center", 
-                            gap:4, 
-                            fontSize:11, 
-                            background: t.card, 
-                            padding:"4px 8px", 
-                            borderRadius:12, 
-                            border: `1px solid ${t.inputBorder}`
-                          }}
-                        >
-                          <PlayerAvatar atleta={p} size={16}/>
-                          <span style={{fontWeight:500, color: t.text}}>{getPlayerName(p)}</span>
-                        </div>
-                      ))}
+                      {playersToRender.map((p, pi) => {
+                        const athleteId = String(p.id || p.atleta_id || p.idAtleta);
+                        
+                        if (p.isEstimadoEmprestimo) {
+                          const origTeam = getOrigemTeamName(athleteId);
+                          const matches = origTeam.match(/\d+/);
+                          const sigla = matches ? `T${matches[0]}` : origTeam.substring(0, 3).toUpperCase();
+                          return (
+                            <div 
+                              key={`est-${pi}`}
+                              title={`Empréstimo estimado vindo de: ${origTeam}`}
+                              style={{
+                                display:"inline-flex", 
+                                alignItems:"center", 
+                                gap:4, 
+                                fontSize:11, 
+                                background: "#1D9E7518", 
+                                padding:"4px 8px", 
+                                borderRadius:12, 
+                                border: "1.5px dashed #1D9E75",
+                                boxShadow: "0 0 4px rgba(29, 158, 117, 0.2)"
+                              }}
+                            >
+                              <PlayerAvatar atleta={p} size={16}/>
+                              <span style={{fontWeight:600, color: "#1D9E75"}}>{getPlayerName(p)} 🤝 ({sigla})</span>
+                            </div>
+                          );
+                        }
+
+                        const isCandidatoEmprestimo = proxCandidatosEmprestimoIds.includes(athleteId);
+                        return (
+                          <div 
+                            key={pi} 
+                            title={isCandidatoEmprestimo ? "Selecionado para empréstimo no próximo jogo" : undefined}
+                            style={{
+                              display:"inline-flex", 
+                              alignItems:"center", 
+                              gap:4, 
+                              fontSize:11, 
+                              background: isCandidatoEmprestimo ? "#1D9E7515" : t.card, 
+                              padding:"4px 8px", 
+                              borderRadius:12, 
+                              border: isCandidatoEmprestimo ? "1.5px solid #1D9E75" : `1px solid ${t.inputBorder}`,
+                              boxShadow: isCandidatoEmprestimo ? "0 0 6px rgba(29, 158, 117, 0.3)" : "none",
+                              transition: "all 0.2s ease"
+                            }}
+                          >
+                            <PlayerAvatar atleta={p} size={16}/>
+                            <span style={{fontWeight:500, color: t.text}}>{getPlayerName(p)}{isCandidatoEmprestimo && " 🤝"}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
