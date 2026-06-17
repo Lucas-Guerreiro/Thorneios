@@ -2088,16 +2088,37 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey, onTimerUpdate }) {
         setIsFinished(true);
         localStorage.setItem(`${timerKey}_running`, "false");
         localStorage.setItem(`${timerKey}_seconds`, "0");
+        if (onTimerUpdate) {
+          onTimerUpdate({
+            timerRunning: false,
+            timerSecondsAtStart: 0,
+            timerStartTimestamp: null
+          });
+        }
       } else {
         setSeconds(remainingSecs);
         setRunning(true);
         setIsFinished(false);
+        if (onTimerUpdate) {
+          onTimerUpdate({
+            timerRunning: true,
+            timerSecondsAtStart: secsAtStart,
+            timerStartTimestamp: startMs
+          });
+        }
       }
     } else {
       const secs = savedSeconds ? parseInt(savedSeconds) : initialSecs;
       setSeconds(secs);
       setRunning(false);
       setIsFinished(secs === 0 && savedSeconds !== null);
+      if (onTimerUpdate) {
+        onTimerUpdate({
+          timerRunning: false,
+          timerSecondsAtStart: secs,
+          timerStartTimestamp: null
+        });
+      }
     }
   }, [timerKey]);
 
@@ -3898,7 +3919,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   };
 
   const colorOfTeam = n => {
-    const i = (pelada.teams || []).findIndex(x => x.name === n);
+    const i = (ps?.teams || []).findIndex(x => x.name === n);
     return COLORS[i % COLORS.length] || "#888";
   };
 
@@ -4110,7 +4131,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                 <div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(currentMatch.teamA),flexShrink:0}}/>
               </div>
               <div style={{fontSize:11,color:t.textSec,display:"flex",flexDirection:"column",gap:6}}>
-                {(pelada.teams?.find(tm=>tm.name===currentMatch.teamA)?.players || currentMatch.playersA || []).map((p,pi)=>(
+                {(ps?.teams?.find(tm=>tm.name===currentMatch.teamA)?.players || currentMatch.playersA || []).map((p,pi)=>(
                   <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                     <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
                     {currentMatch.sumula?.[p.id] ? (
@@ -4140,7 +4161,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                 <span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{currentMatch.teamB}</span>
               </div>
               <div style={{fontSize:11,color:t.textSec,display:"flex",flexDirection:"column",gap:6}}>
-                {(pelada.teams?.find(tm=>tm.name===currentMatch.teamB)?.players || currentMatch.playersB || []).map((p,pi)=>(
+                {(ps?.teams?.find(tm=>tm.name===currentMatch.teamB)?.players || currentMatch.playersB || []).map((p,pi)=>(
                   <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                     {currentMatch.sumula?.[p.id] ? (
                       <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:4}}>
@@ -4181,7 +4202,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
           {queue.length > 0 ? (
             <div style={{display: "flex", flexDirection: "column", gap: 8}}>
               {queue.map((teamName, qIdx) => {
-                const teamObj = pelada.teams?.find(tm => tm.name === teamName);
+                const teamObj = ps?.teams?.find(tm => tm.name === teamName);
                 const players = teamObj?.players || [];
                 return (
                   <div key={teamName} style={{background: t.inputBg, borderRadius: 10, padding: 10, border: `1px solid ${t.cardBorder}`}}>
