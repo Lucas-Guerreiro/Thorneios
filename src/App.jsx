@@ -16460,8 +16460,9 @@ export default function App(){
   const setDatasRealizacao = d => setAppState(s => {
     const nextDatas = typeof d === 'function' ? d(Array.isArray(s.datasRealizacao) ? s.datasRealizacao : []) : d;
     const newState = { ...s, datasRealizacao: nextDatas };
-    if (dashboardTab === "peladas" && dashboardSelectedId) {
-      sincronizarPeladaImediatamente(dashboardSelectedId, newState);
+    const activePeladaId = current?.id || (dashboardTab === "peladas" ? dashboardSelectedId : null);
+    if (activePeladaId) {
+      sincronizarPeladaImediatamente(activePeladaId, newState);
     }
     return newState;
   });
