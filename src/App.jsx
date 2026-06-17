@@ -4054,16 +4054,8 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
         gap: 10,
         marginBottom: 16
       }}>
-        <div>
-          <select 
-            value={dataSelId}
-            onChange={e => setDataSelId(e.target.value)}
-            style={{...S.select, width: "auto", fontSize: 13, fontWeight: 700}}
-          >
-            {datas.map(d => (
-              <option key={d.id} value={d.id}>{formatarData(d.dateStr || d.data)}</option>
-            ))}
-          </select>
+        <div style={{ fontSize: 13, fontWeight: 700, color: t.text, display: "flex", alignItems: "center", gap: 6 }}>
+          📅 {formatarData(activeDate?.dateStr || activeDate?.data) || "Carregando..."}
         </div>
         
         <div style={{display: "flex", alignItems: "center", gap: 8}}>
