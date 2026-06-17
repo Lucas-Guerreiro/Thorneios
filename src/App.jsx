@@ -1608,6 +1608,20 @@ function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
   const defaultGoleiroA = teamAObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
   const defaultGoleiroB = teamBObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
 
+  let defaultSecs = 600;
+  if (typeof window !== "undefined") {
+    const timerKey = `pelada_${dataRealizacaoId || ps.currentMatch?.dataRealizacaoId || ""}`;
+    try {
+      localStorage.setItem(`${timerKey}_running`, "false");
+      localStorage.setItem(`${timerKey}_startTimestamp`, "");
+      const savedInitial = localStorage.getItem(`${timerKey}_initial`);
+      defaultSecs = savedInitial ? parseInt(savedInitial) : 600;
+      localStorage.setItem(`${timerKey}_seconds`, String(defaultSecs));
+    } catch (e) {
+      console.warn("Erro ao manipular localStorage no timer:", e);
+    }
+  }
+
   return {
     ...ps,
     teams: newTeams,
@@ -1625,7 +1639,10 @@ function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
       goleiroAInteiro: true,
       goleiroBInteiro: true,
       teamAEmprestados,
-      teamBEmprestados
+      teamBEmprestados,
+      timerRunning: false,
+      timerSecondsAtStart: defaultSecs,
+      timerStartTimestamp: null
     }
   };
 }
@@ -3821,15 +3838,18 @@ function CloudPublicChampScreen({champ,onBack,t}){
 
 /* ──────────────────────── VISUALIZAÇÃO PELADA PÚBLICA ──────────────── */
 function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimestamp, t }) {
-  const [displaySeconds, setDisplaySeconds] = useState(timerSecondsAtStart || 0);
+  // Fallback para 10 minutos (600s) se os valores do Firestore vierem indefinidos
+  const defaultSecs = timerSecondsAtStart !== undefined ? Number(timerSecondsAtStart) : 600;
+  const [displaySeconds, setDisplaySeconds] = useState(defaultSecs);
 
   useEffect(() => {
-    setDisplaySeconds(timerSecondsAtStart || 0);
+    const currentSecs = timerSecondsAtStart !== undefined ? Number(timerSecondsAtStart) : 600;
+    setDisplaySeconds(currentSecs);
     if (!timerRunning || !timerStartTimestamp) return;
 
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - Number(timerStartTimestamp)) / 1000);
-      const remaining = Math.max(0, Number(timerSecondsAtStart) - elapsed);
+      const remaining = Math.max(0, currentSecs - elapsed);
       setDisplaySeconds(remaining);
       if (remaining === 0) {
         clearInterval(interval);
@@ -3895,7 +3915,6 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   const currentMatch = ps?.currentMatch;
   const queue = ps?.queue || [];
   const bench = ps?.bench || [];
-  const matchLog = ps?.matchLog || [];
 
   const formatarData = (dateStr) => {
     if (!dateStr) return "";
@@ -4109,7 +4128,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
             </div>
             
             <div style={{fontSize: 32, fontWeight: 900, color: t.text, fontVariantNumeric: "tabular-nums"}}>
-              {currentMatch.scoreA} × {currentMatch.scoreB}
+              {(currentMatch.scoreA !== "" && currentMatch.scoreA !== undefined) ? currentMatch.scoreA : 0} × {(currentMatch.scoreB !== "" && currentMatch.scoreB !== undefined) ? currentMatch.scoreB : 0}
             </div>
 
             <div style={{textAlign: "center", flex: 1}}>
@@ -4131,16 +4150,20 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                 <div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(currentMatch.teamA),flexShrink:0}}/>
               </div>
               <div style={{fontSize:11,color:t.textSec,display:"flex",flexDirection:"column",gap:6}}>
-                {(ps?.teams?.find(tm=>tm.name===currentMatch.teamA)?.players || currentMatch.playersA || []).map((p,pi)=>(
-                  <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                    <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
-                    {currentMatch.sumula?.[p.id] ? (
-                      <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginLeft:4}}>
-                        ⚽{currentMatch.sumula[p.id] > 1 ? ` ${currentMatch.sumula[p.id]}` : ""}
-                      </span>
-                    ) : null}
-                  </div>
-                ))}
+                {(ps?.teams?.find(tm=>tm.name===currentMatch.teamA)?.players || currentMatch.playersA || []).map((p,pi)=>{
+                  const athleteId = String(p.id || p.atleta_id || p.idAtleta);
+                  const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
+                  return (
+                    <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                      <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
+                      {goals ? (
+                        <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginLeft:4}}>
+                          ⚽{goals > 1 ? ` ${goals}` : ""}
+                        </span>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
               {currentMatch.goleiroA && (
                 <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", justifyContent: "flex-end", fontSize: 10, color: t.textSec, gap: 4}}>
@@ -4161,16 +4184,20 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                 <span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{currentMatch.teamB}</span>
               </div>
               <div style={{fontSize:11,color:t.textSec,display:"flex",flexDirection:"column",gap:6}}>
-                {(ps?.teams?.find(tm=>tm.name===currentMatch.teamB)?.players || currentMatch.playersB || []).map((p,pi)=>(
-                  <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                    {currentMatch.sumula?.[p.id] ? (
-                      <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:4}}>
-                        ⚽{currentMatch.sumula[p.id] > 1 ? ` ${currentMatch.sumula[p.id]}` : ""}
-                      </span>
-                    ) : null}
-                    <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamB)}</span>
-                  </div>
-                ))}
+                {(ps?.teams?.find(tm=>tm.name===currentMatch.teamB)?.players || currentMatch.playersB || []).map((p,pi)=>{
+                  const athleteId = String(p.id || p.atleta_id || p.idAtleta);
+                  const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
+                  return (
+                    <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                      {goals ? (
+                        <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:4}}>
+                          ⚽{goals > 1 ? ` ${goals}` : ""}
+                        </span>
+                      ) : null}
+                      <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamB)}</span>
+                    </div>
+                  );
+                })}
               </div>
               {currentMatch.goleiroB && (
                 <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", justifyContent: "flex-start", fontSize: 10, color: t.textSec, gap: 4}}>
@@ -4193,15 +4220,16 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
         </div>
       )}
 
-      <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 16}}>
+      {/* Grid vertical para empilhar Fila e Reservas no Banco */}
+      <div style={{display: "flex", flexDirection: "column", gap: 14, marginBottom: 16}}>
         <div style={{...S.card, padding: 14, borderRadius: 12}}>
           <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text, display: "flex", alignItems: "center", gap: 6}}>
             <span>📋 Próximos Times (Fila)</span>
-            <span style={{fontSize: 10, background: "#7F77DD22", color: "#7F77DD", padding: "1px 6px", borderRadius: 4}}>{queue.length}</span>
+            <span style={{fontSize: 10, background: "#7F77DD22", color: "#7F77DD", padding: "1px 6px", borderRadius: 4}}>{queue.slice(2).length}</span>
           </h4>
-          {queue.length > 0 ? (
+          {queue.slice(2).length > 0 ? (
             <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-              {queue.map((teamName, qIdx) => {
+              {queue.slice(2).map((teamName, qIdx) => {
                 const teamObj = ps?.teams?.find(tm => tm.name === teamName);
                 const players = teamObj?.players || [];
                 return (
@@ -4272,63 +4300,34 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
         </div>
       </div>
 
-      <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr", gap: 14}}>
-        <div style={{...S.card, padding: 14, borderRadius: 12}}>
-          <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text}}>📜 Histórico de Jogos</h4>
-          {matchLog.filter(m => String(m.dataRealizacaoId) === String(dataSelId)).length > 0 ? (
-            <div style={{display: "flex", flexDirection: "column", gap: 8, maxHeight: 300, overflowY: "auto"}}>
-              {matchLog.filter(m => String(m.dataRealizacaoId) === String(dataSelId)).map((m, i) => (
-                <div key={i} style={{
-                  background: t.inputBg,
-                  padding: 8,
-                  borderRadius: 8,
-                  fontSize: 11
-                }}>
-                  <div style={{display: "flex", justifyContent: "space-between", fontWeight: 700, marginBottom: 4}}>
-                    <span>Jogo {i + 1}</span>
-                    <span style={{color: "#1D9E75"}}>Concluído</span>
-                  </div>
-                  <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
-                    <span>{m.teamA} (<b>{m.scoreA}</b>)</span>
-                    <span>vs</span>
-                    <span>(<b>{m.scoreB}</b>) {m.teamB}</span>
-                  </div>
+      {/* Card único do Ranking do Dia (Histórico de Jogos removido) */}
+      <div style={{...S.card, padding: 14, borderRadius: 12, marginBottom: 16}}>
+        <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text}}>📊 Ranking do Dia</h4>
+        {ranking.length > 0 ? (
+          <div style={{display: "flex", flexDirection: "column", gap: 4, maxHeight: 300, overflowY: "auto"}}>
+            {ranking.map((row, i) => (
+              <div key={i} style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "4px 8px",
+                borderRadius: 6,
+                background: i === 0 ? "#BA751715" : "transparent",
+                borderBottom: `1px solid ${t.cardBorder}`,
+                fontSize: 11
+              }}>
+                <span style={{fontWeight: i === 0 ? 700 : 500}}>
+                  {i + 1}º {row.name}
+                </span>
+                <div style={{display: "flex", gap: 8, color: t.textSec}}>
+                  <span><b>{row.pts}</b> pts</span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{fontSize: 11, color: t.textSec, textAlign: "center", padding: 20}}>Nenhum jogo concluído ainda.</div>
-          )}
-        </div>
-
-        <div style={{...S.card, padding: 14, borderRadius: 12}}>
-          <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text}}>📊 Ranking do Dia</h4>
-          {ranking.length > 0 ? (
-            <div style={{display: "flex", flexDirection: "column", gap: 4, maxHeight: 300, overflowY: "auto"}}>
-              {ranking.map((row, i) => (
-                <div key={i} style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "4px 8px",
-                  borderRadius: 6,
-                  background: i === 0 ? "#BA751715" : "transparent",
-                  borderBottom: `1px solid ${t.cardBorder}`,
-                  fontSize: 11
-                }}>
-                  <span style={{fontWeight: i === 0 ? 700 : 500}}>
-                    {i + 1}º {row.name}
-                  </span>
-                  <div style={{display: "flex", gap: 8, color: t.textSec}}>
-                    <span><b>{row.pts}</b> pts</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{fontSize: 11, color: t.textSec, textAlign: "center", padding: 20}}>Sem estatísticas.</div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{fontSize: 11, color: t.textSec, textAlign: "center", padding: 20}}>Sem estatísticas.</div>
+        )}
       </div>
       
       <div style={{textAlign: "center", fontSize: 10, color: t.textSec, marginTop: 30, opacity: 0.6}}>
