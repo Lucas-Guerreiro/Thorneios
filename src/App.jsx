@@ -5,7 +5,7 @@ import { Share } from '@capacitor/share';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Browser } from '@capacitor/browser';
 import { db, auth as firebaseAuth, isFirebaseConfigured } from "./firebase";
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import { 
   signInWithEmailAndPassword, 
   signOut, 
@@ -3916,9 +3916,15 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   const queue = ps?.queue || [];
   const bench = ps?.bench || [];
 
+  const limiteVitorias = ps ? (parseInt(ps.limiteVitorias) || 0) : 0;
+  const vitoriasA = (ps && currentMatch) ? getVitoriasSeguidas(ps.matchLog, currentMatch.teamA, dataSelId) : 0;
+  const vitoriasB = (ps && currentMatch) ? getVitoriasSeguidas(ps.matchLog, currentMatch.teamB, dataSelId) : 0;
+
   const formatarData = (dateStr) => {
-    if (!dateStr) return "";
-    const [ano, mes, dia] = dateStr.split("-");
+    if (!dateStr || typeof dateStr !== "string") return "";
+    const parts = dateStr.split("-");
+    if (parts.length < 3) return dateStr;
+    const [ano, mes, dia] = parts;
     return `${dia}/${mes}/${ano}`;
   };
 
@@ -4055,7 +4061,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
             style={{...S.select, width: "auto", fontSize: 13, fontWeight: 700}}
           >
             {datas.map(d => (
-              <option key={d.id} value={d.id}>{formatarData(d.dateStr)}</option>
+              <option key={d.id} value={d.id}>{formatarData(d.dateStr || d.data)}</option>
             ))}
           </select>
         </div>
@@ -4136,76 +4142,96 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
             </div>
           </div>
 
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,alignItems:"start",width:"100%",overflow:"hidden"}}>
-            <div style={{
-              ...S.card,
-              border: `2px solid ${colorOfTeam(currentMatch.teamA)}55`,
-              padding: 8,
-              textAlign: "right",
-              minWidth: 0,
-              overflow: "hidden"
-            }}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,minWidth:0,overflow:"hidden",marginBottom:6}}>
-                <span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{currentMatch.teamA}</span>
-                <div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(currentMatch.teamA),flexShrink:0}}/>
-              </div>
-              <div style={{fontSize:11,color:t.textSec,display:"flex",flexDirection:"column",gap:6}}>
-                {(ps?.teams?.find(tm=>tm.name===currentMatch.teamA)?.players || currentMatch.playersA || []).map((p,pi)=>{
-                  const athleteId = String(p.id || p.atleta_id || p.idAtleta);
-                  const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
-                  return (
-                    <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                      <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
-                      {goals ? (
-                        <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginLeft:4}}>
-                          ⚽{goals > 1 ? ` ${goals}` : ""}
-                        </span>
-                      ) : null}
+          {(() => {
+            const prestesSairA = limiteVitorias > 0 && vitoriasA >= limiteVitorias;
+            const prestesSairB = limiteVitorias > 0 && vitoriasB >= limiteVitorias;
+            return (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,alignItems:"start",width:"100%",overflow:"hidden"}}>
+                <div style={{
+                  ...S.card,
+                  border: prestesSairA ? `3px solid #E24B4A` : `2px solid ${colorOfTeam(currentMatch.teamA)}55`,
+                  boxShadow: prestesSairA ? "0 0 12px rgba(226, 75, 74, 0.4)" : "none",
+                  background: prestesSairA ? "#E24B4A10" : undefined,
+                  padding: 8,
+                  textAlign: "right",
+                  minWidth: 0,
+                  overflow: "hidden"
+                }}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,minWidth:0,overflow:"hidden",marginBottom:6}}>
+                    {prestesSairA && (
+                      <span style={{fontSize:9,fontWeight:800,color:"#E24B4A",background:"#E24B4A15",padding:"2px 4px",borderRadius:4,marginRight:4}}>
+                        ⚠️ NO LIMITE ({vitoriasA}/{limiteVitorias} vitórias)
+                      </span>
+                    )}
+                    <span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{currentMatch.teamA}</span>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(currentMatch.teamA),flexShrink:0}}/>
+                  </div>
+                  <div style={{fontSize:11,color:t.textSec,display:"flex",flexDirection:"column",gap:6}}>
+                    {(ps?.teams?.find(tm=>tm.name===currentMatch.teamA)?.players || currentMatch.playersA || []).map((p,pi)=>{
+                      const athleteId = String(p.id || p.atleta_id || p.idAtleta);
+                      const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
+                      return (
+                        <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                          <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
+                          {goals ? (
+                            <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginLeft:4}}>
+                              ⚽{goals > 1 ? ` ${goals}` : ""}
+                            </span>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {currentMatch.goleiroA && (
+                    <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", justifyContent: "flex-end", fontSize: 10, color: t.textSec, gap: 4}}>
+                      🧤 Goleiro: <b>{getPlayerName({ id: currentMatch.goleiroA })}</b>
                     </div>
-                  );
-                })}
-              </div>
-              {currentMatch.goleiroA && (
-                <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", justifyContent: "flex-end", fontSize: 10, color: t.textSec, gap: 4}}>
-                  🧤 Goleiro: <b>{getPlayerName({ id: currentMatch.goleiroA })}</b>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div style={{
-              ...S.card,
-              border: `2px solid ${colorOfTeam(currentMatch.teamB)}55`,
-              padding: 8,
-              minWidth: 0,
-              overflow: "hidden"
-            }}>
-              <div style={{display:"flex",alignItems:"center",gap:4,minWidth:0,overflow:"hidden",marginBottom:6}}>
-                <div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(currentMatch.teamB),flexShrink:0}}/>
-                <span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{currentMatch.teamB}</span>
-              </div>
-              <div style={{fontSize:11,color:t.textSec,display:"flex",flexDirection:"column",gap:6}}>
-                {(ps?.teams?.find(tm=>tm.name===currentMatch.teamB)?.players || currentMatch.playersB || []).map((p,pi)=>{
-                  const athleteId = String(p.id || p.atleta_id || p.idAtleta);
-                  const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
-                  return (
-                    <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                      {goals ? (
-                        <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:4}}>
-                          ⚽{goals > 1 ? ` ${goals}` : ""}
-                        </span>
-                      ) : null}
-                      <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamB)}</span>
+                <div style={{
+                  ...S.card,
+                  border: prestesSairB ? `3px solid #E24B4A` : `2px solid ${colorOfTeam(currentMatch.teamB)}55`,
+                  boxShadow: prestesSairB ? "0 0 12px rgba(226, 75, 74, 0.4)" : "none",
+                  background: prestesSairB ? "#E24B4A10" : undefined,
+                  padding: 8,
+                  minWidth: 0,
+                  overflow: "hidden"
+                }}>
+                  <div style={{display:"flex",alignItems:"center",gap:4,minWidth:0,overflow:"hidden",marginBottom:6}}>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(currentMatch.teamB),flexShrink:0}}/>
+                    <span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{currentMatch.teamB}</span>
+                    {prestesSairB && (
+                      <span style={{fontSize:9,fontWeight:800,color:"#E24B4A",background:"#E24B4A15",padding:"2px 4px",borderRadius:4,marginLeft:4}}>
+                        ⚠️ NO LIMITE ({vitoriasB}/{limiteVitorias} vitórias)
+                      </span>
+                    )}
+                  </div>
+                  <div style={{fontSize:11,color:t.textSec,display:"flex",flexDirection:"column",gap:6}}>
+                    {(ps?.teams?.find(tm=>tm.name===currentMatch.teamB)?.players || currentMatch.playersB || []).map((p,pi)=>{
+                      const athleteId = String(p.id || p.atleta_id || p.idAtleta);
+                      const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
+                      return (
+                        <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                          {goals ? (
+                            <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:4}}>
+                              ⚽{goals > 1 ? ` ${goals}` : ""}
+                            </span>
+                          ) : null}
+                          <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamB)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {currentMatch.goleiroB && (
+                    <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", justifyContent: "flex-start", fontSize: 10, color: t.textSec, gap: 4}}>
+                      🧤 Goleiro: <b>{getPlayerName({ id: currentMatch.goleiroB })}</b>
                     </div>
-                  );
-                })}
-              </div>
-              {currentMatch.goleiroB && (
-                <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", justifyContent: "flex-start", fontSize: 10, color: t.textSec, gap: 4}}>
-                  🧤 Goleiro: <b>{getPlayerName({ id: currentMatch.goleiroB })}</b>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+            );
+          })()}
         </div>
       ) : (
         <div style={{
@@ -7377,23 +7403,62 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[substituirPorConvidado,setSubstituirPorConvidado]=useState(false);
   const[jogadoresPausados,setJogadoresPausados]=useState([]); // descansando — podem retornar
  
+  const updateScoreAndPersist = (val, team) => {
+    if (!peladaStateLocal || !peladaStateLocal.currentMatch) return;
+    const cleanVal = val === "" ? "" : String(Math.max(0, parseInt(val) || 0));
+    
+    if (team === 'A') {
+      setScoreA(cleanVal);
+    } else {
+      setScoreB(cleanVal);
+    }
+    
+    const ps = {
+      ...peladaStateLocal,
+      currentMatch: {
+        ...peladaStateLocal.currentMatch,
+        scoreA: team === 'A' ? cleanVal : scoreA,
+        scoreB: team === 'B' ? cleanVal : scoreB
+      }
+    };
+    setPeladaStateLocal(ps);
+    saveDateState({ peladaState: ps });
+  };
+
   const updateSumulaAndScore = (playerId, val, teamType) => {
+    if (!peladaStateLocal || !peladaStateLocal.currentMatch) return;
     const cleanVal = val.replace(/\D/g,"");
     const numVal = parseInt(cleanVal) || 0;
     const oldVal = parseInt(sumulaGols[playerId]) || 0;
     const diff = numVal - oldVal;
-    setSumulaGols(prev => ({...prev, [playerId]: cleanVal}));
+    
+    const newSumula = {...sumulaGols, [playerId]: cleanVal};
+    setSumulaGols(newSumula);
+    
+    let newScoreA = scoreA;
+    let newScoreB = scoreB;
+    
     if (teamType === 'A') {
-      setScoreA(prev => {
-        const current = parseInt(prev) || 0;
-        return String(Math.max(0, current + diff));
-      });
+      const current = parseInt(scoreA) || 0;
+      newScoreA = String(Math.max(0, current + diff));
+      setScoreA(newScoreA);
     } else {
-      setScoreB(prev => {
-        const current = parseInt(prev) || 0;
-        return String(Math.max(0, current + diff));
-      });
+      const current = parseInt(scoreB) || 0;
+      newScoreB = String(Math.max(0, current + diff));
+      setScoreB(newScoreB);
     }
+    
+    const ps = {
+      ...peladaStateLocal,
+      currentMatch: {
+        ...peladaStateLocal.currentMatch,
+        sumula: newSumula,
+        scoreA: newScoreA,
+        scoreB: newScoreB
+      }
+    };
+    setPeladaStateLocal(ps);
+    saveDateState({ peladaState: ps });
   };
  
   const updateEditSumulaAndScore = (playerId, val, teamType) => {
@@ -9731,9 +9796,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <span style={{fontSize:20,fontWeight:850,color:t.text}}>{scoreA || "0"} × {scoreB || "0"}</span>
                           ) : (
                             <>
-                              <input type="number" min={0} max={99} value={scoreA} onChange={e=>setScoreA(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
+                              <input type="number" min={0} max={99} value={scoreA} onChange={e=>updateScoreAndPersist(e.target.value, 'A')} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
                               <span style={{fontWeight:700,color:t.textSec,fontSize:14}}>×</span>
-                              <input type="number" min={0} max={99} value={scoreB} onChange={e=>setScoreB(e.target.value)} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
+                              <input type="number" min={0} max={99} value={scoreB} onChange={e=>updateScoreAndPersist(e.target.value, 'B')} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
                             </>
                           )}
                         </div>
@@ -15393,6 +15458,32 @@ export default function App(){
     }
   };
 
+  // Listener em tempo real para o painel público de acompanhamento dos atletas
+  useEffect(() => {
+    if (!isFirebaseConfigured || screen !== "publicPelada" || !publicPeladaData?.docKey) return;
+
+    const docRef = doc(db, "campeonatos", "pelada_" + publicPeladaData.docKey);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const publicData = docSnap.data();
+        setPublicPeladaData(prev => {
+          if (!prev) return null;
+          // Evita loops infinitos de re-render caso os dados sejam semanticamente idênticos
+          if (JSON.stringify(prev.pelada) === JSON.stringify(publicData)) return prev;
+          return {
+            ...prev,
+            pelada: publicData
+          };
+        });
+        console.log("Pelada pública sincronizada em tempo real via onSnapshot!");
+      }
+    }, (err) => {
+      console.error("Erro no listener em tempo real da pelada pública:", err);
+    });
+
+    return () => unsubscribe();
+  }, [screen, publicPeladaData?.docKey, isFirebaseConfigured]);
+
   // Monitora alterações de autenticação no Firebase Auth
   useEffect(() => {
     console.log("[DEBUG AUTH] useEffect onAuthStateChanged registrado! isFirebaseConfigured:", isFirebaseConfigured);
@@ -16316,10 +16407,64 @@ export default function App(){
     return next;
   });
 
+  const sincronizarPeladaImediatamente = async (peladaId, customAppState = null) => {
+    if (!isFirebaseConfigured) return;
+    try {
+      const activeState = customAppState || appState;
+      const pel = activeState.peladas?.find(p => String(p.id) === String(peladaId));
+      if (!pel) return;
+
+      const datasPel = (activeState.datasRealizacao || [])
+        .filter(d => d.pelada_id === pel.id)
+        .map(d => ({
+          id: d.id,
+          dateStr: d.data || d.dateStr || "",
+          peladaState: d.peladaState ? {
+            currentMatch: d.peladaState.currentMatch || null,
+            queue: d.peladaState.queue || [],
+            bench: d.peladaState.bench || [],
+            matchLog: d.peladaState.matchLog || [],
+            teams: d.peladaState.teams || [],
+            regraEmpate: d.peladaState.regraEmpate || null,
+            empateAmbosSaem: d.peladaState.empateAmbosSaem || false
+          } : null
+        }));
+
+      const atletasSimplificados = (activeState.atletas || []).map(a => ({
+        id: a.id,
+        nome: a.nome,
+        apelido: a.apelido || "",
+        fotoUrl: a.fotoUrl || ""
+      }));
+
+      const publicPayload = {
+        id: pel.id,
+        name: pel.name,
+        datasRealizacao: datasPel,
+        atletas: atletasSimplificados,
+        isPublicPelada: true,
+        lastUpdated: new Date().toISOString()
+      };
+
+      const cleanPublicPayload = JSON.parse(JSON.stringify(publicPayload));
+      await setDoc(doc(db, "campeonatos", "pelada_" + String(pel.id)), cleanPublicPayload);
+      console.log(`[REALTIME] Pelada ${pel.name} sincronizada publicamente em tempo real no Firestore!`);
+    } catch (e) {
+      console.error("Erro na sincronização instantânea pública da pelada:", e);
+    }
+  };
+
   // Setters que atualizam o appState
   const setCampeonatos = d => setAppState(s => ({ ...s, campeonatos: typeof d === 'function' ? d(Array.isArray(s.campeonatos) ? s.campeonatos : []) : d }));
   const setPeladas = d => setAppState(s => ({ ...s, peladas: typeof d === 'function' ? d(Array.isArray(s.peladas) ? s.peladas : []) : d }));
-  const setDatasRealizacao = d => setAppState(s => ({ ...s, datasRealizacao: typeof d === 'function' ? d(Array.isArray(s.datasRealizacao) ? s.datasRealizacao : []) : d }));
+  const setDatasRealizacao = d => setAppState(s => {
+    const nextDatas = typeof d === 'function' ? d(Array.isArray(s.datasRealizacao) ? s.datasRealizacao : []) : d;
+    const newState = { ...s, datasRealizacao: nextDatas };
+    if (dashboardTab === "peladas" && dashboardSelectedId) {
+      sincronizarPeladaImediatamente(dashboardSelectedId, newState);
+    }
+    return newState;
+  });
     const setAtletas = d => setAppState(s => ({ ...s, atletas: typeof d === 'function' ? d(Array.isArray(s.atletas) ? s.atletas : []) : d }));
   const setAtletasCampeonato = d => setAppState(s => ({ ...s, atletasCampeonato: typeof d === 'function' ? d(Array.isArray(s.atletasCampeonato) ? s.atletasCampeonato : []) : d }));
   const setQuadras = d => setAppState(s => ({ ...s, quadras: typeof d === 'function' ? d(Array.isArray(s.quadras) ? s.quadras : []) : d }));
