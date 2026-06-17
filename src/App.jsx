@@ -2047,7 +2047,7 @@ const playWhistleSound = () => {
   }
 };
 
-function MatchTimer({ t, defaultMinutes = 10, timerKey }) {
+function MatchTimer({ t, defaultMinutes = 10, timerKey, onTimerUpdate }) {
   const [minutesInput, setMinutesInput] = useState(defaultMinutes);
   const [seconds, setSeconds] = useState(defaultMinutes * 60);
   const [initialSeconds, setInitialSeconds] = useState(defaultMinutes * 60);
@@ -2110,10 +2110,19 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey }) {
     localStorage.setItem(`${timerKey}_initial`, String(newInitial));
     localStorage.setItem(`${timerKey}_isConfiguring`, String(newConfig));
     
+    const timestamp = Date.now();
     if (newRunning) {
-      localStorage.setItem(`${timerKey}_startTimestamp`, String(Date.now()));
+      localStorage.setItem(`${timerKey}_startTimestamp`, String(timestamp));
     } else {
       localStorage.removeItem(`${timerKey}_startTimestamp`);
+    }
+
+    if (onTimerUpdate) {
+      onTimerUpdate({
+        timerRunning: newRunning,
+        timerSecondsAtStart: newSeconds,
+        timerStartTimestamp: newRunning ? timestamp : null
+      });
     }
   };
 
@@ -3790,6 +3799,45 @@ function CloudPublicChampScreen({champ,onBack,t}){
 }
 
 /* ──────────────────────── VISUALIZAÇÃO PELADA PÚBLICA ──────────────── */
+function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimestamp, t }) {
+  const [displaySeconds, setDisplaySeconds] = useState(timerSecondsAtStart || 0);
+
+  useEffect(() => {
+    setDisplaySeconds(timerSecondsAtStart || 0);
+    if (!timerRunning || !timerStartTimestamp) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - Number(timerStartTimestamp)) / 1000);
+      const remaining = Math.max(0, Number(timerSecondsAtStart) - elapsed);
+      setDisplaySeconds(remaining);
+      if (remaining === 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [timerRunning, timerSecondsAtStart, timerStartTimestamp]);
+
+  const formatTimer = (s) => {
+    const min = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${min}:${sec < 10 ? "0" : ""}${sec}`;
+  };
+
+  return (
+    <div style={{
+      fontSize: 24, 
+      fontWeight: 900, 
+      color: timerRunning ? "#1D9E75" : t.text, 
+      textAlign: "center",
+      fontVariantNumeric: "tabular-nums",
+      margin: "4px 0"
+    }}>
+      {formatTimer(displaySeconds)}
+    </div>
+  );
+}
+
 function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   const S = makeStyles(t);
   const { pelada, selDataId } = peladaData;
@@ -3847,6 +3895,11 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
       return ` (Emp. ${p.origTeam})`;
     }
     return "";
+  };
+
+  const colorOfTeam = n => {
+    const i = (pelada.teams || []).findIndex(x => x.name === n);
+    return COLORS[i % COLORS.length] || "#888";
   };
 
   const getRankingDia = () => {
@@ -4009,49 +4062,100 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
             fontWeight: 700,
             color: "#1D9E75",
             textTransform: "uppercase",
-            marginBottom: 12,
+            marginBottom: 4,
             textAlign: "center",
             letterSpacing: 1
           }}>
             🔥 JOGO EM ANDAMENTO
           </div>
+
+          <PublicMatchTimer 
+            timerRunning={currentMatch.timerRunning}
+            timerSecondsAtStart={currentMatch.timerSecondsAtStart}
+            timerStartTimestamp={currentMatch.timerStartTimestamp}
+            t={t}
+          />
           
           <div style={{
             display: "flex",
             justifyContent: "space-around",
             alignItems: "center",
             gap: 10,
-            margin: "10px 0"
+            margin: "4px 0 12px 0"
           }}>
             <div style={{textAlign: "center", flex: 1}}>
-              <div style={{fontSize: 15, fontWeight: 800, color: COLORS[0]}}>{currentMatch.teamA}</div>
-              <div style={{fontSize: 32, fontWeight: 900, margin: "8px 0"}}>{currentMatch.scoreA}</div>
+              <div style={{fontSize: 15, fontWeight: 800, color: colorOfTeam(currentMatch.teamA)}}>{currentMatch.teamA}</div>
             </div>
             
-            <div style={{fontSize: 18, fontWeight: 700, color: t.textSec}}>VS</div>
+            <div style={{fontSize: 32, fontWeight: 900, color: t.text, fontVariantNumeric: "tabular-nums"}}>
+              {currentMatch.scoreA} × {currentMatch.scoreB}
+            </div>
 
             <div style={{textAlign: "center", flex: 1}}>
-              <div style={{fontSize: 15, fontWeight: 800, color: COLORS[1]}}>{currentMatch.teamB}</div>
-              <div style={{fontSize: 32, fontWeight: 900, margin: "8px 0"}}>{currentMatch.scoreB}</div>
+              <div style={{fontSize: 15, fontWeight: 800, color: colorOfTeam(currentMatch.teamB)}}>{currentMatch.teamB}</div>
             </div>
           </div>
 
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            marginTop: 14,
-            paddingTop: 14,
-            borderTop: `1px solid ${t.cardBorder}`,
-            fontSize: 11
-          }}>
-            <div>
-              <b style={{color: COLORS[0]}}>{currentMatch.teamA}: </b>
-              <span>{currentMatch.playersA?.map(p => getPlayerName(p) + getLoanTag(p, currentMatch.teamA)).join(", ")}</span>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,alignItems:"start",width:"100%",overflow:"hidden"}}>
+            <div style={{
+              ...S.card,
+              border: `2px solid ${colorOfTeam(currentMatch.teamA)}55`,
+              padding: 8,
+              textAlign: "right",
+              minWidth: 0,
+              overflow: "hidden"
+            }}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,minWidth:0,overflow:"hidden",marginBottom:6}}>
+                <span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{currentMatch.teamA}</span>
+                <div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(currentMatch.teamA),flexShrink:0}}/>
+              </div>
+              <div style={{fontSize:11,color:t.textSec,display:"flex",flexDirection:"column",gap:6}}>
+                {(pelada.teams?.find(tm=>tm.name===currentMatch.teamA)?.players || currentMatch.playersA || []).map((p,pi)=>(
+                  <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                    <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
+                    {currentMatch.sumula?.[p.id] ? (
+                      <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginLeft:4}}>
+                        ⚽{currentMatch.sumula[p.id] > 1 ? ` ${currentMatch.sumula[p.id]}` : ""}
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              {currentMatch.goleiroA && (
+                <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", justifyContent: "flex-end", fontSize: 10, color: t.textSec, gap: 4}}>
+                  🧤 Goleiro: <b>{getPlayerName({ id: currentMatch.goleiroA })}</b>
+                </div>
+              )}
             </div>
-            <div>
-              <b style={{color: COLORS[1]}}>{currentMatch.teamB}: </b>
-              <span>{currentMatch.playersB?.map(p => getPlayerName(p) + getLoanTag(p, currentMatch.teamB)).join(", ")}</span>
+
+            <div style={{
+              ...S.card,
+              border: `2px solid ${colorOfTeam(currentMatch.teamB)}55`,
+              padding: 8,
+              minWidth: 0,
+              overflow: "hidden"
+            }}>
+              <div style={{display:"flex",alignItems:"center",gap:4,minWidth:0,overflow:"hidden",marginBottom:6}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(currentMatch.teamB),flexShrink:0}}/>
+                <span style={{fontWeight:700,fontSize:12,color:t.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{currentMatch.teamB}</span>
+              </div>
+              <div style={{fontSize:11,color:t.textSec,display:"flex",flexDirection:"column",gap:6}}>
+                {(pelada.teams?.find(tm=>tm.name===currentMatch.teamB)?.players || currentMatch.playersB || []).map((p,pi)=>(
+                  <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                    {currentMatch.sumula?.[p.id] ? (
+                      <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:4}}>
+                        ⚽{currentMatch.sumula[p.id] > 1 ? ` ${currentMatch.sumula[p.id]}` : ""}
+                      </span>
+                    ) : null}
+                    <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamB)}</span>
+                  </div>
+                ))}
+              </div>
+              {currentMatch.goleiroB && (
+                <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", justifyContent: "flex-start", fontSize: 10, color: t.textSec, gap: 4}}>
+                  🧤 Goleiro: <b>{getPlayerName({ id: currentMatch.goleiroB })}</b>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -4075,21 +4179,39 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
             <span style={{fontSize: 10, background: "#7F77DD22", color: "#7F77DD", padding: "1px 6px", borderRadius: 4}}>{queue.length}</span>
           </h4>
           {queue.length > 0 ? (
-            <div style={{display: "flex", flexDirection: "column", gap: 6}}>
-              {queue.map((teamName, i) => (
-                <div key={i} style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  background: t.inputBg,
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  fontSize: 12
-                }}>
-                  <span style={{fontWeight: 700, color: t.text}}>{i + 1}º. {teamName}</span>
-                  <span style={{fontSize: 10, color: t.textSec}}>Aguardando</span>
-                </div>
-              ))}
+            <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+              {queue.map((teamName, qIdx) => {
+                const teamObj = pelada.teams?.find(tm => tm.name === teamName);
+                const players = teamObj?.players || [];
+                return (
+                  <div key={teamName} style={{background: t.inputBg, borderRadius: 10, padding: 10, border: `1px solid ${t.cardBorder}`}}>
+                    <div style={{fontSize:12, fontWeight:700, color:"#7F77DD", marginBottom:8, display:"flex", alignItems:"center", gap:6}}>
+                      <div style={{width:8, height:8, borderRadius:"50%", background:colorOfTeam(teamName)}}/>
+                      <span>{qIdx === 0 ? "Próximo a entrar" : `${qIdx + 1}º na Fila`}: {teamName}</span>
+                    </div>
+                    <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+                      {players.map((p, pi) => (
+                        <div 
+                          key={pi} 
+                          style={{
+                            display:"inline-flex", 
+                            alignItems:"center", 
+                            gap:4, 
+                            fontSize:11, 
+                            background: t.card, 
+                            padding:"4px 8px", 
+                            borderRadius:12, 
+                            border: `1px solid ${t.inputBorder}`
+                          }}
+                        >
+                          <PlayerAvatar atleta={p} size={16}/>
+                          <span style={{fontWeight:500, color: t.text}}>{getPlayerName(p)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div style={{fontSize: 11, color: t.textSec, textAlign: "center", padding: 10}}>Sem times na fila de espera.</div>
@@ -4103,20 +4225,23 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
           </h4>
           {bench.length > 0 ? (
             <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
-              {bench.map((p, i) => (
-                <span key={i} style={{
-                  background: t.inputBg,
-                  padding: "4px 10px",
-                  borderRadius: 20,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: t.text,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4
-                }}>
-                  <PlayerAvatar atleta={p} size={14} />
-                  {getPlayerName(p)}
+              {bench.map((b, i) => (
+                <span 
+                  key={i} 
+                  style={{
+                    display:"inline-flex",
+                    alignItems:"center",
+                    gap:4,
+                    fontSize:12,
+                    padding:"3px 10px",
+                    borderRadius:16,
+                    background: "#BA751722",
+                    color: "#BA7517",
+                    fontWeight:600
+                  }}
+                >
+                  <PlayerAvatar atleta={b} size={16}/>
+                  {b.goleiro ? "🧤" : "⚽"} {getPlayerName(b)}
                 </span>
               ))}
             </div>
@@ -9558,7 +9683,26 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                       )}
                     </div>
                     
-                    {!isRealizada && <MatchTimer t={t} defaultMinutes={10} timerKey={`pelada_${pelada.id}`} />}
+                    {!isRealizada && (
+                      <MatchTimer 
+                        t={t} 
+                        defaultMinutes={10} 
+                        timerKey={`pelada_${pelada.id}`} 
+                        onTimerUpdate={(timerData) => {
+                          if (peladaStateLocal && peladaStateLocal.currentMatch) {
+                            const ps = {
+                              ...peladaStateLocal,
+                              currentMatch: {
+                                ...peladaStateLocal.currentMatch,
+                                ...timerData
+                              }
+                            };
+                            setPeladaStateLocal(ps);
+                            saveDateState({ peladaState: ps });
+                          }
+                        }}
+                      />
+                    )}
 
                     <div style={{display:"flex", justifyContent:"center", marginBottom:12}}>
                       <div style={{textAlign:"center",padding:"0 2px",flexShrink:0}}>
