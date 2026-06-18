@@ -7491,7 +7491,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[jogadoresPausados,setJogadoresPausados]=useState([]); // descansando — podem retornar
  
   const updateScoreAndPersist = (val, team) => {
-    if (!peladaStateLocal || !peladaStateLocal.currentMatch) return;
+    if (!peladaState || !peladaState.currentMatch) return;
     const cleanVal = val === "" ? "" : String(Math.max(0, parseInt(val) || 0));
     
     if (team === 'A') {
@@ -7501,9 +7501,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     }
     
     const ps = {
-      ...peladaStateLocal,
+      ...peladaState,
       currentMatch: {
-        ...peladaStateLocal.currentMatch,
+        ...peladaState.currentMatch,
         scoreA: team === 'A' ? cleanVal : scoreA,
         scoreB: team === 'B' ? cleanVal : scoreB
       }
@@ -7513,7 +7513,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   };
 
   const updateSumulaAndScore = (playerId, val, teamType) => {
-    if (!peladaStateLocal || !peladaStateLocal.currentMatch) return;
+    if (!peladaState || !peladaState.currentMatch) return;
     const cleanVal = val.replace(/\D/g,"");
     const numVal = parseInt(cleanVal) || 0;
     const oldVal = parseInt(sumulaGols[playerId]) || 0;
@@ -7536,9 +7536,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     }
     
     const ps = {
-      ...peladaStateLocal,
+      ...peladaState,
       currentMatch: {
-        ...peladaStateLocal.currentMatch,
+        ...peladaState.currentMatch,
         sumula: newSumula,
         scoreA: newScoreA,
         scoreB: newScoreB
@@ -9861,11 +9861,11 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                         defaultMinutes={10} 
                         timerKey={`pelada_${pelada.id}`} 
                         onTimerUpdate={(timerData) => {
-                          if (peladaStateLocal && peladaStateLocal.currentMatch) {
+                          if (peladaState && peladaState.currentMatch) {
                             const ps = {
-                              ...peladaStateLocal,
+                              ...peladaState,
                               currentMatch: {
-                                ...peladaStateLocal.currentMatch,
+                                ...peladaState.currentMatch,
                                 ...timerData
                               }
                             };
