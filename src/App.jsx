@@ -4219,9 +4219,9 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                       const athleteId = String(p.id || p.atleta_id || p.idAtleta);
                       const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
                       return (
-                        <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                           {goals ? (
-                            <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:4,flexShrink:0}}>
+                            <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:2,flexShrink:0}}>
                               ⚽{goals > 1 ? ` ${goals}` : ""}
                             </span>
                           ) : null}
@@ -4260,13 +4260,13 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                       const athleteId = String(p.id || p.atleta_id || p.idAtleta);
                       const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
                       return (
-                        <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        <div key={pi} style={{display:"flex",alignItems:"center",gap:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                          <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamB)}</span>
                           {goals ? (
-                            <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:4}}>
+                            <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginLeft:2,flexShrink:0}}>
                               ⚽{goals > 1 ? ` ${goals}` : ""}
                             </span>
                           ) : null}
-                          <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamB)}</span>
                         </div>
                       );
                     })}
@@ -7500,6 +7500,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[sairComConvidado,setSairComConvidado]=useState(false);
   const[substituirPorConvidado,setSubstituirPorConvidado]=useState(false);
   const[jogadoresPausados,setJogadoresPausados]=useState([]); // descansando — podem retornar
+  const[timerResetKey,setTimerResetKey]=useState(0); // incrementar para forçar reset do cronômetro
+  const timerSecondsRef = useRef(0); // guarda o tempo restante atual do timer para salvar no histórico
  
   const updateScoreAndPersist = (val, team) => {
     if (!peladaState || !peladaState.currentMatch) return;
@@ -8491,6 +8493,14 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         }
       }
 
+      // Captura quanto tempo de jogo foi utilizado
+      const timerKey = `pelada_${pelada.id}`;
+      const savedInitial = localStorage.getItem(`${timerKey}_initial`);
+      const savedSeconds = localStorage.getItem(`${timerKey}_seconds`);
+      const initialSecs = savedInitial ? parseInt(savedInitial) : 600;
+      const currentSecs = savedSeconds !== null ? parseInt(savedSeconds) : initialSecs;
+      const tempoJogadoSecs = Math.max(0, initialSecs - currentSecs);
+
       const ps2=resolveMatch({
         ...peladaState,
         currentMatch:{
@@ -8499,7 +8509,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           scoreB: finalScoreB,
           played:true,
           sumula:sumulaGols,
-          empateVencedorManual: empateVencedorManual
+          empateVencedorManual: empateVencedorManual,
+          tempoJogadoSecs
         }
       },finalScoreA,finalScoreB,selDataSorteio);
       const ps3=startNextMatch(ps2, selDataSorteio, ppt);
@@ -8508,6 +8519,12 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       setScoreA("0");setScoreB("0");
       setSumulaGols({});
       setEmpateVencedorManual("");
+      // Reseta o cronômetro para o tempo configurado
+      const timerInitial = savedInitial ? parseInt(savedInitial) : 600;
+      localStorage.setItem(`${timerKey}_running`, "false");
+      localStorage.setItem(`${timerKey}_seconds`, String(timerInitial));
+      localStorage.removeItem(`${timerKey}_startTimestamp`);
+      setTimerResetKey(k => k + 1);
     } catch (err) {
       console.error("Erro ao registrar jogo:", err);
       alert("Erro ao registrar jogo: " + err.message + "\nStack: " + err.stack);
@@ -9868,6 +9885,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     
                     {!isRealizada && (
                       <MatchTimer 
+                        key={timerResetKey}
                         t={t} 
                         defaultMinutes={10} 
                         timerKey={`pelada_${pelada.id}`} 
@@ -10557,6 +10575,11 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <span style={{fontWeight:800,fontSize:15,color:"#378ADD"}}>{m.scoreA} × {m.scoreB}</span>
                             <div style={{marginTop:2,textAlign:"center"}}>
                               <span style={{fontSize:10,color:"#1D9E75",fontWeight:600,display:"block"}}>🏆 {m.winner}</span>
+                              {m.tempoJogadoSecs > 0 && (
+                                <span style={{fontSize:9,color:t.textSec,display:"block",marginTop:1}}>
+                                  ⏱ {Math.floor(m.tempoJogadoSecs/60)}:{String(m.tempoJogadoSecs%60).padStart(2,"0")} jogados
+                                </span>
+                              )}
                               {m.dataRealizacaoId && datas.find(d=>String(d.id)===String(m.dataRealizacaoId)) && (
                                 <span style={{fontSize:9,color:t.textSec,display:"block",marginTop:2}}>
                                   📅 {formatarData(datas.find(d=>String(d.id)===String(m.dataRealizacaoId)).data)}
