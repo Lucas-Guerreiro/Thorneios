@@ -3865,13 +3865,24 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
 
   useEffect(() => {
     const currentSecs = timerSecondsAtStart !== undefined ? Number(timerSecondsAtStart) : 600;
-    setDisplaySeconds(currentSecs);
-    if (!timerRunning || !timerStartTimestamp) return;
 
-    const interval = setInterval(() => {
+    if (!timerRunning || !timerStartTimestamp) {
+      // Timer parado: mostra o valor estático sem resetar se já estiver exibindo algo razoável
+      setDisplaySeconds(currentSecs);
+      return;
+    }
+
+    // Calcula imediatamente para evitar flash de reset ao receber dados do Firebase
+    const calcRemaining = () => {
       const serverNow = Date.now() + serverOffset;
       const elapsed = Math.floor((serverNow - Number(timerStartTimestamp)) / 1000);
-      const remaining = Math.max(0, currentSecs - elapsed);
+      return Math.max(0, currentSecs - elapsed);
+    };
+
+    setDisplaySeconds(calcRemaining());
+
+    const interval = setInterval(() => {
+      const remaining = calcRemaining();
       setDisplaySeconds(remaining);
       if (remaining === 0) {
         clearInterval(interval);
@@ -4209,12 +4220,12 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                       const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
                       return (
                         <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                          <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
                           {goals ? (
-                            <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginLeft:4}}>
+                            <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:4,flexShrink:0}}>
                               ⚽{goals > 1 ? ` ${goals}` : ""}
                             </span>
                           ) : null}
+                          <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
                         </div>
                       );
                     })}
