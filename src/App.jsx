@@ -3857,12 +3857,14 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
     : 600;
   const safeStartMs = toSafeTimestampMs(timerStartTimestamp);
 
-  // defaultSecs só é usado na inicialização do useState
   const initSecs = Number.isFinite(safeSecs) && safeSecs > 0 ? safeSecs : 600;
   const [displaySeconds, setDisplaySeconds] = useState(initSecs);
   const [serverOffset, setServerOffset] = useState(0);
   // Guarda o último valor válido exibido para não resetar ao receber dados inválidos
   const lastValidDisplay = useRef(initSecs);
+  // Estimativa local usada quando o timer está rodando mas startTime ainda é null
+  // (latência do Firebase: isRunning=true chega antes do timestamp)
+  const localStartEstimate = useRef(null);
 
   useEffect(() => {
     const calibrateClock = async () => {
@@ -3884,21 +3886,58 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
   }, []);
 
   useEffect(() => {
-    // Se os dados essenciais não são válidos, mantém o último valor exibido
-    if (!Number.isFinite(safeSecs) || safeSecs <= 0) {
-      console.warn("[PublicTimer] timerSecondsAtStart inválido, ignorando atualização:", timerSecondsAtStart);
+    // Dados essenciais inválidos: mantém último valor sem resetar
+    if (!Number.isFinite(safeSecs) || safeSecs < 0) {
+      console.warn("[PublicTimer] timerSecondsAtStart inválido, ignorando:", timerSecondsAtStart);
       return;
     }
 
-    if (!safeRunning || safeStartMs === null) {
-      // Timer parado: mostra o valor estático
-      const newVal = safeSecs;
-      setDisplaySeconds(newVal);
-      lastValidDisplay.current = newVal;
+    // --- CASO 1: Timer parado ---
+    if (!safeRunning) {
+      localStartEstimate.current = null; // limpa estimativa local
+      setDisplaySeconds(safeSecs);
+      lastValidDisplay.current = safeSecs;
       return;
     }
 
-    // Timer rodando: calcula imediatamente para evitar flash
+    // --- CASO 2: Timer RODANDO mas startTime ainda é null ---
+    // Ocorre durante a latência do Firebase: isRunning=true chega antes do timestamp.
+    // Solução: usar o relógio local como estimativa temporária para não zerar o display.
+    if (safeStartMs === null) {
+      // Requisíto: se offset (timerSecondsAtStart) > 0, mantêm a exibição do offset
+      // até que o startTime seja resolvido pelo servidor.
+      if (lastValidDisplay.current > 0 && safeSecs > 0) {
+        // Registra quando detectamos pela primeira vez o estado "correndo sem startTime"
+        if (localStartEstimate.current === null) {
+          localStartEstimate.current = Date.now() + serverOffset;
+          console.log("[PublicTimer] startTime pendente, usando relógio local como estimativa.");
+        }
+        const estimatedStart = localStartEstimate.current;
+        // Trava: usa lastValidDisplay como base para continuar decrescendo
+        const baseSeconds = Math.min(lastValidDisplay.current, safeSecs);
+
+        const calcFromEstimate = () => {
+          const serverNow = Date.now() + serverOffset;
+          const elapsed = Math.floor((serverNow - estimatedStart) / 1000);
+          return Math.max(0, baseSeconds - elapsed);
+        };
+
+        const interval = setInterval(() => {
+          const rem = calcFromEstimate();
+          setDisplaySeconds(rem);
+          // Não atualiza lastValidDisplay aqui para não interferir com a estimativa
+          if (rem === 0) clearInterval(interval);
+        }, 1000);
+        return () => clearInterval(interval);
+      }
+      // Se não há valor anterior válido, mostra safeSecs estaticamente
+      setDisplaySeconds(safeSecs);
+      return;
+    }
+
+    // --- CASO 3: Timer RODANDO com startTime válido ---
+    localStartEstimate.current = null; // descarta estimativa local, temos dados reais
+
     const calcRemaining = () => {
       const serverNow = Date.now() + serverOffset;
       const elapsed = Math.floor((serverNow - safeStartMs) / 1000);
@@ -3947,49 +3986,76 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   useEffect(() => {
     if (!isFirebaseConfigured || !peladaData?.docKey) return;
     const docRef = doc(db, "campeonatos", "pelada_" + peladaData.docKey);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
 
-        // Sanitiza os campos de timer em todos os peladaStates para evitar
-        // que Timestamps do Firestore ou valores nulos corrompam o PublicMatchTimer
-        const sanitizeTimerFields = (obj) => {
-          if (!obj || typeof obj !== "object") return obj;
-          const result = { ...obj };
-          if (result.currentMatch) {
-            const cm = { ...result.currentMatch };
-            // timerStartTimestamp: converte Firestore Timestamp ou garante número
-            if (cm.timerStartTimestamp !== null && cm.timerStartTimestamp !== undefined) {
-              cm.timerStartTimestamp = toSafeTimestampMs(cm.timerStartTimestamp);
-            }
-            // timerSecondsAtStart: garante que é um número positivo
-            if (cm.timerSecondsAtStart !== undefined && cm.timerSecondsAtStart !== null) {
-              const n = Number(cm.timerSecondsAtStart);
-              cm.timerSecondsAtStart = Number.isFinite(n) && n >= 0 ? n : 600;
-            }
-            // timerRunning: garante boolean
-            cm.timerRunning = Boolean(cm.timerRunning);
-            result.currentMatch = cm;
+    // includeMetadataChanges: true permite detectar hasPendingWrites
+    // (escrita pendente de confirmação pelo servidor)
+    const unsubscribe = onSnapshot(docRef, { includeMetadataChanges: true }, (docSnap) => {
+      if (!docSnap.exists()) return;
+
+      const data = docSnap.data();
+      const isPending = docSnap.metadata.hasPendingWrites;
+
+      const sanitizeTimerFields = (obj, prevPeladaState) => {
+        if (!obj || typeof obj !== "object") return obj;
+        const result = { ...obj };
+        if (result.currentMatch) {
+          const cm = { ...result.currentMatch };
+
+          // timerStartTimestamp: converte Firestore Timestamp ou garante número
+          if (cm.timerStartTimestamp !== null && cm.timerStartTimestamp !== undefined) {
+            cm.timerStartTimestamp = toSafeTimestampMs(cm.timerStartTimestamp);
           }
-          return result;
-        };
 
-        // Sanitiza dentro de cada datasRealizacao
+          // TRAVA ANTI-FLASH: se o timer está rodando mas startTime é null
+          // (latência do Firebase: isRunning=true chega antes do timestamp),
+          // preserva o último startTime válido do estado anterior.
+          if (Boolean(cm.timerRunning) && cm.timerStartTimestamp === null) {
+            const prevCm = prevPeladaState?.currentMatch;
+            const prevStart = prevCm?.timerStartTimestamp;
+            if (prevStart && typeof prevStart === "number" && prevStart > 0) {
+              console.log("[PublicTimer] startTime pendente, preservando último valor:", prevStart);
+              cm.timerStartTimestamp = prevStart;
+            }
+            // Se não há valor anterior: PublicMatchTimer lidará via localStartEstimate
+          }
+
+          // timerSecondsAtStart: garante que é um número não-negativo
+          if (cm.timerSecondsAtStart !== undefined && cm.timerSecondsAtStart !== null) {
+            const n = Number(cm.timerSecondsAtStart);
+            cm.timerSecondsAtStart = Number.isFinite(n) && n >= 0 ? n : 600;
+          }
+
+          // timerRunning: garante boolean
+          cm.timerRunning = Boolean(cm.timerRunning);
+          result.currentMatch = cm;
+        }
+        return result;
+      };
+
+      setLocalPelada(prev => {
+        // Sanitiza usando o estado anterior para preservar timestamps válidos
         const sanitizedData = {
           ...data,
           datasRealizacao: Array.isArray(data.datasRealizacao)
-            ? data.datasRealizacao.map(d => ({
-                ...d,
-                peladaState: d.peladaState ? sanitizeTimerFields(d.peladaState) : null
-              }))
+            ? data.datasRealizacao.map(d => {
+                // Encontra a datasRealizacao equivalente no estado anterior
+                const prevDate = prev?.datasRealizacao?.find(pd => String(pd.id) === String(d.id));
+                return {
+                  ...d,
+                  peladaState: d.peladaState
+                    ? sanitizeTimerFields(d.peladaState, prevDate?.peladaState)
+                    : null
+                };
+              })
             : data.datasRealizacao
         };
-
-        setLocalPelada(sanitizedData);
-        console.log("[Público] Pelada atualizada via onSnapshot (timer sanitizado).");
-      }
+        // Evita re-renders desnecessários se o conteúdo é semanticamente idêntico
+        if (JSON.stringify(prev) === JSON.stringify(sanitizedData)) return prev;
+        console.log(`[Público] Snapshot recebido (pending=${isPending}) - timer sanitizado.`);
+        return sanitizedData;
+      });
     }, (err) => {
-      console.error("[Público] Erro no listener em tempo real da pelada pública:", err);
+      console.error("[Público] Erro no listener em tempo real:", err);
     });
     return () => unsubscribe();
   }, [peladaData?.docKey]);
