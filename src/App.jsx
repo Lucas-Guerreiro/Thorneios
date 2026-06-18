@@ -3837,60 +3837,87 @@ function CloudPublicChampScreen({champ,onBack,t}){
 }
 
 /* ──────────────────────── VISUALIZAÇÃO PELADA PÚBLICA ──────────────── */
+// Converte um valor de timestamp (pode ser ms Unix, Firestore Timestamp ou null) para ms Unix seguro
+function toSafeTimestampMs(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val === "number" && isFinite(val) && val > 0) return val;
+  // Firestore Timestamp: { seconds: number, nanoseconds: number }
+  if (typeof val === "object" && typeof val.seconds === "number") {
+    return val.seconds * 1000 + Math.floor((val.nanoseconds || 0) / 1e6);
+  }
+  const n = Number(val);
+  return isFinite(n) && n > 0 ? n : null;
+}
+
 function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimestamp, t }) {
-  const defaultSecs = timerSecondsAtStart !== undefined ? Number(timerSecondsAtStart) : 600;
-  const [displaySeconds, setDisplaySeconds] = useState(defaultSecs);
+  // Sanitiza as props de entrada para garantir tipos corretos
+  const safeRunning = Boolean(timerRunning);
+  const safeSecs = (timerSecondsAtStart !== undefined && timerSecondsAtStart !== null)
+    ? Number(timerSecondsAtStart)
+    : 600;
+  const safeStartMs = toSafeTimestampMs(timerStartTimestamp);
+
+  // defaultSecs só é usado na inicialização do useState
+  const initSecs = Number.isFinite(safeSecs) && safeSecs > 0 ? safeSecs : 600;
+  const [displaySeconds, setDisplaySeconds] = useState(initSecs);
   const [serverOffset, setServerOffset] = useState(0);
+  // Guarda o último valor válido exibido para não resetar ao receber dados inválidos
+  const lastValidDisplay = useRef(initSecs);
 
   useEffect(() => {
     const calibrateClock = async () => {
       try {
         const start = Date.now();
-        // Faz requisição simples para obter o cabeçalho Date do servidor Web
         const response = await fetch(window.location.href, { method: "HEAD" });
         const dateHeader = response.headers.get("Date");
         if (dateHeader) {
           const serverTime = new Date(dateHeader).getTime();
           const rtt = Date.now() - start;
-          const correctedServerTime = serverTime + Math.floor(rtt / 2);
-          const offset = correctedServerTime - Date.now();
+          const offset = serverTime + Math.floor(rtt / 2) - Date.now();
           setServerOffset(offset);
         }
       } catch (err) {
-        console.warn("Erro ao calibrar tempo com o servidor:", err);
+        console.warn("[PublicTimer] Erro ao calibrar tempo:", err);
       }
     };
     calibrateClock();
   }, []);
 
   useEffect(() => {
-    const currentSecs = timerSecondsAtStart !== undefined ? Number(timerSecondsAtStart) : 600;
-
-    if (!timerRunning || !timerStartTimestamp) {
-      // Timer parado: mostra o valor estático sem resetar se já estiver exibindo algo razoável
-      setDisplaySeconds(currentSecs);
+    // Se os dados essenciais não são válidos, mantém o último valor exibido
+    if (!Number.isFinite(safeSecs) || safeSecs <= 0) {
+      console.warn("[PublicTimer] timerSecondsAtStart inválido, ignorando atualização:", timerSecondsAtStart);
       return;
     }
 
-    // Calcula imediatamente para evitar flash de reset ao receber dados do Firebase
+    if (!safeRunning || safeStartMs === null) {
+      // Timer parado: mostra o valor estático
+      const newVal = safeSecs;
+      setDisplaySeconds(newVal);
+      lastValidDisplay.current = newVal;
+      return;
+    }
+
+    // Timer rodando: calcula imediatamente para evitar flash
     const calcRemaining = () => {
       const serverNow = Date.now() + serverOffset;
-      const elapsed = Math.floor((serverNow - Number(timerStartTimestamp)) / 1000);
-      return Math.max(0, currentSecs - elapsed);
+      const elapsed = Math.floor((serverNow - safeStartMs) / 1000);
+      return Math.max(0, safeSecs - elapsed);
     };
 
-    setDisplaySeconds(calcRemaining());
+    const initialRemaining = calcRemaining();
+    setDisplaySeconds(initialRemaining);
+    lastValidDisplay.current = initialRemaining;
 
     const interval = setInterval(() => {
       const remaining = calcRemaining();
       setDisplaySeconds(remaining);
-      if (remaining === 0) {
-        clearInterval(interval);
-      }
+      lastValidDisplay.current = remaining;
+      if (remaining === 0) clearInterval(interval);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timerRunning, timerSecondsAtStart, timerStartTimestamp, serverOffset]);
+  }, [safeRunning, safeSecs, safeStartMs, serverOffset]);
 
   const formatTimer = (s) => {
     const min = Math.floor(s / 60);
@@ -3902,7 +3929,7 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
     <div style={{
       fontSize: 24, 
       fontWeight: 900, 
-      color: timerRunning ? "#1D9E75" : t.text, 
+      color: safeRunning ? "#1D9E75" : t.text, 
       textAlign: "center",
       fontVariantNumeric: "tabular-nums",
       margin: "4px 0"
@@ -3923,8 +3950,43 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setLocalPelada(data);
-        console.log("[Público] Pelada pública atualizada em tempo real via onSnapshot:", data);
+
+        // Sanitiza os campos de timer em todos os peladaStates para evitar
+        // que Timestamps do Firestore ou valores nulos corrompam o PublicMatchTimer
+        const sanitizeTimerFields = (obj) => {
+          if (!obj || typeof obj !== "object") return obj;
+          const result = { ...obj };
+          if (result.currentMatch) {
+            const cm = { ...result.currentMatch };
+            // timerStartTimestamp: converte Firestore Timestamp ou garante número
+            if (cm.timerStartTimestamp !== null && cm.timerStartTimestamp !== undefined) {
+              cm.timerStartTimestamp = toSafeTimestampMs(cm.timerStartTimestamp);
+            }
+            // timerSecondsAtStart: garante que é um número positivo
+            if (cm.timerSecondsAtStart !== undefined && cm.timerSecondsAtStart !== null) {
+              const n = Number(cm.timerSecondsAtStart);
+              cm.timerSecondsAtStart = Number.isFinite(n) && n >= 0 ? n : 600;
+            }
+            // timerRunning: garante boolean
+            cm.timerRunning = Boolean(cm.timerRunning);
+            result.currentMatch = cm;
+          }
+          return result;
+        };
+
+        // Sanitiza dentro de cada datasRealizacao
+        const sanitizedData = {
+          ...data,
+          datasRealizacao: Array.isArray(data.datasRealizacao)
+            ? data.datasRealizacao.map(d => ({
+                ...d,
+                peladaState: d.peladaState ? sanitizeTimerFields(d.peladaState) : null
+              }))
+            : data.datasRealizacao
+        };
+
+        setLocalPelada(sanitizedData);
+        console.log("[Público] Pelada atualizada via onSnapshot (timer sanitizado).");
       }
     }, (err) => {
       console.error("[Público] Erro no listener em tempo real da pelada pública:", err);
@@ -16541,7 +16603,16 @@ export default function App(){
           id: d.id,
           dateStr: d.data || d.dateStr || "",
           peladaState: d.peladaState ? {
-            currentMatch: d.peladaState.currentMatch || null,
+            currentMatch: d.peladaState.currentMatch ? {
+              ...d.peladaState.currentMatch,
+              // Garante que campos de timer são primitivos seguros (sem Firestore Timestamps)
+              timerRunning: Boolean(d.peladaState.currentMatch.timerRunning),
+              timerSecondsAtStart: Number(d.peladaState.currentMatch.timerSecondsAtStart) || 600,
+              timerStartTimestamp: (
+                d.peladaState.currentMatch.timerStartTimestamp !== null &&
+                d.peladaState.currentMatch.timerStartTimestamp !== undefined
+              ) ? Number(d.peladaState.currentMatch.timerStartTimestamp) : null
+            } : null,
             queue: d.peladaState.queue || [],
             bench: d.peladaState.bench || [],
             matchLog: d.peladaState.matchLog || [],
