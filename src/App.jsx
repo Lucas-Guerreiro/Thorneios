@@ -15918,7 +15918,14 @@ export default function App(){
                     matchLog: d.peladaState.matchLog || [],
                     teams: d.peladaState.teams || [],
                     regraEmpate: d.peladaState.regraEmpate || null,
-                    empateAmbosSaem: d.peladaState.empateAmbosSaem || false
+                    empateAmbosSaem: d.peladaState.empateAmbosSaem || false,
+                    // Campos necessários para destacar candidatos a empréstimo na tela pública
+                    modoRodizio: d.peladaState.modoRodizio || "misto",
+                    teamBases: d.peladaState.teamBases || null,
+                    loanLocks: d.peladaState.loanLocks || {},
+                    historicoEmprestimos: d.peladaState.historicoEmprestimos || {},
+                    limiteVitorias: d.peladaState.limiteVitorias || 0,
+                    minAtletasNovoTime: d.peladaState.minAtletasNovoTime || null
                   } : null
                 }));
 
@@ -16607,7 +16614,14 @@ export default function App(){
             matchLog: d.peladaState.matchLog || [],
             teams: d.peladaState.teams || [],
             regraEmpate: d.peladaState.regraEmpate || null,
-            empateAmbosSaem: d.peladaState.empateAmbosSaem || false
+            empateAmbosSaem: d.peladaState.empateAmbosSaem || false,
+            // Campos necessários para destacar candidatos a empréstimo na tela pública
+            modoRodizio: d.peladaState.modoRodizio || "misto",
+            teamBases: d.peladaState.teamBases || null,
+            loanLocks: d.peladaState.loanLocks || {},
+            historicoEmprestimos: d.peladaState.historicoEmprestimos || {},
+            limiteVitorias: d.peladaState.limiteVitorias || 0,
+            minAtletasNovoTime: d.peladaState.minAtletasNovoTime || null
           } : null
         }));
 
