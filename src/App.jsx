@@ -4483,6 +4483,8 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                     <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
                       {playersToRender.map((p, pi) => {
                         const athleteId = String(p.id || p.atleta_id || p.idAtleta);
+                        const pIsRev = p.isConvidado && p.convidadoDe;
+                        const pAnfNome = pIsRev ? (atletas.find(x=>x.id===p.convidadoDe)?.apelido||atletas.find(x=>x.id===p.convidadoDe)?.nome||"?") : null;
                         
                         if (p.isEstimadoEmprestimo) {
                           const origTeam = getOrigemTeamName(athleteId);
@@ -4520,16 +4522,17 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                               alignItems:"center", 
                               gap:4, 
                               fontSize:11, 
-                              background: isCandidatoEmprestimo ? "#1D9E7515" : t.card, 
+                              background: isCandidatoEmprestimo ? "#1D9E7515" : (pIsRev ? "#7F77DD22" : t.card), 
                               padding:"4px 8px", 
                               borderRadius:12, 
-                              border: isCandidatoEmprestimo ? "1.5px solid #1D9E75" : `1px solid ${t.inputBorder}`,
+                              border: isCandidatoEmprestimo ? "1.5px solid #1D9E75" : (pIsRev ? "1px solid #7F77DD44" : `1px solid ${t.inputBorder}`),
                               boxShadow: isCandidatoEmprestimo ? "0 0 6px rgba(29, 158, 117, 0.3)" : "none",
                               transition: "all 0.2s ease"
                             }}
                           >
                             <PlayerAvatar atleta={p} size={16}/>
-                            <span style={{fontWeight:500, color: t.text}}>{getPlayerName(p)}{isCandidatoEmprestimo && " 🤝"}</span>
+                            <span style={{fontWeight:500, color: pIsRev ? "#7F77DD" : t.text}}>{getPlayerName(p)}{isCandidatoEmprestimo && " 🤝"}</span>
+                            {pIsRev && <span style={{fontSize:9, color:"#7F77DD", opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
                           </div>
                         );
                       })}
@@ -4550,25 +4553,36 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
           </h4>
           {bench.length > 0 ? (
             <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
-              {bench.map((b, i) => (
-                <span 
-                  key={i} 
-                  style={{
-                    display:"inline-flex",
-                    alignItems:"center",
-                    gap:4,
-                    fontSize:12,
-                    padding:"3px 10px",
-                    borderRadius:16,
-                    background: "#BA751722",
-                    color: "#BA7517",
-                    fontWeight:600
-                  }}
-                >
-                  <PlayerAvatar atleta={b} size={16}/>
-                  {b.goleiro ? "🧤" : "⚽"} {getPlayerName(b)}
-                </span>
-              ))}
+              {bench.map((b, i) => {
+                const isRev = b.isConvidado && b.convidadoDe;
+                const anfitriaoNome = isRev ? (atletas.find(x=>x.id===b.convidadoDe)?.apelido || atletas.find(x=>x.id===b.convidadoDe)?.nome || "?") : null;
+                const athleteId = String(b.id || b.atleta_id || b.idAtleta);
+                const isCandidatoEmprestimo = proxCandidatosEmprestimoIds.includes(athleteId);
+                return (
+                  <span 
+                    key={i} 
+                    title={isCandidatoEmprestimo ? "Selecionado para empréstimo no próximo jogo" : undefined}
+                    style={{
+                      display:"inline-flex",
+                      alignItems:"center",
+                      gap:4,
+                      fontSize:12,
+                      padding:"3px 10px",
+                      borderRadius:16,
+                      background: isCandidatoEmprestimo ? "#1D9E7515" : (isRev ? "#7F77DD22" : "#BA751722"),
+                      color: isCandidatoEmprestimo ? "#1D9E75" : (isRev ? "#7F77DD" : "#BA7517"),
+                      fontWeight:600,
+                      border: isCandidatoEmprestimo ? "1.5px solid #1D9E75" : (isRev ? "1px solid #7F77DD44" : "none"),
+                      boxShadow: isCandidatoEmprestimo ? "0 0 6px rgba(29, 158, 117, 0.3)" : "none",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    <PlayerAvatar atleta={b} size={16}/>
+                    {b.goleiro ? "🧤" : "⚽"} {getPlayerName(b)}{isCandidatoEmprestimo && " 🤝"}
+                    {isRev && <span title={`Reveza com ${anfitriaoNome}`} style={{fontSize:9,opacity:0.85}}>🔄{anfitriaoNome}</span>}
+                  </span>
+                );
+              })}
             </div>
           ) : (
             <div style={{fontSize: 11, color: t.textSec, textAlign: "center", padding: 10}}>Banco de reservas vazio.</div>
@@ -16692,6 +16706,8 @@ export default function App(){
         .map(d => ({
           id: d.id,
           dateStr: d.data || d.dateStr || "",
+          playersPerTeam: d.playersPerTeam || 4,
+          numTeams: d.numTeams || 2,
           peladaState: d.peladaState ? {
             currentMatch: d.peladaState.currentMatch ? {
               ...d.peladaState.currentMatch,
