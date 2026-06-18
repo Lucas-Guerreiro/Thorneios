@@ -3940,7 +3940,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   const queue = ps?.queue || [];
   const bench = ps?.bench || [];
 
-  const ppt = activeDate?.playersPerTeam || pelada.playersPerTeam || 4;
+  const ppt = activeDate?.playersPerTeam || localPelada.playersPerTeam || 4;
   const { paraA: proxParaA = [], paraB: proxParaB = [] } = obterCandidatosEmprestimoProximaPartida(ps, ppt);
   const proxCandidatosEmprestimoIds = [...proxParaA, ...proxParaB].map(p => String(p.id || p.atleta_id || p.idAtleta));
 
@@ -4077,7 +4077,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
         <div style={{display: "flex", alignItems: "center", gap: 10}}>
           <span style={{fontSize: 24}}>⚽</span>
           <div>
-            <h2 style={{fontSize: 16, fontWeight: 800, margin: 0}}>{pelada.name || "Acompanhamento"}</h2>
+            <h2 style={{fontSize: 16, fontWeight: 800, margin: 0}}>{localPelada.name || "Acompanhamento"}</h2>
             <div style={{fontSize: 11, color: t.textSec, marginTop: 2}}>Painel de Jogos Público</div>
           </div>
         </div>
