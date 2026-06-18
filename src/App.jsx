@@ -3849,137 +3849,54 @@ function toSafeTimestampMs(val) {
   return isFinite(n) && n > 0 ? n : null;
 }
 
-function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimestamp, t }) {
-  // Sanitiza as props de entrada para garantir tipos corretos
+// Cronômetro independente do público.
+// Não depende de serverTimestamp — apenas reage ao sinal timerRunning e à duração timerSecondsAtStart.
+// Quando timerRunning muda para true: inicia contagem local a partir de timerSecondsAtStart.
+// Quando timerRunning muda para false: para e mantém o valor exibido.
+function IndependentPublicTimer({ timerRunning, timerSecondsAtStart, t }) {
   const safeRunning = Boolean(timerRunning);
-  const safeSecs = (timerSecondsAtStart !== undefined && timerSecondsAtStart !== null)
+  const safeSecs = (timerSecondsAtStart !== undefined && timerSecondsAtStart !== null && Number(timerSecondsAtStart) > 0)
     ? Number(timerSecondsAtStart)
     : 600;
-  const safeStartMs = toSafeTimestampMs(timerStartTimestamp);
 
-  const initSecs = Number.isFinite(safeSecs) && safeSecs > 0 ? safeSecs : 600;
-  const [displaySeconds, setDisplaySeconds] = useState(initSecs);
-  const [serverOffset, setServerOffset] = useState(0);
-  // Guarda o último valor válido exibido para não resetar ao receber dados inválidos
-  const lastValidDisplay = useRef(initSecs);
-  // Estimativa local usada quando o timer está rodando mas startTime ainda é null
-  // (latência do Firebase: isRunning=true chega antes do timestamp)
-  const localStartEstimate = useRef(null);
+  // display começa com a duração configurada pelo gestor
+  const [displaySeconds, setDisplaySeconds] = useState(safeSecs);
+  // Ref para preservar o valor exibido quando timer para (sem flash para 0)
+  const pausedAtRef = useRef(safeSecs);
 
   useEffect(() => {
-    const calibrateClock = async () => {
-      try {
-        const start = Date.now();
-        const response = await fetch(window.location.href, { method: "HEAD" });
-        const dateHeader = response.headers.get("Date");
-        if (dateHeader) {
-          const serverTime = new Date(dateHeader).getTime();
-          const rtt = Date.now() - start;
-          const offset = serverTime + Math.floor(rtt / 2) - Date.now();
-          setServerOffset(offset);
-        }
-      } catch (err) {
-        console.warn("[PublicTimer] Erro ao calibrar tempo:", err);
-      }
-    };
-    calibrateClock();
-  }, []);
-
-  useEffect(() => {
-    // Dados essenciais inválidos: mantém último valor sem resetar
-    if (!Number.isFinite(safeSecs) || safeSecs < 0) {
-      console.warn("[PublicTimer] timerSecondsAtStart inválido, ignorando:", timerSecondsAtStart);
-      return;
-    }
-
-    // --- CASO 1: Timer parado ---
+    // --- Timer parado pelo gestor ---
     if (!safeRunning) {
-      localStartEstimate.current = null; // limpa estimativa local
-      // Só atualiza o display se tivermos um valor válido maior que zero,
-      // ou se safeSecs for explicitamente zero (timer zerado/terminado)
+      // Firebase envia timerSecondsAtStart como o offset (tempo restante) ao pausar
+      // Exibimos exatamente esse valor
       if (safeSecs > 0) {
         setDisplaySeconds(safeSecs);
-        lastValidDisplay.current = safeSecs;
-      } else if (lastValidDisplay.current > 0) {
-        // Mantém o último valor válido caso safeSecs seja 0 inesperadamente
-        setDisplaySeconds(lastValidDisplay.current);
-      } else {
-        setDisplaySeconds(safeSecs);
-        lastValidDisplay.current = safeSecs;
+        pausedAtRef.current = safeSecs;
       }
       return;
     }
 
-    // --- CASO 2: Timer RODANDO mas startTime ainda é null ---
-    // Ocorre durante a latência do Firebase: isRunning=true chega antes do timestamp.
-    // Solução: usar o relógio local como estimativa temporária para não zerar o display.
-    if (safeStartMs === null) {
-      // TRAVA ANTI-FLASH: usa lastValidDisplay como fallback mesmo quando safeSecs é 0
-      // Isso evita o flash de 0:00 quando o Firebase ainda está processando o serverTimestamp.
-      const baseSeconds = (lastValidDisplay.current > 0)
-        ? lastValidDisplay.current
-        : (safeSecs > 0 ? safeSecs : null);
-
-      if (baseSeconds !== null) {
-        // Registra quando detectamos pela primeira vez o estado "correndo sem startTime"
-        if (localStartEstimate.current === null) {
-          localStartEstimate.current = Date.now() + serverOffset;
-          console.log("[PublicTimer] startTime pendente, usando relógio local como estimativa. Base:", baseSeconds);
-        }
-        const estimatedStart = localStartEstimate.current;
-
-        const calcFromEstimate = () => {
-          const serverNow = Date.now() + serverOffset;
-          const elapsed = Math.floor((serverNow - estimatedStart) / 1000);
-          return Math.max(0, baseSeconds - elapsed);
-        };
-
-        // Mostra imediatamente para evitar qualquer flash
-        setDisplaySeconds(baseSeconds);
-
-        const interval = setInterval(() => {
-          const rem = calcFromEstimate();
-          setDisplaySeconds(rem);
-          // Não atualiza lastValidDisplay aqui para não interferir com a estimativa
-          if (rem === 0) clearInterval(interval);
-        }, 1000);
-        return () => clearInterval(interval);
-      }
-      // Último recurso: mostra lastValidDisplay para evitar 0:00
-      if (lastValidDisplay.current > 0) {
-        setDisplaySeconds(lastValidDisplay.current);
-      }
-      return;
-    }
-
-    // --- CASO 3: Timer RODANDO com startTime válido ---
-    localStartEstimate.current = null; // descarta estimativa local, temos dados reais
-
-    // Se safeSecs for 0 mas o timer está rodando, algo está errado — usa lastValidDisplay
-    const effectiveSecs = (safeSecs > 0) ? safeSecs : (lastValidDisplay.current > 0 ? lastValidDisplay.current : 600);
-
-    const calcRemaining = () => {
-      const serverNow = Date.now() + serverOffset;
-      const elapsed = Math.floor((serverNow - safeStartMs) / 1000);
-      return Math.max(0, effectiveSecs - elapsed);
-    };
-
-    const initialRemaining = calcRemaining();
-    // Só atualiza se o valor calculado for válido (evita flash para 0 se dados ainda transitórios)
-    if (initialRemaining > 0 || effectiveSecs === 0) {
-      setDisplaySeconds(initialRemaining);
-      lastValidDisplay.current = initialRemaining;
-    }
+    // --- Timer iniciado pelo gestor ---
+    // Partimos do timerSecondsAtStart (duração definida pelo gestor) e rodamos localmente.
+    // Não dependemos de serverTimestamp — sem risco de flash para 0:00.
+    let current = safeSecs;
+    setDisplaySeconds(current);
+    pausedAtRef.current = current;
 
     const interval = setInterval(() => {
-      const remaining = calcRemaining();
-      setDisplaySeconds(remaining);
-      lastValidDisplay.current = remaining;
-      if (remaining === 0) clearInterval(interval);
+      current -= 1;
+      if (current <= 0) {
+        current = 0;
+        clearInterval(interval);
+      }
+      setDisplaySeconds(current);
+      pausedAtRef.current = current;
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [safeRunning, safeSecs, safeStartMs, serverOffset]);
+  // Reinicia APENAS quando timerRunning muda (sinal do gestor) ou quando a duração muda
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safeRunning, safeSecs]);
 
   const formatTimer = (s) => {
     const min = Math.floor(s / 60);
@@ -3989,9 +3906,9 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
 
   return (
     <div style={{
-      fontSize: 24, 
-      fontWeight: 900, 
-      color: safeRunning ? "#1D9E75" : t.text, 
+      fontSize: 24,
+      fontWeight: 900,
+      color: safeRunning ? "#1D9E75" : t.text,
       textAlign: "center",
       fontVariantNumeric: "tabular-nums",
       margin: "4px 0"
@@ -4012,78 +3929,14 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
 
     // includeMetadataChanges: true permite detectar hasPendingWrites
     // (escrita pendente de confirmação pelo servidor)
-    const unsubscribe = onSnapshot(docRef, { includeMetadataChanges: true }, (docSnap) => {
+    // Cronômetro agora é independente: o listener só precisa passar timerRunning e timerSecondsAtStart.
+    // Não há mais necessidade de sanitizar timerStartTimestamp (serverTimestamp não é usado pelo timer público).
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (!docSnap.exists()) return;
-
       const data = docSnap.data();
-      const isPending = docSnap.metadata.hasPendingWrites;
-
-      const sanitizeTimerFields = (obj, prevPeladaState) => {
-        if (!obj || typeof obj !== "object") return obj;
-        const result = { ...obj };
-        if (result.currentMatch) {
-          const cm = { ...result.currentMatch };
-
-          // timerStartTimestamp: converte Firestore Timestamp ou garante número
-          if (cm.timerStartTimestamp !== null && cm.timerStartTimestamp !== undefined) {
-            cm.timerStartTimestamp = toSafeTimestampMs(cm.timerStartTimestamp);
-          }
-
-          // TRAVA ANTI-FLASH: se o timer está rodando mas startTime é null
-          // (latência do Firebase: isRunning=true chega antes do timestamp),
-          // preserva o último startTime E timerSecondsAtStart válidos do estado anterior.
-          if (Boolean(cm.timerRunning) && cm.timerStartTimestamp === null) {
-            const prevCm = prevPeladaState?.currentMatch;
-            const prevStart = prevCm?.timerStartTimestamp;
-            const prevSecs = prevCm?.timerSecondsAtStart;
-            if (prevStart && typeof prevStart === "number" && prevStart > 0) {
-              console.log("[PublicTimer][Listener] startTime pendente, preservando último valor:", prevStart);
-              cm.timerStartTimestamp = prevStart;
-            }
-            // Preserva também timerSecondsAtStart se o novo valor vier como 0 ou inválido
-            // durante o período de pending writes (evita o flash para 0:00)
-            const newSecs = Number(cm.timerSecondsAtStart);
-            if ((!Number.isFinite(newSecs) || newSecs === 0) && prevSecs && prevSecs > 0) {
-              console.log("[PublicTimer][Listener] timerSecondsAtStart pendente, preservando:", prevSecs);
-              cm.timerSecondsAtStart = prevSecs;
-            }
-            // Se não há valor anterior: PublicMatchTimer lidará via localStartEstimate
-          }
-
-          // timerSecondsAtStart: garante que é um número não-negativo
-          if (cm.timerSecondsAtStart !== undefined && cm.timerSecondsAtStart !== null) {
-            const n = Number(cm.timerSecondsAtStart);
-            cm.timerSecondsAtStart = Number.isFinite(n) && n >= 0 ? n : 600;
-          }
-
-          // timerRunning: garante boolean
-          cm.timerRunning = Boolean(cm.timerRunning);
-          result.currentMatch = cm;
-        }
-        return result;
-      };
-
       setLocalPelada(prev => {
-        // Sanitiza usando o estado anterior para preservar timestamps válidos
-        const sanitizedData = {
-          ...data,
-          datasRealizacao: Array.isArray(data.datasRealizacao)
-            ? data.datasRealizacao.map(d => {
-                // Encontra a datasRealizacao equivalente no estado anterior
-                const prevDate = prev?.datasRealizacao?.find(pd => String(pd.id) === String(d.id));
-                return {
-                  ...d,
-                  peladaState: d.peladaState
-                    ? sanitizeTimerFields(d.peladaState, prevDate?.peladaState)
-                    : null
-                };
-              })
-            : data.datasRealizacao
-        };
-        // Evita re-renders desnecessários se o conteúdo é semanticamente idêntico
-        if (JSON.stringify(prev) === JSON.stringify(sanitizedData)) return prev;
-        console.log(`[Público] Snapshot recebido (pending=${isPending}) - timer sanitizado.`);
-        return sanitizedData;
+        if (JSON.stringify(prev) === JSON.stringify(data)) return prev;
+        return data;
       });
     }, (err) => {
       console.error("[Público] Erro no listener em tempo real:", err);
@@ -4322,10 +4175,9 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
             🔥 JOGO EM ANDAMENTO
           </div>
 
-          <PublicMatchTimer 
+          <IndependentPublicTimer
             timerRunning={currentMatch.timerRunning}
             timerSecondsAtStart={currentMatch.timerSecondsAtStart}
-            timerStartTimestamp={currentMatch.timerStartTimestamp}
             t={t}
           />
           
