@@ -4287,7 +4287,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                               ⚽{goals > 1 ? ` ${goals}` : ""}
                             </span>
                           ) : null}
-                          <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
+                          <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
                         </div>
                       );
                     })}
