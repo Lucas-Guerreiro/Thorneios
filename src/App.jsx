@@ -3895,8 +3895,18 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
     // --- CASO 1: Timer parado ---
     if (!safeRunning) {
       localStartEstimate.current = null; // limpa estimativa local
-      setDisplaySeconds(safeSecs);
-      lastValidDisplay.current = safeSecs;
+      // Só atualiza o display se tivermos um valor válido maior que zero,
+      // ou se safeSecs for explicitamente zero (timer zerado/terminado)
+      if (safeSecs > 0) {
+        setDisplaySeconds(safeSecs);
+        lastValidDisplay.current = safeSecs;
+      } else if (lastValidDisplay.current > 0) {
+        // Mantém o último valor válido caso safeSecs seja 0 inesperadamente
+        setDisplaySeconds(lastValidDisplay.current);
+      } else {
+        setDisplaySeconds(safeSecs);
+        lastValidDisplay.current = safeSecs;
+      }
       return;
     }
 
@@ -3904,23 +3914,28 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
     // Ocorre durante a latência do Firebase: isRunning=true chega antes do timestamp.
     // Solução: usar o relógio local como estimativa temporária para não zerar o display.
     if (safeStartMs === null) {
-      // Requisíto: se offset (timerSecondsAtStart) > 0, mantêm a exibição do offset
-      // até que o startTime seja resolvido pelo servidor.
-      if (lastValidDisplay.current > 0 && safeSecs > 0) {
+      // TRAVA ANTI-FLASH: usa lastValidDisplay como fallback mesmo quando safeSecs é 0
+      // Isso evita o flash de 0:00 quando o Firebase ainda está processando o serverTimestamp.
+      const baseSeconds = (lastValidDisplay.current > 0)
+        ? lastValidDisplay.current
+        : (safeSecs > 0 ? safeSecs : null);
+
+      if (baseSeconds !== null) {
         // Registra quando detectamos pela primeira vez o estado "correndo sem startTime"
         if (localStartEstimate.current === null) {
           localStartEstimate.current = Date.now() + serverOffset;
-          console.log("[PublicTimer] startTime pendente, usando relógio local como estimativa.");
+          console.log("[PublicTimer] startTime pendente, usando relógio local como estimativa. Base:", baseSeconds);
         }
         const estimatedStart = localStartEstimate.current;
-        // Trava: usa lastValidDisplay como base para continuar decrescendo
-        const baseSeconds = Math.min(lastValidDisplay.current, safeSecs);
 
         const calcFromEstimate = () => {
           const serverNow = Date.now() + serverOffset;
           const elapsed = Math.floor((serverNow - estimatedStart) / 1000);
           return Math.max(0, baseSeconds - elapsed);
         };
+
+        // Mostra imediatamente para evitar qualquer flash
+        setDisplaySeconds(baseSeconds);
 
         const interval = setInterval(() => {
           const rem = calcFromEstimate();
@@ -3930,23 +3945,31 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
         }, 1000);
         return () => clearInterval(interval);
       }
-      // Se não há valor anterior válido, mostra safeSecs estaticamente
-      setDisplaySeconds(safeSecs);
+      // Último recurso: mostra lastValidDisplay para evitar 0:00
+      if (lastValidDisplay.current > 0) {
+        setDisplaySeconds(lastValidDisplay.current);
+      }
       return;
     }
 
     // --- CASO 3: Timer RODANDO com startTime válido ---
     localStartEstimate.current = null; // descarta estimativa local, temos dados reais
 
+    // Se safeSecs for 0 mas o timer está rodando, algo está errado — usa lastValidDisplay
+    const effectiveSecs = (safeSecs > 0) ? safeSecs : (lastValidDisplay.current > 0 ? lastValidDisplay.current : 600);
+
     const calcRemaining = () => {
       const serverNow = Date.now() + serverOffset;
       const elapsed = Math.floor((serverNow - safeStartMs) / 1000);
-      return Math.max(0, safeSecs - elapsed);
+      return Math.max(0, effectiveSecs - elapsed);
     };
 
     const initialRemaining = calcRemaining();
-    setDisplaySeconds(initialRemaining);
-    lastValidDisplay.current = initialRemaining;
+    // Só atualiza se o valor calculado for válido (evita flash para 0 se dados ainda transitórios)
+    if (initialRemaining > 0 || effectiveSecs === 0) {
+      setDisplaySeconds(initialRemaining);
+      lastValidDisplay.current = initialRemaining;
+    }
 
     const interval = setInterval(() => {
       const remaining = calcRemaining();
@@ -4008,13 +4031,21 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
 
           // TRAVA ANTI-FLASH: se o timer está rodando mas startTime é null
           // (latência do Firebase: isRunning=true chega antes do timestamp),
-          // preserva o último startTime válido do estado anterior.
+          // preserva o último startTime E timerSecondsAtStart válidos do estado anterior.
           if (Boolean(cm.timerRunning) && cm.timerStartTimestamp === null) {
             const prevCm = prevPeladaState?.currentMatch;
             const prevStart = prevCm?.timerStartTimestamp;
+            const prevSecs = prevCm?.timerSecondsAtStart;
             if (prevStart && typeof prevStart === "number" && prevStart > 0) {
-              console.log("[PublicTimer] startTime pendente, preservando último valor:", prevStart);
+              console.log("[PublicTimer][Listener] startTime pendente, preservando último valor:", prevStart);
               cm.timerStartTimestamp = prevStart;
+            }
+            // Preserva também timerSecondsAtStart se o novo valor vier como 0 ou inválido
+            // durante o período de pending writes (evita o flash para 0:00)
+            const newSecs = Number(cm.timerSecondsAtStart);
+            if ((!Number.isFinite(newSecs) || newSecs === 0) && prevSecs && prevSecs > 0) {
+              console.log("[PublicTimer][Listener] timerSecondsAtStart pendente, preservando:", prevSecs);
+              cm.timerSecondsAtStart = prevSecs;
             }
             // Se não há valor anterior: PublicMatchTimer lidará via localStartEstimate
           }
