@@ -3838,9 +3838,30 @@ function CloudPublicChampScreen({champ,onBack,t}){
 
 /* ──────────────────────── VISUALIZAÇÃO PELADA PÚBLICA ──────────────── */
 function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimestamp, t }) {
-  // Fallback para 10 minutos (600s) se os valores do Firestore vierem indefinidos
   const defaultSecs = timerSecondsAtStart !== undefined ? Number(timerSecondsAtStart) : 600;
   const [displaySeconds, setDisplaySeconds] = useState(defaultSecs);
+  const [serverOffset, setServerOffset] = useState(0);
+
+  useEffect(() => {
+    const calibrateClock = async () => {
+      try {
+        const start = Date.now();
+        // Faz requisição simples para obter o cabeçalho Date do servidor Web
+        const response = await fetch(window.location.href, { method: "HEAD" });
+        const dateHeader = response.headers.get("Date");
+        if (dateHeader) {
+          const serverTime = new Date(dateHeader).getTime();
+          const rtt = Date.now() - start;
+          const correctedServerTime = serverTime + Math.floor(rtt / 2);
+          const offset = correctedServerTime - Date.now();
+          setServerOffset(offset);
+        }
+      } catch (err) {
+        console.warn("Erro ao calibrar tempo com o servidor:", err);
+      }
+    };
+    calibrateClock();
+  }, []);
 
   useEffect(() => {
     const currentSecs = timerSecondsAtStart !== undefined ? Number(timerSecondsAtStart) : 600;
@@ -3848,7 +3869,8 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
     if (!timerRunning || !timerStartTimestamp) return;
 
     const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - Number(timerStartTimestamp)) / 1000);
+      const serverNow = Date.now() + serverOffset;
+      const elapsed = Math.floor((serverNow - Number(timerStartTimestamp)) / 1000);
       const remaining = Math.max(0, currentSecs - elapsed);
       setDisplaySeconds(remaining);
       if (remaining === 0) {
@@ -3857,7 +3879,7 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timerRunning, timerSecondsAtStart, timerStartTimestamp]);
+  }, [timerRunning, timerSecondsAtStart, timerStartTimestamp, serverOffset]);
 
   const formatTimer = (s) => {
     const min = Math.floor(s / 60);
@@ -3881,12 +3903,28 @@ function PublicMatchTimer({ timerRunning, timerSecondsAtStart, timerStartTimesta
 
 function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   const S = makeStyles(t);
-  const { pelada, selDataId } = peladaData;
-  const datas = pelada.datasRealizacao || [];
-  const atletas = pelada.atletas || [];
+  const { pelada: initialPelada, selDataId } = peladaData;
+  const [localPelada, setLocalPelada] = useState(initialPelada || {});
+
+  useEffect(() => {
+    if (!isFirebaseConfigured || !peladaData?.docKey) return;
+    const docRef = doc(db, "campeonatos", "pelada_" + peladaData.docKey);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setLocalPelada(data);
+        console.log("[Público] Pelada pública atualizada em tempo real via onSnapshot:", data);
+      }
+    }, (err) => {
+      console.error("[Público] Erro no listener em tempo real da pelada pública:", err);
+    });
+    return () => unsubscribe();
+  }, [peladaData?.docKey]);
+
+  const datas = localPelada?.datasRealizacao || [];
+  const atletas = localPelada?.atletas || [];
 
   const [dataSelId, setDataSelId] = useState(selDataId || (datas[0]?.id || ""));
-  const [countdown, setCountdown] = useState(15);
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
 
   useEffect(() => {
@@ -3897,20 +3935,6 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   }, []);
 
   const activeDate = datas.find(d => String(d.id) === String(dataSelId));
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          onRefresh();
-          return 15;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [onRefresh]);
-
   const ps = activeDate?.peladaState || null;
   const currentMatch = ps?.currentMatch;
   const queue = ps?.queue || [];
@@ -4075,30 +4099,35 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
         </div>
         
         <div style={{display: "flex", alignItems: "center", gap: 8}}>
+          <style>{`
+            @keyframes public-live-pulse {
+              0% { transform: scale(0.95); opacity: 0.5; }
+              50% { transform: scale(1.1); opacity: 1; }
+              100% { transform: scale(0.95); opacity: 0.5; }
+            }
+          `}</style>
           <span style={{
             fontSize: 11,
-            background: "#7F77DD22",
-            color: "#7F77DD",
+            background: "#1D9E7515",
+            color: "#1D9E75",
             padding: "4px 10px",
             borderRadius: 20,
-            fontWeight: 700
+            fontWeight: 700,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            border: "1px solid #1D9E7533"
           }}>
-            🔄 Atualizando em {countdown}s
+            <span style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: "#1D9E75",
+              display: "inline-block",
+              animation: "public-live-pulse 2s infinite ease-in-out"
+            }} />
+            Tempo Real
           </span>
-          <button 
-            onClick={() => {
-              onRefresh();
-              setCountdown(15);
-            }} 
-            style={{
-              ...S.btnSm("#1D9E7522", "#1D9E75"),
-              fontSize: 11,
-              fontWeight: 700,
-              padding: "4px 10px"
-            }}
-          >
-            🔄
-          </button>
         </div>
       </div>
 
