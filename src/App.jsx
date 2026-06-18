@@ -4280,6 +4280,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                     {(ps?.teams?.find(tm=>tm.name===currentMatch.teamA)?.players || currentMatch.playersA || []).map((p,pi)=>{
                       const athleteId = String(p.id || p.atleta_id || p.idAtleta);
                       const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
+                      const isProxEmprestado = proxCandidatosEmprestimoIds.includes(athleteId);
                       return (
                         <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                           {goals ? (
@@ -4287,7 +4288,18 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                               ⚽{goals > 1 ? ` ${goals}` : ""}
                             </span>
                           ) : null}
-                          <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
+                          <span style={{
+                            fontWeight: isProxEmprestado ? 700 : 500,
+                            color: isProxEmprestado ? "#1D9E75" : t.text,
+                            overflow:"hidden",
+                            textOverflow:"ellipsis",
+                            ...(isProxEmprestado ? {
+                              background: "#1D9E7518",
+                              border: "1px solid #1D9E75",
+                              borderRadius: 4,
+                              padding: "1px 5px"
+                            } : {})
+                          }}>{isProxEmprestado ? "🔄 " : ""}{getPlayerName(p)}{getLoanTag(p, currentMatch.teamA)}</span>
                         </div>
                       );
                     })}
@@ -4321,9 +4333,21 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                     {(ps?.teams?.find(tm=>tm.name===currentMatch.teamB)?.players || currentMatch.playersB || []).map((p,pi)=>{
                       const athleteId = String(p.id || p.atleta_id || p.idAtleta);
                       const goals = currentMatch.sumula?.[athleteId] || currentMatch.sumula?.[Number(athleteId)];
+                      const isProxEmprestado = proxCandidatosEmprestimoIds.includes(athleteId);
                       return (
                         <div key={pi} style={{display:"flex",alignItems:"center",gap:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                          <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, currentMatch.teamB)}</span>
+                          <span style={{
+                            fontWeight: isProxEmprestado ? 700 : 500,
+                            color: isProxEmprestado ? "#1D9E75" : t.text,
+                            overflow:"hidden",
+                            textOverflow:"ellipsis",
+                            ...(isProxEmprestado ? {
+                              background: "#1D9E7518",
+                              border: "1px solid #1D9E75",
+                              borderRadius: 4,
+                              padding: "1px 5px"
+                            } : {})
+                          }}>{isProxEmprestado ? "🔄 " : ""}{getPlayerName(p)}{getLoanTag(p, currentMatch.teamB)}</span>
                           {goals ? (
                             <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginLeft:2,flexShrink:0}}>
                               ⚽{goals > 1 ? ` ${goals}` : ""}
