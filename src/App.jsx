@@ -15502,10 +15502,14 @@ export default function App(){
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
                 <button 
                   onClick={async () => {
+                    isRestoringNuvemRef.current = true;
                     setAppState(cloudConflict.payload);
                     localStorage.setItem("last_sync_time", String(new Date(cloudConflict.nuvemTime).getTime()));
                     setCloudConflict(null);
                     alert("Dados da nuvem carregados com sucesso! 🚀");
+                    setTimeout(() => {
+                      isRestoringNuvemRef.current = false;
+                    }, 5000);
                   }}
                   style={S.btn("#1D9E75")}
                 >
@@ -15557,6 +15561,7 @@ export default function App(){
   };
   
   const [appState, setAppState, loading] = useLocalStorage(initialAppState);
+  const isRestoringNuvemRef = useRef(false);
 
   // Getters com Fallback (Segurança extra contra tela branca)
   const allCampeonatos = Array.isArray(appState?.campeonatos) ? appState.campeonatos : [];
@@ -15984,10 +15989,14 @@ export default function App(){
         const data = docSnap.data();
         const state = await extrairAppStateDeDocumento(data);
         if (state) {
+          isRestoringNuvemRef.current = true;
           setAppState(state);
           const syncTime = data.lastUpdated ? new Date(data.lastUpdated).getTime() : Date.now();
           localStorage.setItem("last_sync_time", String(syncTime));
           console.log("Dados sincronizados automaticamente da nuvem no login!");
+          setTimeout(() => {
+            isRestoringNuvemRef.current = false;
+          }, 5000);
         }
       }
     } catch (e) {
@@ -15997,17 +16006,32 @@ export default function App(){
 
   // Auto-salvamento na Nuvem em background com controle de concorrência
   useEffect(() => {
-    if (!isFirebaseConfigured || loading || cloudConflict) return;
+    if (!isFirebaseConfigured || loading || cloudConflict || isRestoringNuvemRef.current) return;
     if (auth.role !== "adm" && auth.role !== "manager") return;
 
     const timer = setTimeout(async () => {
       try {
         const docKey = (auth.role === "adm" || auth.role === "manager") ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
         
-        // 1. Antes de salvar, busca na nuvem para verificar concorrência
+        // 1. Antes de salvar, busca na nuvem para verificar concorrência e integridade
         const docSnap = await getDoc(doc(db, "sistema", docKey));
         if (docSnap.exists()) {
           const dataNuvem = docSnap.data();
+          const stateNuvem = await extrairAppStateDeDocumento(dataNuvem);
+          
+          // Guardião contra sobrescrever dados cheios na nuvem com dados vazios locais
+          if (stateNuvem) {
+            const atletasNuvem = Array.isArray(stateNuvem.atletas) ? stateNuvem.atletas.length : 0;
+            const atletasLocal = Array.isArray(appState?.atletas) ? appState.atletas.length : 0;
+            const campeonatosNuvem = Array.isArray(stateNuvem.campeonatos) ? stateNuvem.campeonatos.length : 0;
+            const campeonatosLocal = Array.isArray(appState?.campeonatos) ? appState.campeonatos.length : 0;
+            
+            if ((atletasNuvem > 0 && atletasLocal === 0) || (campeonatosNuvem > 0 && campeonatosLocal === 0)) {
+              console.warn("[GUARD] Abortando auto-salvamento: Estado local está vazio ou incompleto em relação à nuvem.");
+              return;
+            }
+          }
+
           if (dataNuvem.lastUpdated) {
             const timeNuvem = new Date(dataNuvem.lastUpdated).getTime();
             const timeLocalSync = localStorage.getItem("last_sync_time") ? Number(localStorage.getItem("last_sync_time")) : 0;
@@ -16015,7 +16039,6 @@ export default function App(){
             // Margem de segurança de 2 segundos para evitar falsos conflitos causados por pequenos delays
             if (timeNuvem > timeLocalSync + 2000) {
               console.warn("Conflito de dados detectado! A nuvem tem dados mais recentes.");
-              const stateNuvem = await extrairAppStateDeDocumento(dataNuvem);
               if (stateNuvem) {
                 setCloudConflict({
                   nuvemTime: dataNuvem.lastUpdated,
@@ -17201,7 +17224,7 @@ export default function App(){
       alert("O Firebase não está configurado. Verifique o arquivo src/firebase.js.");
       return;
     }
-    if (!window.confirm("Atenção: Isso irá substituir TODOS os seus dados atuais (atletas, peladas, campeonatos e financeiro) pelos dados salvos na nuvem. Deseja continuar?")) {
+    if (!window.confirm("Atenção: Isso irá substituir TODOS os seus dados atuais (atletas, peladas, campeonatos and financeiro) pelos dados salvos na nuvem. Deseja continuar?")) {
       return;
     }
     setCloudLoading(true);
@@ -17215,11 +17238,15 @@ export default function App(){
       const data = docSnap.data();
       const state = await extrairAppStateDeDocumento(data);
       if (state) {
+        isRestoringNuvemRef.current = true;
         setAppState(state);
         const syncTime = data.lastUpdated ? new Date(data.lastUpdated).getTime() : Date.now();
         localStorage.setItem("last_sync_time", String(syncTime));
         alert(`Dados restaurados com sucesso a partir da nuvem! 🚀\nAtualizado em: ${new Date(data.lastUpdated).toLocaleString("pt-BR")} por ${data.updatedBy}`);
         setScreen("home");
+        setTimeout(() => {
+          isRestoringNuvemRef.current = false;
+        }, 5000);
       } else {
         alert("O documento de backup na nuvem está inválido.");
       }
