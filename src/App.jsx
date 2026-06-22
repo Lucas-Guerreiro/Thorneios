@@ -1353,11 +1353,114 @@ function buildInitialPeladaState(drawnTeams,bench,existingMatchLog=[],oldState=n
   }
   return baseState;
 }
+async function comprimirDados(obj) {
+  try {
+    if (typeof CompressionStream !== 'undefined') {
+      const str = JSON.stringify(obj);
+      const byteArray = new TextEncoder().encode(str);
+      const cs = new CompressionStream('gzip');
+      const writer = cs.writable.getWriter();
+      writer.write(byteArray);
+      writer.close();
+      const output = [];
+      const reader = cs.readable.getReader();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        output.push(value);
+      }
+      const length = output.reduce((sum, arr) => sum + arr.length, 0);
+      const merged = new Uint8Array(length);
+      let offset = 0;
+      for (const arr of output) {
+        merged.set(arr, offset);
+        offset += arr.length;
+      }
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < merged.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, merged.subarray(i, i + chunkSize));
+      }
+      return btoa(binary);
+    }
+  } catch (e) {
+    console.error("[COMPRESS] Erro ao comprimir dados:", e);
+  }
+  return null;
+}
+
+async function descomprimirDados(base64Str) {
+  try {
+    if (typeof DecompressionStream !== 'undefined') {
+      const binaryString = atob(base64Str);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const ds = new DecompressionStream('gzip');
+      const writer = ds.writable.getWriter();
+      writer.write(bytes);
+      writer.close();
+      const output = [];
+      const reader = ds.readable.getReader();
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        output.push(value);
+      }
+      const totalLength = output.reduce((sum, arr) => sum + arr.length, 0);
+      const merged = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const arr of output) {
+        merged.set(arr, offset);
+        offset += arr.length;
+      }
+      const decoded = new TextDecoder().decode(merged);
+      return JSON.parse(decoded);
+    }
+  } catch (e) {
+    console.error("[DECOMPRESS] Erro ao descomprimir dados:", e);
+  }
+  return null;
+}
+
+async function extrairAppStateDeDocumento(docData) {
+  if (!docData) return null;
+  if (docData.appStateCompressed) {
+    const decompressed = await descomprimirDados(docData.appStateCompressed);
+    if (decompressed) return decompressed;
+  }
+  return docData.appState || null;
+}
+
+async function prepararPayloadParaNuvem(stateToUpload, authName = "Sem Nome") {
+  // Otimiza o estado
+  const otimizado = await otimizarTodoEstado(stateToUpload);
+  
+  const payload = {
+    lastUpdated: new Date().toISOString(),
+    updatedBy: authName
+  };
+  
+  const compressed = await comprimirDados(otimizado);
+  if (compressed) {
+    payload.appStateCompressed = compressed;
+  } else {
+    payload.appState = otimizado;
+  }
+  
+  return {
+    payload: JSON.parse(JSON.stringify(payload)),
+    otimizado
+  };
+}
+
 function obterCandidatosEmprestimoProximaPartida(ps, pptParam = null) {
-  if (!ps || !ps.queue || ps.queue.length < 2) return { paraA: [], paraB: [] };
+  if (!ps || !ps.queue || ps.queue.length < 2) return { paraA: [], paraB: [], destaques: [] };
   const modoRodizio = ps.modoRodizio || "misto";
-  if (modoRodizio !== "misto") return { paraA: [], paraB: [] };
-  if (!ps.teamBases) return { paraA: [], paraB: [] };
+  if (modoRodizio !== "misto") return { paraA: [], paraB: [], destaques: [] };
+  if (!ps.teamBases) return { paraA: [], paraB: [], destaques: [] };
 
   const jogadoresPorTime = pptParam || ps?.playersPerTeam || 4;
   const emAndamento = ps.currentMatch && !ps.currentMatch.played;
@@ -1384,13 +1487,13 @@ function obterCandidatosEmprestimoProximaPartida(ps, pptParam = null) {
     return { ...t, players: originalPlayers };
   });
 
+  const [a, b] = [ps.queue[0], ps.queue[1]];
   const paraA = [];
   const paraB = [];
-
-  const [a, b] = [ps.queue[0], ps.queue[1]];
+  const destaques = [];
 
   if (emAndamento) {
-    if (ps.queue.length < 3) return { paraA: [], paraB: [] };
+    if (ps.queue.length < 3) return { paraA: [], paraB: [], destaques: [] };
     const proxEntrando = ps.queue[2];
     const teamEntrandoObj = newTeams.find(t => t.name === proxEntrando);
     const countEntrando = teamEntrandoObj ? teamEntrandoObj.players.length : 0;
@@ -1407,9 +1510,8 @@ function obterCandidatosEmprestimoProximaPartida(ps, pptParam = null) {
     const precisaB = isLockedB ? 0 : Math.max(0, jogadoresPorTime - countB);
 
     if (precisaEntrando > 0 || precisaA > 0 || precisaB > 0) {
-      // Quando o jogo está rolando, quem cede empréstimo para a próxima partida são os times a partir do índice 3 (segunda fila)
       const timesDeForaNames = ps.queue.slice(3);
-      const timesDeFora = newTeams.filter(t => timesDeForaNames.includes(t.name));
+      const timesDeFora = newTeams.filter(t => timesDeForaNames.includes(t.name) && ps.loanLocks && ps.loanLocks[t.name] === true);
       let candidatos = [];
       timesDeFora.forEach(t => {
         candidatos.push(...t.players);
@@ -1441,19 +1543,36 @@ function obterCandidatosEmprestimoProximaPartida(ps, pptParam = null) {
         return count1 - count2;
       });
 
-      let offset = 0;
-      // 1. Distribuir primeiro para completar o desafiante que com certeza jogará
-      for (let i = 0; i < precisaEntrando && offset < candidatos.length; i++) {
-        paraA.push(candidatos[offset++]);
+      // Cenário A: Time A vence a partida atual
+      let offsetA = 0;
+      const empA = [];
+      for (let i = 0; i < precisaA && offsetA < candidatos.length; i++) {
+        empA.push(candidatos[offsetA++]);
       }
-      // 2. Distribuir para completar o Time A caso ele vença
-      for (let i = 0; i < precisaA && offset < candidatos.length; i++) {
-        paraA.push(candidatos[offset++]);
+      for (let i = 0; i < precisaEntrando && offsetA < candidatos.length; i++) {
+        paraA.push(candidatos[offsetA++]);
       }
-      // 3. Distribuir para completar o Time B caso ele vença
-      for (let i = 0; i < precisaB && offset < candidatos.length; i++) {
-        paraB.push(candidatos[offset++]);
+
+      // Cenário B: Time B vence a partida atual
+      let offsetB = 0;
+      const empB = [];
+      for (let i = 0; i < precisaB && offsetB < candidatos.length; i++) {
+        empB.push(candidatos[offsetB++]);
       }
+      for (let i = 0; i < precisaEntrando && offsetB < candidatos.length; i++) {
+        paraB.push(candidatos[offsetB++]);
+      }
+
+      // Todos os candidatos que devem ser marcados com ícone de aperto de mão
+      const todosDestaques = [...empA, ...paraA, ...empB, ...paraB];
+      const seen = new Set();
+      todosDestaques.forEach(p => {
+        const idStr = String(p.id || p.atleta_id || p.idAtleta);
+        if (!seen.has(idStr)) {
+          seen.add(idStr);
+          destaques.push(p);
+        }
+      });
     }
   } else {
     const teamAObj = newTeams.find(t => t.name === a);
@@ -1466,8 +1585,7 @@ function obterCandidatosEmprestimoProximaPartida(ps, pptParam = null) {
     const precisaB = isLockedB ? 0 : Math.max(0, jogadoresPorTime - countB);
 
     if (precisaA > 0 || precisaB > 0) {
-      // Se não há jogo rolando, os times que cedem empréstimo são a partir do índice 2 da fila (próximo a entrar) em diante
-      const timesDeFora = newTeams.filter(t => t.name !== a && t.name !== b);
+      const timesDeFora = newTeams.filter(t => t.name !== a && t.name !== b && ps.loanLocks && ps.loanLocks[t.name] === true);
       let candidatos = [];
       timesDeFora.forEach(t => {
         candidatos.push(...t.players);
@@ -1506,10 +1624,11 @@ function obterCandidatosEmprestimoProximaPartida(ps, pptParam = null) {
       for (let i = 0; i < precisaB && offset < candidatos.length; i++) {
         paraB.push(candidatos[offset++]);
       }
+      destaques.push(...paraA, ...paraB);
     }
   }
 
-  return { paraA, paraB };
+  return { paraA, paraB, destaques };
 }
 
 function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
@@ -1553,7 +1672,7 @@ function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
     const precisaB = isLockedB ? 0 : Math.max(0, jogadoresPorTime - countB);
 
     if (precisaA > 0 || precisaB > 0) {
-      const timesDeFora = newTeams.filter(t => t.name !== a && t.name !== b);
+      const timesDeFora = newTeams.filter(t => t.name !== a && t.name !== b && ps.loanLocks && ps.loanLocks[t.name] === true);
       let candidatos = [];
       timesDeFora.forEach(t => {
         candidatos.push(...t.players);
@@ -3964,8 +4083,8 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   const bench = ps?.bench || [];
 
   const ppt = activeDate?.playersPerTeam || localPelada.playersPerTeam || 4;
-  const { paraA: proxParaA = [], paraB: proxParaB = [] } = obterCandidatosEmprestimoProximaPartida(ps, ppt);
-  const proxCandidatosEmprestimoIds = [...proxParaA, ...proxParaB].map(p => String(p.id || p.atleta_id || p.idAtleta));
+  const { paraA: proxParaA = [], paraB: proxParaB = [], destaques: proxDestaques = [] } = obterCandidatosEmprestimoProximaPartida(ps, ppt);
+  const proxCandidatosEmprestimoIds = proxDestaques.map(p => String(p.id || p.atleta_id || p.idAtleta));
 
   const getOrigemTeamName = (atletaId) => {
     if (!ps || !ps.teamBases) return "";
@@ -7304,8 +7423,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   
 
   
-  const { paraA: proxParaA, paraB: proxParaB } = obterCandidatosEmprestimoProximaPartida(peladaState, ppt);
-  const proxCandidatosEmprestimoIds = [...proxParaA, ...proxParaB].map(p => String(p.id || p.atleta_id || p.idAtleta));
+  const { paraA: proxParaA, paraB: proxParaB, destaques: proxDestaques } = obterCandidatosEmprestimoProximaPartida(peladaState, ppt);
+  const proxCandidatosEmprestimoIds = (proxDestaques || []).map(p => String(p.id || p.atleta_id || p.idAtleta));
 
   const getOrigemTeamName = (atletaId) => {
     if (!peladaState || !peladaState.teamBases) return "";
@@ -15383,13 +15502,8 @@ export default function App(){
                       try {
                         setCloudLoading(true);
                         const docKey = (auth.role === "adm" || auth.role === "manager") ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
-                        const payload = {
-                          appState: appState,
-                          lastUpdated: new Date().toISOString(),
-                          updatedBy: auth.name || "Sem Nome"
-                        };
-                        const cleanPayload = JSON.parse(JSON.stringify(payload));
-                        await setDoc(doc(db, "sistema", docKey), cleanPayload);
+                        const { payload } = await prepararPayloadParaNuvem(appState, auth.name || "Sem Nome");
+                        await setDoc(doc(db, "sistema", docKey), payload);
                         localStorage.setItem("last_sync_time", String(new Date(payload.lastUpdated).getTime()));
                         setCloudConflict(null);
                         alert("Dados locais salvos na nuvem com sucesso! 🚀");
@@ -15692,7 +15806,8 @@ export default function App(){
               const adminSnap = await getDoc(doc(db, "sistema", "admin_data"));
               if (adminSnap.exists()) {
                 const adminData = adminSnap.data();
-                const cloudManagers = adminData?.appState?.managers || [];
+                const fullState = await extrairAppStateDeDocumento(adminData);
+                const cloudManagers = fullState?.managers || [];
                 manager = cloudManagers.find(m => String(m.email || "").toLowerCase().trim() === trimmedEmail);
                 if (manager) {
                   console.log("[DEBUG AUTH] Manager encontrado no Firestore:", manager.name);
@@ -15852,8 +15967,9 @@ export default function App(){
       const docSnap = await getDoc(doc(db, "sistema", docKey));
       if (docSnap.exists()) {
         const data = docSnap.data();
-        if (data.appState) {
-          setAppState(data.appState);
+        const state = await extrairAppStateDeDocumento(data);
+        if (state) {
+          setAppState(state);
           const syncTime = data.lastUpdated ? new Date(data.lastUpdated).getTime() : Date.now();
           localStorage.setItem("last_sync_time", String(syncTime));
           console.log("Dados sincronizados automaticamente da nuvem no login!");
@@ -15884,23 +16000,21 @@ export default function App(){
             // Margem de segurança de 2 segundos para evitar falsos conflitos causados por pequenos delays
             if (timeNuvem > timeLocalSync + 2000) {
               console.warn("Conflito de dados detectado! A nuvem tem dados mais recentes.");
-              setCloudConflict({
-                nuvemTime: dataNuvem.lastUpdated,
-                updatedBy: dataNuvem.updatedBy || "Outro Aparelho",
-                payload: dataNuvem.appState
-              });
+              const stateNuvem = await extrairAppStateDeDocumento(dataNuvem);
+              if (stateNuvem) {
+                setCloudConflict({
+                  nuvemTime: dataNuvem.lastUpdated,
+                  updatedBy: dataNuvem.updatedBy || "Outro Aparelho",
+                  payload: stateNuvem
+                });
+              }
               return; // Bloqueia o auto-salvamento
             }
           }
         }
 
-        const payload = {
-          appState: appState,
-          lastUpdated: new Date().toISOString(),
-          updatedBy: auth.name || "Sem Nome"
-        };
-        const cleanPayload = JSON.parse(JSON.stringify(payload));
-        await setDoc(doc(db, "sistema", docKey), cleanPayload);
+        const { payload } = await prepararPayloadParaNuvem(appState, auth.name || "Sem Nome");
+        await setDoc(doc(db, "sistema", docKey), payload);
 
         // Publica as peladas na coleção pública de forma segura contra permissões restritas
         if (appState && Array.isArray(appState.peladas)) {
@@ -17052,21 +17166,11 @@ export default function App(){
     }
     setCloudLoading(true);
     try {
-      // Otimiza todas as imagens em background antes de salvar
-      const otimizado = await otimizarTodoEstado(appState);
-      
-      // Atualiza o estado local com os dados comprimidos
-      setAppState(otimizado);
-
       const docKey = (auth.role === "adm" || auth.role === "manager") ? "admin_data" : `manager_${auth.manager_id || "unknown"}`;
-      const payload = {
-        appState: otimizado,
-        lastUpdated: new Date().toISOString(),
-        updatedBy: auth.name || "Sem Nome"
-      };
+      const { payload, otimizado } = await prepararPayloadParaNuvem(appState, auth.name || "Sem Nome");
       
-      const cleanPayload = JSON.parse(JSON.stringify(payload));
-      await setDoc(doc(db, "sistema", docKey), cleanPayload);
+      await setDoc(doc(db, "sistema", docKey), payload);
+      setAppState(otimizado);
       localStorage.setItem("last_sync_time", String(new Date(payload.lastUpdated).getTime()));
       alert("Banco de dados completo otimizado e salvo na Nuvem com sucesso! 🚀");
     } catch (e) {
@@ -17094,8 +17198,9 @@ export default function App(){
         return;
       }
       const data = docSnap.data();
-      if (data.appState) {
-        setAppState(data.appState);
+      const state = await extrairAppStateDeDocumento(data);
+      if (state) {
+        setAppState(state);
         const syncTime = data.lastUpdated ? new Date(data.lastUpdated).getTime() : Date.now();
         localStorage.setItem("last_sync_time", String(syncTime));
         alert(`Dados restaurados com sucesso a partir da nuvem! 🚀\nAtualizado em: ${new Date(data.lastUpdated).toLocaleString("pt-BR")} por ${data.updatedBy}`);
