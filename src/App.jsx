@@ -7377,6 +7377,21 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const [hasUnsavedChangesAtletas, setHasUnsavedChangesAtletas] = useState(false);
   const [modalConfirmacaoNavegacao, setModalConfirmacaoNavegacao] = useState(null);
   const triggerSaveRef = useRef(null);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChangesAtletas) {
+        const msg = "Você tem alterações não salvas nos atletas/participações. Se você sair, essas alterações serão perdidas.";
+        e.preventDefault();
+        e.returnValue = msg;
+        return msg;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedChangesAtletas]);
  
   const executarNavegacaoDestino = (dest) => {
     if (!dest) return;
