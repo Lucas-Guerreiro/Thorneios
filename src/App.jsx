@@ -8229,6 +8229,26 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const psAtualizado = startNextMatch(ps, selDataSorteio, ppt);
     salvarPeladaStateComHistorico(psAtualizado);
   };
+
+  const desfazerEmprestimoAtleta = (playerId, teamName) => {
+    if (!peladaState || !peladaState.currentMatch) return;
+    const ps = deepClone(peladaState);
+    const match = ps.currentMatch;
+    
+    const teamObj = ps.teams.find(t => t.name === teamName);
+    if (teamObj) {
+      teamObj.players = teamObj.players.filter(p => String(p.id || p.atleta_id || p.idAtleta) !== String(playerId));
+    }
+    
+    if (match.teamA === teamName) {
+      match.teamAEmprestados = (match.teamAEmprestados || []).filter(id => String(id) !== String(playerId));
+    } else if (match.teamB === teamName) {
+      match.teamBEmprestados = (match.teamBEmprestados || []).filter(id => String(id) !== String(playerId));
+    }
+    
+    setPeladaStateLocal(ps);
+    saveDateState({ peladaState: ps });
+  };
   
   const moverTimeFila = (realIdx, direcao) => {
     if (!peladaState || !peladaState.queue) return;
@@ -10433,6 +10453,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                 sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517"}}>⚽({sumulaGols[p.id]})</span> : null
                               ) : (
                                 <>
+                                  {(p.isTemporary || p.isEmprestado) && (
+                                    <button onClick={() => desfazerEmprestimoAtleta(p.id, peladaState.currentMatch.teamA)} style={{border:"none",background:"transparent",color:"#FF9800",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Desfazer Empréstimo">❌</button>
+                                  )}
                                   <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'A')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",height:18}}/>
                                   <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>
                                   <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamA});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>
@@ -10510,6 +10533,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             .filter(p => !(peladaState.currentMatch.jogadoresAtrasados || []).map(String).includes(String(p.id || p.atleta_id || p.idAtleta)))
                             .map((p,pi)=>(
                             <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                              {!isRealizada && (p.isTemporary || p.isEmprestado) && (
+                                <button onClick={() => desfazerEmprestimoAtleta(p.id, peladaState.currentMatch.teamB)} style={{border:"none",background:"transparent",color:"#FF9800",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Desfazer Empréstimo">❌</button>
+                              )}
                               {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>}
                               {!isRealizada && <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamB});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>}
                               {isRealizada ? (
