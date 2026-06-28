@@ -1769,6 +1769,25 @@ function obterCandidatosEmprestimoProximaPartida(ps, pptParam = null) {
   return { paraA, paraB, destaques };
 }
 
+function obterTimeDoador(ps) {
+  if (!ps || !ps.queue || ps.queue.length < 3) return null;
+  const numTimesAtivos = ps.queue.length;
+  const fila = ps.queue.slice(2);
+  let idxFila = -1;
+  if (numTimesAtivos === 3) {
+    idxFila = 0;
+  } else if (numTimesAtivos === 4) {
+    idxFila = 1;
+  } else if (numTimesAtivos >= 5) {
+    idxFila = 2;
+  }
+  
+  if (idxFila >= 0 && idxFila < fila.length) {
+    return fila[idxFila];
+  }
+  return null;
+}
+
 function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
   if(!ps||ps.queue.length<2)return ps;
   const[a,b]=[ps.queue[0],ps.queue[1]];
@@ -1815,8 +1834,64 @@ function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
 
   const teamAObj = newTeams.find(t=>t.name===a);
   const teamBObj = newTeams.find(t=>t.name===b);
-  const defaultGoleiroA = teamAObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
-  const defaultGoleiroB = teamBObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
+
+  const donorTeamName = obterTimeDoador(ps);
+  if (donorTeamName) {
+    const donorTeam = newTeams.find(t => t.name === donorTeamName);
+    if (donorTeam && donorTeam.players && donorTeam.players.length > 0) {
+      const M = donorTeam.players.length;
+      let pointer = donorTeam.ponteiroRodizio || 0;
+      pointer = pointer % M;
+
+      const neededA = Math.max(0, jogadoresPorTime - (teamAObj?.players?.length || 0));
+      const neededB = Math.max(0, jogadoresPorTime - (teamBObj?.players?.length || 0));
+
+      if (neededA > 0 && teamAObj) {
+        const selectedA = [];
+        for (let i = 0; i < neededA; i++) {
+          const idx = (pointer + i) % M;
+          selectedA.push(donorTeam.players[idx]);
+        }
+        pointer = (pointer + neededA) % M;
+        const clonedA = selectedA.map(p => ({
+          ...p,
+          isEmprestado: true,
+          isTemporary: true,
+          originalTeamId: donorTeamName,
+          originalTeamName: donorTeamName,
+          origTeam: donorTeamName
+        }));
+        newTeams = newTeams.map(t => t.name === a ? { ...t, players: [...t.players, ...clonedA] } : t);
+        teamAEmprestados = clonedA.map(p => p.id || p.atleta_id || p.idAtleta);
+      }
+
+      if (neededB > 0 && teamBObj) {
+        const selectedB = [];
+        for (let i = 0; i < neededB; i++) {
+          const idx = (pointer + i) % M;
+          selectedB.push(donorTeam.players[idx]);
+        }
+        pointer = (pointer + neededB) % M;
+        const clonedB = selectedB.map(p => ({
+          ...p,
+          isEmprestado: true,
+          isTemporary: true,
+          originalTeamId: donorTeamName,
+          originalTeamName: donorTeamName,
+          origTeam: donorTeamName
+        }));
+        newTeams = newTeams.map(t => t.name === b ? { ...t, players: [...t.players, ...clonedB] } : t);
+        teamBEmprestados = clonedB.map(p => p.id || p.atleta_id || p.idAtleta);
+      }
+
+      newTeams = newTeams.map(t => t.name === donorTeamName ? { ...t, ponteiroRodizio: pointer } : t);
+    }
+  }
+
+  const updatedTeamAObj = newTeams.find(t=>t.name===a);
+  const updatedTeamBObj = newTeams.find(t=>t.name===b);
+  const defaultGoleiroA = updatedTeamAObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
+  const defaultGoleiroB = updatedTeamBObj?.players?.find(p=>p.goleiro||p.isGoalkeeper)?.id || "";
 
   let defaultSecs = 600;
   if (typeof window !== "undefined") {
@@ -1981,6 +2056,13 @@ function resolveMatch(ps,scoreA,scoreB,dataRealizacaoId=""){
 
   let newTeams = ps.teams ? ps.teams.map(t => ({ ...t, players: t.players ? [...t.players] : [] })) : [];
   let newBench = ps.bench ? [...ps.bench] : [];
+
+  // Limpeza mandatória de empréstimos temporários na finalização do jogo
+  newTeams = newTeams.map(t => ({
+    ...t,
+    players: t.players ? t.players.filter(p => !p.isTemporary && !p.isEmprestado) : []
+  }));
+  newBench = newBench.filter(p => !p.isTemporary && !p.isEmprestado);
   const modoRodizio = ps.modoRodizio || "misto";
 
   // Estorno de jogadores de empréstimo vindos do banco de reservas
@@ -2241,6 +2323,7 @@ function sincronizarBasesDosTimes(ps) {
       .filter(id => jogadoresAtrasadosIds.includes(id));
 
     const novosIds = t.players
+      .filter(p => !p.isTemporary && !p.isEmprestado)
       .map(p => p.id || p.atleta_id || p.idAtleta)
       .filter(Boolean)
       .map(id => String(id));
