@@ -8225,6 +8225,76 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     });
   }
 
+  function excluirEquipe(teamName) {
+    let ps = peladaState ? deepClone(peladaState) : null;
+    
+    if (ps && ps.loanLocks && ps.loanLocks[teamName] === true) {
+      alert(`O time "${teamName}" está com o cadeado fechado. Destrave o cadeado do time no painel antes de excluí-lo.`);
+      return;
+    }
+
+    if (ps && ps.currentMatch && !ps.currentMatch.played) {
+      if (ps.currentMatch.teamA === teamName || ps.currentMatch.teamB === teamName) {
+        alert("Não é possível excluir um time que está jogando a partida atual. Finalize ou cancele a partida antes de excluir.");
+        return;
+      }
+    }
+
+    if (!confirm(`Tem certeza que deseja excluir o time "${teamName}"? Os jogadores voltarão para o banco de reservas.`)) {
+      return;
+    }
+
+    let newBench = [...benchState];
+    let newDrawnTeams = drawnTeams ? deepClone(drawnTeams) : [];
+
+    const teamObj = newDrawnTeams.find(t => t.name === teamName);
+    let playersToMove = [];
+    if (teamObj) {
+      playersToMove = teamObj.players || [];
+    }
+
+    if (ps && ps.currentMatch) {
+      playersToMove = removerEmprestadosTemporarios([teamObj], ps.currentMatch)[0]?.players || [];
+    }
+
+    const uniqueBench = [...newBench];
+    playersToMove.forEach(p => {
+      const pIdStr = String(p.id || p.atleta_id || p.idAtleta);
+      if (!uniqueBench.some(b => String(b.id || b.atleta_id || b.idAtleta) === pIdStr)) {
+        uniqueBench.push({
+          ...p,
+          isTemporary: undefined,
+          isEmprestado: undefined,
+          originalTeamId: undefined
+        });
+      }
+    });
+
+    newDrawnTeams = newDrawnTeams.filter(t => t.name !== teamName);
+
+    if (ps) {
+      ps.teams = ps.teams.filter(t => t.name !== teamName);
+      ps.queue = ps.queue.filter(name => name !== teamName);
+      ps.bench = uniqueBench;
+      if (ps.teamBases) {
+        delete ps.teamBases[teamName];
+      }
+      if (ps.loanLocks) {
+        delete ps.loanLocks[teamName];
+      }
+      ps = sincronizarBasesDosTimes(ps);
+    }
+
+    setBenchState(uniqueBench);
+    setDrawnTeams(newDrawnTeams);
+    setPeladaStateLocal(ps);
+    saveDateState({
+      drawnTeams: newDrawnTeams,
+      initialBench: uniqueBench,
+      peladaState: ps
+    });
+  }
+
   function doDraw(){
     if(!selDataSorteio){alert("Selecione uma data para realizar o sorteio!");return;}
     if(drawnTeams) {
@@ -10060,17 +10130,26 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                   )}
                                 </div>
                                 {!isRealizada && (
-                                  <button 
-                                    onClick={() => {
-                                      const novoNome = prompt(`Editar nome do time "${tm.name}":`, tm.name);
-                                      if (novoNome) renomearEquipe(tm.name, novoNome);
-                                    }}
-                                    style={{border:"none",background:"transparent",color:t.textSec,cursor:"pointer",padding:0,fontSize:11}}
-                                    title="Editar nome do time"
-                                  >
-                                    ✏️
-                                  </button>
-                                )}
+                                   <div style={{display: "flex", gap: 8, alignItems: "center"}}>
+                                     <button 
+                                       onClick={() => {
+                                         const novoNome = prompt(`Editar nome do time "${tm.name}":`, tm.name);
+                                         if (novoNome) renomearEquipe(tm.name, novoNome);
+                                       }}
+                                       style={{border:"none",background:"transparent",color:t.textSec,cursor:"pointer",padding:0,fontSize:11}}
+                                       title="Editar nome do time"
+                                     >
+                                       ✏️
+                                     </button>
+                                     <button 
+                                       onClick={() => excluirEquipe(tm.name)}
+                                       style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:11}}
+                                       title="Excluir time"
+                                     >
+                                       🗑️
+                                     </button>
+                                   </div>
+                                 )}
                               </div>
                               
                               <div style={{display:"flex",flexDirection:"column",gap:6}}>
