@@ -5891,6 +5891,7 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
           {(()=>{
             const partesFiltradas = participacoes.filter(p=>{
               if(String(p.pelada_id)!==String(filtroId)) return false;
+              if(p.data_realizacao_id === null || p.data_realizacao_id === undefined) return false; // ignora vínculos gerais sem data
               if(filtroData!=="todas" && String(p.data_realizacao_id)!==String(filtroData)) return false;
               return true;
             });
