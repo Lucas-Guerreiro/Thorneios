@@ -2085,14 +2085,34 @@ function resolveMatch(ps,scoreA,scoreB,dataRealizacaoId=""){
     loser = winner === ps.currentMatch.teamA ? ps.currentMatch.teamB : ps.currentMatch.teamA;
   }
   
-  const teamAObj = ps.teams.find(t=>t.name===ps.currentMatch.teamA);
-  const teamBObj = ps.teams.find(t=>t.name===ps.currentMatch.teamB);
-  const playersA = teamAObj ? deepClone(teamAObj.players) : [];
-  const playersB = teamBObj ? deepClone(teamBObj.players) : [];
+  const teamAObjOriginal = ps.teams.find(t=>t.name===ps.currentMatch.teamA);
+  const teamBObjOriginal = ps.teams.find(t=>t.name===ps.currentMatch.teamB);
+  const playersA = teamAObjOriginal ? deepClone(teamAObjOriginal.players) : [];
+  const playersB = teamBObjOriginal ? deepClone(teamBObjOriginal.players) : [];
 
   let newTeams = ps.teams ? ps.teams.map(t => ({ ...t, players: t.players ? [...t.players] : [] })) : [];
   let newBench = ps.bench ? [...ps.bench] : [];
   const modoRodizio = ps.modoRodizio || "misto";
+
+  if (ps.teamBases && modoRodizio !== "manual") {
+    newTeams = newTeams.map(t => {
+      const baseIds = ps.teamBases[t.name] || [];
+      const todosJogadores = [];
+      if (ps.teams) ps.teams.forEach(tm => todosJogadores.push(...tm.players));
+      if (ps.bench) todosJogadores.push(...ps.bench);
+      const uniquePlayers = [];
+      const seenIds = new Set();
+      todosJogadores.forEach(p => {
+        const idStr = String(p.id || p.atleta_id || p.idAtleta);
+        if (!seenIds.has(idStr)) {
+          seenIds.add(idStr);
+          uniquePlayers.push(p);
+        }
+      });
+      const originalPlayers = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+      return { ...t, players: originalPlayers };
+    });
+  }
   
   const currentMatchLogEntry = {
     ...ps.currentMatch,
@@ -2201,25 +2221,7 @@ function resolveMatch(ps,scoreA,scoreB,dataRealizacaoId=""){
       historicoEmprestimos[idStr] = (historicoEmprestimos[idStr] || 0) + 1;
     });
   }
-  if (ps.teamBases && modoRodizio !== "manual") {
-    newTeams = newTeams.map(t => {
-      const baseIds = ps.teamBases[t.name] || [];
-      const todosJogadores = [];
-      if (ps.teams) ps.teams.forEach(tm => todosJogadores.push(...tm.players));
-      if (ps.bench) todosJogadores.push(...ps.bench);
-      const uniquePlayers = [];
-      const seenIds = new Set();
-      todosJogadores.forEach(p => {
-        const idStr = String(p.id || p.atleta_id || p.idAtleta);
-        if (!seenIds.has(idStr)) {
-          seenIds.add(idStr);
-          uniquePlayers.push(p);
-        }
-      });
-      const originalPlayers = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
-      return { ...t, players: originalPlayers };
-    });
-  }
+
 
   const rest = ps.queue.slice(2);
   let newQueue = [];
