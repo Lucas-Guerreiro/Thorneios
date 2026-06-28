@@ -8627,6 +8627,84 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     setAddBenchId("");
   }
 
+  function adicionarAtrasadoDiretoAoTime(athleteId, teamName) {
+    if (!athleteId || !teamName) return;
+    const a = atletas.find(x => String(x.id) === String(athleteId));
+    if (!a) return;
+    
+    const newPlayer = {
+      nome: a.nome,
+      name: a.nome,
+      habilidade: a.habilidade,
+      skill: a.habilidade,
+      goleiro: a.goleiro,
+      isGoalkeeper: a.goleiro,
+      id: a.id
+    };
+    
+    let ps = peladaState ? deepClone(peladaState) : null;
+    let newDrawnTeams = drawnTeams ? deepClone(drawnTeams) : [];
+    
+    if (ps) {
+      if (!ps.teamBases) ps.teamBases = {};
+      if (!ps.teamBases[teamName]) ps.teamBases[teamName] = [];
+      
+      const pIdStr = String(a.id);
+      
+      // Adiciona na base do time
+      if (!ps.teamBases[teamName].includes(pIdStr)) {
+        ps.teamBases[teamName].push(pIdStr);
+      }
+      
+      // Se o time de destino está jogando a partida ativa, marcar como atrasado
+      if (ps.currentMatch && !ps.currentMatch.played) {
+        if (ps.currentMatch.teamA === teamName || ps.currentMatch.teamB === teamName) {
+          if (!ps.currentMatch.jogadoresAtrasados) {
+            ps.currentMatch.jogadoresAtrasados = [];
+          }
+          if (!ps.currentMatch.jogadoresAtrasados.includes(pIdStr)) {
+            ps.currentMatch.jogadoresAtrasados.push(pIdStr);
+          }
+        }
+      }
+      
+      // Adiciona ao time correspondente no ps.teams
+      const targetTeam = ps.teams.find(t => t.name === teamName);
+      if (targetTeam) {
+        if (!targetTeam.players.some(p => String(p.id) === pIdStr)) {
+          targetTeam.players.push(newPlayer);
+        }
+      } else {
+        ps.teams.push({ name: teamName, players: [newPlayer] });
+      }
+      
+      ps = sincronizarBasesDosTimes(ps);
+      ps = ajustarEInserirEmprestadosTemporarios(ps, ppt);
+      ps = limparExcessoEmprestados(ps, ppt);
+      newDrawnTeams = ps.teams;
+    }
+    
+    setDrawnTeams(newDrawnTeams);
+    setPeladaStateLocal(ps);
+    saveDateState({ drawnTeams: newDrawnTeams, peladaState: ps });
+    
+    // Registra presença no Firebase
+    const pExistente = parts.find(p => String(p.atleta_id) === String(a.id) && String(p.data_realizacao_id) === String(selDataSorteio));
+    if (pExistente) {
+      if (!pExistente.compareceu) onUpdatePart(pExistente.id, { compareceu: true });
+    } else {
+      const dataObj = datas.find(d => String(d.id) === String(selDataSorteio));
+      onAddPart({
+        atleta_id: a.id,
+        pelada_id: pelada.id,
+        data_realizacao_id: selDataSorteio,
+        pagou: false,
+        compareceu: true,
+        valor: dataObj?.valor || pelada.valor_contribuicao || a.valor_padrao || 0
+      });
+    }
+  }
+
   function removeFromRotation(playerId){
     let ps=peladaState?deepClone(peladaState):null;
     let teamName = "";
@@ -10474,6 +10552,27 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                   );
                                 })}
                               </div>
+                              
+                              {!isRealizada && (
+                                <div style={{marginTop: 8, borderTop: `1px dashed ${t.cardBorder}`, paddingTop: 6}}>
+                                  <select 
+                                    style={{...S.select, width: "100%", fontSize: 10, padding: "2px 4px", height: 24}} 
+                                    value="" 
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      if (val) {
+                                        adicionarAtrasadoDiretoAoTime(val, tm.name);
+                                      }
+                                    }}
+                                  >
+                                    <option value="">+ Atrasado...</option>
+                                    {vinculados
+                                      .filter(a => !benchState.some(b => String(b.id) === String(a.id)) && !drawnTeams.some(team => team.players.some(p => String(p.id) === String(a.id))))
+                                      .map(a => <option key={a.id} value={a.id}>{a.nome}</option>)
+                                    }
+                                  </select>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -11037,16 +11136,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 {/* BANCO DE RESERVAS E RETARDATÁRIOS */}
                 {drawnTeams && (
                   <div style={{marginBottom: 20}}>
-                    {!isRealizada && (
-                      <div style={{...S.card,marginBottom:14,background:t.inputBg,border:`1px dashed ${t.cardBorder}`,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                        <label style={{...S.label,margin:0}}>+ Retardatário:</label>
-                        <select style={{...S.select,flex:1,minWidth:140}} value={addBenchId} onChange={e=>setAddBenchId(e.target.value)}>
-                          <option value="">Selecione quem chegou...</option>
-                          {vinculados.filter(a=>!currentBench.some(b=>String(b.id)===String(a.id)) && !drawnTeams.some(t=>t.players.some(p=>String(p.id)===String(a.id)))).map(a=><option key={a.id} value={a.id}>{a.nome}</option>)}
-                        </select>
-                        <button onClick={addToBench} style={S.btn("#BA7517")}>Adicionar ao Banco</button>
-                      </div>
-                    )}
+
                     {currentBench.length>0&& (
                       <div style={{...S.card,border:"1px solid #BA751733",background:"#BA751710",marginBottom:12}}>
                         <div style={{fontWeight:700,color:"#BA7517",marginBottom:6}}>🪑 Banco ({currentBench.length})</div>
