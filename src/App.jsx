@@ -10888,25 +10888,60 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                 }
 
                                 const isCandidatoEmprestimo = proxCandidatosEmprestimoIds.includes(athleteId);
+                                const isEmprestadoAtivo = peladaState.currentMatch && !peladaState.currentMatch.played && (
+                                  (peladaState.currentMatch.teamAEmprestados || []).map(String).includes(athleteId) ||
+                                  (peladaState.currentMatch.teamBEmprestados || []).map(String).includes(athleteId)
+                                );
+                                let destTeamName = "";
+                                let destSigla = "";
+                                if (isEmprestadoAtivo) {
+                                  if ((peladaState.currentMatch.teamAEmprestados || []).map(String).includes(athleteId)) {
+                                    destTeamName = peladaState.currentMatch.teamA;
+                                  } else {
+                                    destTeamName = peladaState.currentMatch.teamB;
+                                  }
+                                  const matches = destTeamName.match(/\d+/);
+                                  destSigla = matches ? `T${matches[0]}` : destTeamName.substring(0, 3).toUpperCase();
+                                }
+                                
                                 return (
                                   <div 
                                     key={pi} 
-                                    title={isCandidatoEmprestimo ? "Selecionado para empréstimo no próximo jogo" : undefined}
+                                    title={
+                                      isEmprestadoAtivo 
+                                        ? `Emprestado ao ${destTeamName} na partida atual` 
+                                        : (isCandidatoEmprestimo ? "Selecionado para empréstimo no próximo jogo" : undefined)
+                                    }
                                     style={{
                                       display:"inline-flex", 
                                       alignItems:"center", 
                                       gap:4, 
                                       fontSize:11, 
-                                      background: isCandidatoEmprestimo ? "#1D9E7515" : t.card, 
+                                      background: isEmprestadoAtivo 
+                                        ? "#FFA72615" 
+                                        : (isCandidatoEmprestimo ? "#1D9E7515" : t.card), 
                                       padding:"4px 8px", 
                                       borderRadius:12, 
-                                      border: isCandidatoEmprestimo ? "1.5px solid #1D9E75" : `1px solid ${t.inputBorder}`,
-                                      boxShadow: isCandidatoEmprestimo ? "0 0 6px rgba(29, 158, 117, 0.3)" : "none",
+                                      border: isEmprestadoAtivo 
+                                        ? "1.5px solid #FFA726" 
+                                        : (isCandidatoEmprestimo ? "1.5px solid #1D9E75" : `1px solid ${t.inputBorder}`),
+                                      boxShadow: isEmprestadoAtivo 
+                                        ? "0 0 6px rgba(255, 167, 38, 0.3)" 
+                                        : (isCandidatoEmprestimo ? "0 0 6px rgba(29, 158, 117, 0.3)" : "none"),
                                       transition: "all 0.2s ease"
                                     }}
                                   >
                                     <PlayerAvatar atleta={p} size={16}/>
-                                    <span style={{fontWeight:500, color: pIsRev ? "#7F77DD" : t.text}}>{getPlayerName(p)}{isCandidatoEmprestimo && " 🤝"}</span>
+                                    <span style={{
+                                      fontWeight: (isEmprestadoAtivo || isCandidatoEmprestimo) ? 600 : 500, 
+                                      color: isEmprestadoAtivo 
+                                        ? "#E67E22" 
+                                        : (pIsRev ? "#7F77DD" : t.text)
+                                    }}>
+                                      {getPlayerName(p)}
+                                      {isEmprestadoAtivo && ` 🤝 (${destSigla})`}
+                                      {!isEmprestadoAtivo && isCandidatoEmprestimo && " 🤝"}
+                                    </span>
                                     {pIsRev && <span style={{fontSize:9, color:"#7F77DD", opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
                                     {!isRealizada && (
                                       <>
