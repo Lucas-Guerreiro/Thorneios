@@ -5889,7 +5889,7 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
         <div style={{...S.card,marginBottom:16,borderColor:"#BA751755"}}>
           <div style={{fontWeight:700,color:"#BA7517",marginBottom:10}}>Resumo de Presenças e Pagamentos</div>
           {(()=>{
-            const partesFiltradas = participacoes.filter(p=>{
+            const partesFiltradas = participacoesVisiveis.filter(p=>{
               if(String(p.pelada_id)!==String(filtroId)) return false;
               if(p.data_realizacao_id === null || p.data_realizacao_id === undefined) return false; // ignora vínculos gerais sem data
               if(filtroData!=="todas" && String(p.data_realizacao_id)!==String(filtroData)) return false;
@@ -5910,7 +5910,7 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
                     <div style={{fontSize:12,fontWeight:700,color:"#1D9E75",marginBottom:6,borderBottom:"1px solid #1D9E7533",paddingBottom:4}}>✅ Pagaram</div>
                     <div style={{display:"flex",flexDirection:"column",gap:4}}>
                       {pagantesList.map(p=>{
-                        const a = getAtletaById(atletas, p.atleta_id);
+                        const a = atletas.find(x=>String(x.id)===String(p.atleta_id));
                         const ausente = !p.compareceu;
                         return <div key={p.id} style={{fontSize:12,color: ausente ? t.textSec : t.text,display:"flex",alignItems:"center",gap:6}}>
                           <PlayerAvatar atleta={a} size={16}/> {getPlayerName(a)}
@@ -5924,7 +5924,7 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
                     <div style={{fontSize:12,fontWeight:700,color:"#E24B4A",marginBottom:6,borderBottom:"1px solid #E24B4A33",paddingBottom:4}}>❌ Pendentes</div>
                     <div style={{display:"flex",flexDirection:"column",gap:4}}>
                       {inadimplentesList.map(p=>{
-                        const a = getAtletaById(atletas, p.atleta_id);
+                        const a = atletas.find(x=>String(x.id)===String(p.atleta_id));
                         const ausente = !p.compareceu;
                         return <div key={p.id} style={{fontSize:12,color: ausente ? t.textSec : t.text,display:"flex",alignItems:"center",gap:6}}>
                           <PlayerAvatar atleta={a} size={16}/> {getPlayerName(a)}
