@@ -1510,12 +1510,61 @@ function obterCandidatosEmprestimoProximaPartida(ps, pptParam = null) {
     const precisaB = isLockedB ? 0 : Math.max(0, jogadoresPorTime - countB);
 
     if (precisaEntrando > 0 || precisaA > 0 || precisaB > 0) {
-      const timesDeForaNames = ps.queue.slice(3);
-      const timesDeFora = newTeams.filter(t => timesDeForaNames.includes(t.name) && ps.loanLocks && ps.loanLocks[t.name] === true);
-      let candidatos = [];
-      timesDeFora.forEach(t => {
-        candidatos.push(...t.players);
+      const totalTimes = ps.teams.length;
+      
+      // Cenário A: Time A vence, Time B perde (b vira o perdedor de fora)
+      let doadorNomeA = "";
+      if (totalTimes === 3) {
+        doadorNomeA = b;
+      } else if (totalTimes === 4) {
+        doadorNomeA = ps.queue[3];
+      } else if (totalTimes === 5) {
+        doadorNomeA = ps.queue[4];
+      } else {
+        doadorNomeA = b;
+      }
+
+      // Cenário B: Time B vence, Time A perde (a vira o perdedor de fora)
+      let doadorNomeB = "";
+      if (totalTimes === 3) {
+        doadorNomeB = a;
+      } else if (totalTimes === 4) {
+        doadorNomeB = ps.queue[3];
+      } else if (totalTimes === 5) {
+        doadorNomeB = ps.queue[4];
+      } else {
+        doadorNomeB = a;
+      }
+
+      const todosJogadores = [];
+      if (ps.teams) ps.teams.forEach(tm => todosJogadores.push(...tm.players));
+      if (ps.bench) todosJogadores.push(...ps.bench);
+      const uniquePlayers = [];
+      const seenIds = new Set();
+      todosJogadores.forEach(p => {
+        const idStr = String(p.id || p.atleta_id || p.idAtleta);
+        if (!seenIds.has(idStr)) {
+          seenIds.add(idStr);
+          uniquePlayers.push(p);
+        }
       });
+
+      const obterCandidatosParaDoador = (doadorNome) => {
+        const isDoadorEligible = doadorNome && doadorNome !== a && doadorNome !== b;
+        if (!isDoadorEligible) {
+          const deForaName = ps.queue.slice(3).find(n => n !== a && n !== b);
+          if (deForaName) {
+            const baseIds = ps.teamBases[deForaName] || [];
+            return baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+          }
+          return [];
+        }
+        const baseIds = ps.teamBases[doadorNome] || [];
+        return baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+      };
+
+      const candidatosA = obterCandidatosParaDoador(doadorNomeA);
+      const candidatosB = obterCandidatosParaDoador(doadorNomeB);
 
       const ultimaPartida = ps.matchLog && ps.matchLog.length > 0 ? ps.matchLog[ps.matchLog.length - 1] : null;
       const idJogadoresUltimaPartida = [];
@@ -1529,41 +1578,44 @@ function obterCandidatosEmprestimoProximaPartida(ps, pptParam = null) {
       }
 
       const historicoEmprestimos = ps.historicoEmprestimos || {};
+      const sortCandidatos = (list) => {
+        list.sort((p1, p2) => {
+          const id1 = String(p1.id || p1.atleta_id || p1.idAtleta);
+          const id2 = String(p2.id || p2.atleta_id || p2.idAtleta);
+          const jogouUltima1 = idJogadoresUltimaPartida.includes(id1) ? 1 : 0;
+          const jogouUltima2 = idJogadoresUltimaPartida.includes(id2) ? 1 : 0;
+          if (jogouUltima1 !== jogouUltima2) {
+            return jogouUltima1 - jogouUltima2;
+          }
+          const count1 = historicoEmprestimos[id1] || 0;
+          const count2 = historicoEmprestimos[id2] || 0;
+          return count1 - count2;
+        });
+      };
 
-      candidatos.sort((p1, p2) => {
-        const id1 = String(p1.id || p1.atleta_id || p1.idAtleta);
-        const id2 = String(p2.id || p2.atleta_id || p2.idAtleta);
-        const jogouUltima1 = idJogadoresUltimaPartida.includes(id1) ? 1 : 0;
-        const jogouUltima2 = idJogadoresUltimaPartida.includes(id2) ? 1 : 0;
-        if (jogouUltima1 !== jogouUltima2) {
-          return jogouUltima1 - jogouUltima2;
-        }
-        const count1 = historicoEmprestimos[id1] || 0;
-        const count2 = historicoEmprestimos[id2] || 0;
-        return count1 - count2;
-      });
+      sortCandidatos(candidatosA);
+      sortCandidatos(candidatosB);
 
       // Cenário A: Time A vence a partida atual
       let offsetA = 0;
       const empA = [];
-      for (let i = 0; i < precisaA && offsetA < candidatos.length; i++) {
-        empA.push(candidatos[offsetA++]);
+      for (let i = 0; i < precisaA && offsetA < candidatosA.length; i++) {
+        empA.push(candidatosA[offsetA++]);
       }
-      for (let i = 0; i < precisaEntrando && offsetA < candidatos.length; i++) {
-        paraA.push(candidatos[offsetA++]);
+      for (let i = 0; i < precisaEntrando && offsetA < candidatosA.length; i++) {
+        paraA.push(candidatosA[offsetA++]);
       }
 
       // Cenário B: Time B vence a partida atual
       let offsetB = 0;
       const empB = [];
-      for (let i = 0; i < precisaB && offsetB < candidatos.length; i++) {
-        empB.push(candidatos[offsetB++]);
+      for (let i = 0; i < precisaB && offsetB < candidatosB.length; i++) {
+        empB.push(candidatosB[offsetB++]);
       }
-      for (let i = 0; i < precisaEntrando && offsetB < candidatos.length; i++) {
-        paraB.push(candidatos[offsetB++]);
+      for (let i = 0; i < precisaEntrando && offsetB < candidatosB.length; i++) {
+        paraB.push(candidatosB[offsetB++]);
       }
 
-      // Todos os candidatos que devem ser marcados com ícone de aperto de mão
       const todosDestaques = [...empA, ...paraA, ...empB, ...paraB];
       const seen = new Set();
       todosDestaques.forEach(p => {
@@ -1579,17 +1631,45 @@ function obterCandidatosEmprestimoProximaPartida(ps, pptParam = null) {
     const teamBObj = newTeams.find(t => t.name === b);
     const countA = teamAObj ? teamAObj.players.length : 0;
     const countB = teamBObj ? teamBObj.players.length : 0;
-    const isLockedA = ps.loanLocks && ps.loanLocks[a] === true;
-    const isLockedB = ps.loanLocks && ps.loanLocks[b] === true;
-    const precisaA = isLockedA ? 0 : Math.max(0, jogadoresPorTime - countA);
-    const precisaB = isLockedB ? 0 : Math.max(0, jogadoresPorTime - countB);
+    const precisaA = Math.max(0, jogadoresPorTime - countA);
+    const precisaB = Math.max(0, jogadoresPorTime - countB);
 
     if (precisaA > 0 || precisaB > 0) {
-      const timesDeFora = newTeams.filter(t => t.name !== a && t.name !== b && ps.loanLocks && ps.loanLocks[t.name] === true);
+      let doadorNome = "";
+      const totalTimes = ps.teams.length;
+      if (totalTimes === 3) {
+        doadorNome = ps.queue[ps.queue.length - 1];
+      } else if (totalTimes === 4) {
+        doadorNome = ps.queue[3];
+      } else if (totalTimes === 5) {
+        doadorNome = ps.queue[4];
+      } else {
+        doadorNome = ps.queue[ps.queue.length - 1];
+      }
+
+      const isDoadorEligible = doadorNome && 
+                               doadorNome !== a && 
+                               doadorNome !== b;
+
       let candidatos = [];
-      timesDeFora.forEach(t => {
-        candidatos.push(...t.players);
-      });
+      if (isDoadorEligible) {
+        const baseIds = ps.teamBases[doadorNome] || [];
+        const todosJogadores = [];
+        if (ps.teams) ps.teams.forEach(tm => todosJogadores.push(...tm.players));
+        if (ps.bench) todosJogadores.push(...ps.bench);
+        
+        const uniquePlayers = [];
+        const seenIds = new Set();
+        todosJogadores.forEach(p => {
+          const idStr = String(p.id || p.atleta_id || p.idAtleta);
+          if (!seenIds.has(idStr)) {
+            seenIds.add(idStr);
+            uniquePlayers.push(p);
+          }
+        });
+        
+        candidatos = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+      }
 
       const ultimaPartida = ps.matchLog && ps.matchLog.length > 0 ? ps.matchLog[ps.matchLog.length - 1] : null;
       const idJogadoresUltimaPartida = [];
@@ -1666,17 +1746,45 @@ function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
     const teamBObj = newTeams.find(t => t.name === b);
     const countA = teamAObj ? teamAObj.players.length : 0;
     const countB = teamBObj ? teamBObj.players.length : 0;
-    const isLockedA = ps.loanLocks && ps.loanLocks[a] === true;
-    const isLockedB = ps.loanLocks && ps.loanLocks[b] === true;
-    const precisaA = isLockedA ? 0 : Math.max(0, jogadoresPorTime - countA);
-    const precisaB = isLockedB ? 0 : Math.max(0, jogadoresPorTime - countB);
+    const precisaA = Math.max(0, jogadoresPorTime - countA);
+    const precisaB = Math.max(0, jogadoresPorTime - countB);
 
     if (precisaA > 0 || precisaB > 0) {
-      const timesDeFora = newTeams.filter(t => t.name !== a && t.name !== b && ps.loanLocks && ps.loanLocks[t.name] === true);
+      let doadorNome = "";
+      const totalTimes = ps.teams.length;
+      if (totalTimes === 3) {
+        doadorNome = ps.queue[ps.queue.length - 1];
+      } else if (totalTimes === 4) {
+        doadorNome = ps.queue[3];
+      } else if (totalTimes === 5) {
+        doadorNome = ps.queue[4];
+      } else {
+        doadorNome = ps.queue[ps.queue.length - 1];
+      }
+
+      const isDoadorEligible = doadorNome && 
+                               doadorNome !== a && 
+                               doadorNome !== b;
+
       let candidatos = [];
-      timesDeFora.forEach(t => {
-        candidatos.push(...t.players);
-      });
+      if (isDoadorEligible) {
+        const baseIds = ps.teamBases[doadorNome] || [];
+        const todosJogadores = [];
+        if (ps.teams) ps.teams.forEach(tm => todosJogadores.push(...tm.players));
+        if (ps.bench) todosJogadores.push(...ps.bench);
+        
+        const uniquePlayers = [];
+        const seenIds = new Set();
+        todosJogadores.forEach(p => {
+          const idStr = String(p.id || p.atleta_id || p.idAtleta);
+          if (!seenIds.has(idStr)) {
+            seenIds.add(idStr);
+            uniquePlayers.push(p);
+          }
+        });
+        
+        candidatos = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+      }
 
       const ultimaPartida = ps.matchLog && ps.matchLog.length > 0 ? ps.matchLog[ps.matchLog.length - 1] : null;
       const idJogadoresUltimaPartida = [];
@@ -1708,14 +1816,14 @@ function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
       if (teamAObj) {
         for (let i = 0; i < precisaA && offset < candidatos.length; i++) {
           const emp = candidatos[offset++];
-          teamAObj.players.push(emp);
+          teamAObj.players.push({ ...emp, isEmprestado: true });
           teamAEmprestados.push(emp.id || emp.atleta_id || emp.idAtleta);
         }
       }
       if (teamBObj) {
         for (let i = 0; i < precisaB && offset < candidatos.length; i++) {
           const emp = candidatos[offset++];
-          teamBObj.players.push(emp);
+          teamBObj.players.push({ ...emp, isEmprestado: true });
           teamBEmprestados.push(emp.id || emp.atleta_id || emp.idAtleta);
         }
       }
@@ -8265,10 +8373,25 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   }
 
   function removeFromRotation(playerId){
+    let ps=peladaState?deepClone(peladaState):null;
+    let teamName = "";
+    if (ps && ps.teamBases) {
+      for (const tName of Object.keys(ps.teamBases)) {
+        const ids = ps.teamBases[tName] || [];
+        if (ids.some(id => String(id) === String(playerId))) {
+          teamName = tName;
+          break;
+        }
+      }
+    }
+    if (teamName && ps && ps.loanLocks && ps.loanLocks[teamName] === true) {
+      alert(`O time "${teamName}" esta com o cadeado fechado. Destrave o cadeado do time no painel antes de fazer alteracoes no elenco.`);
+      return;
+    }
+
     if(!confirm("Remover este jogador do rodízio atual? (Ele será substituído por alguém do banco, se houver)")) return;
     let newBench=[...benchState];
     let newDrawnTeams=drawnTeams?deepClone(drawnTeams):null;
-    let ps=peladaState?deepClone(peladaState):null;
 
     // Achar se esse jogador é um anfitrião e se o seu convidado correspondente está ativo
     const atleta = atletas.find(x => String(x.id) === String(playerId));
@@ -8407,7 +8530,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
   function ajustarEInserirEmprestadosTemporarios(ps, pptParam = null) {
     if (!ps || !ps.currentMatch || !ps.teams) return ps;
-    const ppt = pptParam || ps.playersPerTeam || 4;
+    const ppt = pptParam || ps.playersPerTeam || 6;
     const { teamA, teamB, teamAEmprestados = [], teamBEmprestados = [] } = ps.currentMatch;
     
     const teamAObj = ps.teams.find(t => t.name === teamA);
@@ -8415,9 +8538,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     
     const processarTime = (teamObj, emprestadosIds, emprestadosArrayKey) => {
       if (!teamObj) return;
+      const baseIds = (ps.teamBases[teamObj.name] || []).map(id => String(id));
       const basePlayers = teamObj.players.filter(p => {
         const idStr = String(p.id || p.atleta_id || p.idAtleta);
-        return !emprestadosIds.map(String).includes(idStr);
+        return baseIds.includes(idStr);
       });
       
       const basePlayerIds = basePlayers.map(p => String(p.id || p.atleta_id || p.idAtleta));
@@ -8457,83 +8581,34 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     return ps;
   }
 
-  function removerEmprestadosTemporarios(teams, currentMatch) {
-    if (!teams || !currentMatch) return teams;
-    const { teamA, teamB, teamAEmprestados = [], teamBEmprestados = [] } = currentMatch;
-    const emprestadosIds = new Set([...teamAEmprestados, ...teamBEmprestados].map(id => String(id)));
-    
-    return teams.map(t => {
-      if (t.name === teamA || t.name === teamB) {
-        return {
-          ...t,
-          players: t.players.filter(p => {
-            const idStr = String(p.id || p.atleta_id || p.idAtleta);
-            return !emprestadosIds.has(idStr);
-          })
-        };
-      }
-      return t;
-    });
-  }
-
-  function ajustarEInserirEmprestadosTemporarios(ps, pptParam = null) {
-    if (!ps || !ps.currentMatch || !ps.teams) return ps;
-    const ppt = pptParam || ps.playersPerTeam || 6;
-    const { teamA, teamB, teamAEmprestados = [], teamBEmprestados = [] } = ps.currentMatch;
-    
-    const teamAObj = ps.teams.find(t => t.name === teamA);
-    const teamBObj = ps.teams.find(t => t.name === teamB);
-    
-    const processarTime = (teamObj, emprestadosIds, emprestadosArrayKey) => {
-      if (!teamObj) return;
-      const baseIds = (ps.teamBases[teamObj.name] || []).map(id => String(id));
-      const basePlayers = teamObj.players.filter(p => {
-        const idStr = String(p.id || p.atleta_id || p.idAtleta);
-        return baseIds.includes(idStr);
-      });
-      
-      const basePlayerIds = basePlayers.map(p => String(p.id || p.atleta_id || p.idAtleta));
-      const convidadosLegitimos = basePlayers.filter(p => {
-        return p.isConvidado && p.convidadoDe && basePlayerIds.includes(String(p.convidadoDe));
-      });
-      const C = convidadosLegitimos.length;
-      const B = basePlayers.length;
-      const isLocked = ps.loanLocks && ps.loanLocks[teamObj.name] === true;
-      const maxEmprestados = isLocked ? 0 : Math.max(0, (ppt + C) - B);
-      
-      const novosEmprestadosIds = emprestadosIds.slice(0, maxEmprestados);
-      ps.currentMatch[emprestadosArrayKey] = novosEmprestadosIds;
-      
-      const todosJogadores = [];
-      if (ps.teams) ps.teams.forEach(tm => todosJogadores.push(...tm.players));
-      if (ps.bench) todosJogadores.push(...ps.bench);
-      
-      const uniquePlayers = [];
-      const seenIds = new Set();
-      todosJogadores.forEach(p => {
-        const idStr = String(p.id || p.atleta_id || p.idAtleta);
-        if (!seenIds.has(idStr)) {
-          seenIds.add(idStr);
-          uniquePlayers.push(p);
-        }
-      });
-      
-      const emprestadosObjList = novosEmprestadosIds.map(id => {
-        return uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id));
-      }).filter(Boolean);
-      
-      teamObj.players = [...basePlayers, ...emprestadosObjList];
-    };
-    
-    processarTime(teamAObj, teamAEmprestados, "teamAEmprestados");
-    processarTime(teamBObj, teamBEmprestados, "teamBEmprestados");
-    return ps;
-  }
-
 
   function movePlayerInRotation(playerId, target) {
-    let newBench = [...benchState];
     let ps = peladaState ? deepClone(peladaState) : null;
+    if (ps) {
+      let timeOrigem = "";
+      if (ps.teams) {
+        ps.teams.forEach(t => {
+          if (t.players.some(p => String(p.id || p.atleta_id || p.idAtleta) === String(playerId))) {
+            timeOrigem = t.name;
+          }
+        });
+      }
+      let timeDestino = "";
+      if (target && target.startsWith("t")) {
+        const teamIndex = parseInt(target.replace("t", "")) - 1;
+        timeDestino = (drawnTeams && drawnTeams[teamIndex]?.name) || `Time ${teamIndex + 1}`;
+      }
+      if (timeOrigem && ps.loanLocks && ps.loanLocks[timeOrigem] === true) {
+        alert(`O time de origem "${timeOrigem}" esta com o cadeado fechado. Destrave o cadeado do time antes de mover seus atletas.`);
+        return;
+      }
+      if (timeDestino && ps.loanLocks && ps.loanLocks[timeDestino] === true) {
+        alert(`O time de destino "${timeDestino}" esta com o cadeado fechado. Destrave o cadeado do time antes de adicionar atletas.`);
+        return;
+      }
+    }
+
+    let newBench = [...benchState];
     let newDrawnTeams = drawnTeams ? deepClone(drawnTeams) : [];
 
     if (ps && ps.currentMatch) {
