@@ -6788,11 +6788,11 @@ function AbaAtletasPelada({
     };
   }, [triggerSaveRef, handleSalvar]);
 
-  const idsVinculadosData = React.useMemo(() => new Set(localParts.map(p => p.atleta_id)), [localParts]);
+  const idsVinculadosData = React.useMemo(() => new Set(localParts.map(p => String(p.atleta_id))), [localParts]);
 
   // Lista de atletas vinculados à data selecionada, ordenada por nome
   const vinculados = React.useMemo(() => {
-    const list = atletas.filter(a => idsVinculadosData.has(a.id));
+    const list = atletas.filter(a => idsVinculadosData.has(String(a.id)));
     return [...list].sort((a, b) => a.nome.localeCompare(b.nome));
   }, [atletas, idsVinculadosData]);
 
@@ -6802,7 +6802,7 @@ function AbaAtletasPelada({
       a.ativo && 
       Array.isArray(a.vinculos) && 
       a.vinculos.includes("pelada_" + peladaId) && 
-      !idsVinculadosData.has(a.id)
+      !idsVinculadosData.has(String(a.id))
     );
     return [...list].sort((a, b) => a.nome.localeCompare(b.nome));
   }, [atletas, peladaId, idsVinculadosData]);
@@ -6890,7 +6890,7 @@ function AbaAtletasPelada({
       pelada_id: peladaId,
       data_realizacao_id: selDataSorteio || null,
       pagou: false,
-      compareceu: true,
+      compareceu: false,
       tipo_pagamento: "diarista",
       valor_padrao: Number(formConvidado.valor) || pelada.valor_contribuicao || 15,
       saldo: 0
@@ -6900,7 +6900,7 @@ function AbaAtletasPelada({
   }
  
   const atualizarVinculoLocal = (partId, novosCampos) => {
-    setLocalParts(prev => prev.map(p => p.id === partId ? { ...p, ...novosCampos } : p));
+    setLocalParts(prev => prev.map(p => String(p.id) === String(partId) ? { ...p, ...novosCampos } : p));
   };
  
   function salvarNovoAtleta() {
@@ -6930,7 +6930,7 @@ function AbaAtletasPelada({
       pelada_id: peladaId,
       data_realizacao_id: selDataSorteio || null,
       pagou: false,
-      compareceu: true,
+      compareceu: false,
       tipo_pagamento: "diarista",
       valor_padrao: pelada.valor_contribuicao || 15,
       saldo: 0
@@ -6942,7 +6942,7 @@ function AbaAtletasPelada({
 
   function vincular(id){
     // Busca se existe um vínculo geral (data_realizacao_id === null) para este atleta nesta pelada
-    const vinculoGeral = participacoes.find(p => p.atleta_id === id && p.pelada_id === peladaId && p.data_realizacao_id === null);
+    const vinculoGeral = participacoes.find(p => String(p.atleta_id) === String(id) && p.pelada_id === peladaId && p.data_realizacao_id === null);
 
     const novoVinculo = {
       id: "temp_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
@@ -6950,7 +6950,7 @@ function AbaAtletasPelada({
       pelada_id: peladaId,
       data_realizacao_id: selDataSorteio || null,
       pagou: false,
-      compareceu: true,
+      compareceu: false,
       tipo_pagamento: vinculoGeral?.tipo_pagamento || "diarista",
       valor_padrao: vinculoGeral?.valor_padrao || pelada.valor_contribuicao || 15,
       saldo: vinculoGeral?.saldo || 0
@@ -6996,7 +6996,7 @@ function AbaAtletasPelada({
         ) : (
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {vinculadosFiltrados.map(a=>{
-              const vinculo = localParts.find(p=>p.atleta_id===a.id);
+              const vinculo = localParts.find(p=>String(p.atleta_id)===String(a.id));
               const infoPag = vinculo?.tipo_pagamento === "mensalista" 
                 ? `Mensalista (Saldo: ${fmtCur(vinculo.saldo||0)})`
                 : `Diarista (Diária: ${fmtCur(vinculo?.valor_padrao||0)})`;
@@ -7042,7 +7042,7 @@ function AbaAtletasPelada({
         ) : (
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {disponiveisFiltrados.map(a=>{
-              const vinculoGeral = participacoes.find(p=>p.atleta_id===a.id && p.pelada_id===peladaId && p.data_realizacao_id === null);
+              const vinculoGeral = participacoes.find(p=>String(p.atleta_id)===String(a.id) && p.pelada_id===peladaId && p.data_realizacao_id === null);
               const infoPag = vinculoGeral?.tipo_pagamento === "mensalista" 
                 ? `Mensalista (Saldo: ${fmtCur(vinculoGeral.saldo||0)})`
                 : `Diarista (Diária: ${fmtCur(vinculoGeral?.valor_padrao||0)})`;
@@ -7064,7 +7064,7 @@ function AbaAtletasPelada({
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
           <div style={{...S.card,width:"100%",maxWidth:360,maxHeight:"90vh",overflowY:"auto"}}>
             <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>⚙️ Configurar Atleta na Pelada</div>
-            <div style={{fontSize:13,color:t.textSec,marginBottom:12}}>Atleta: <b>{getPlayerName(atletas.find(x=>x.id===modalAjustar.atleta_id))}</b></div>
+            <div style={{fontSize:13,color:t.textSec,marginBottom:12}}>Atleta: <b>{getPlayerName(atletas.find(x=>String(x.id)===String(modalAjustar.atleta_id)))}</b></div>
             
             <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
               <div>
@@ -7095,7 +7095,7 @@ function AbaAtletasPelada({
                     <button onClick={()=>{
                       const val = Number(recargaVal);
                       if(isNaN(val) || val <= 0) return;
-                      const a = atletas.find(x=>x.id===modalAjustar.atleta_id);
+                      const a = atletas.find(x=>String(x.id)===String(modalAjustar.atleta_id));
                       if(saldoOp === "add") {
                         const novo = (modalAjustar.saldo||0) + val;
                         atualizarVinculoLocal(modalAjustar.id, {saldo: novo});
