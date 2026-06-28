@@ -1325,12 +1325,69 @@ function agruparUnidades(players) {
   return unidades;
 }
 
-function drawBalancedTeams(athletes,numTeams,ppt){
-  const shuffled=cryptoShuffle(athletes);
-  const teams=Array.from({length:numTeams},(_,i)=>({name:"Time "+(i+1),players:[],skillSum:0}));
-  shuffled.forEach((a,idx)=>{const ti=idx%numTeams;teams[ti].players.push(a);teams[ti].skillSum+=a.habilidade||a.skill||3;});
-  const bench=cryptoShuffle(teams.reduce((acc,t)=>acc.concat(t.players.slice(ppt)),[]));
-  return{fullTeams:teams.map(t=>({name:t.name,players:t.players.slice(0,ppt)})),bench};
+function drawBalancedTeams(athletes, numTeams, ppt, metodoFormacao = "igual") {
+  const sortedAthletes = [...athletes].sort((a, b) => {
+    const s1 = a.habilidade || a.skill || 3;
+    const s2 = b.habilidade || b.skill || 3;
+    return s2 - s1;
+  });
+
+  let tamanhosDesejados = [];
+  let numTeamsReal = numTeams;
+
+  if (metodoFormacao === "completo") {
+    numTeamsReal = Math.min(numTeams, Math.ceil(sortedAthletes.length / ppt));
+    if (numTeamsReal < 2) numTeamsReal = Math.min(numTeams, 2);
+    
+    let restante = sortedAthletes.length;
+    for (let i = 0; i < numTeamsReal; i++) {
+      if (i === numTeamsReal - 1) {
+        tamanhosDesejados.push(Math.min(ppt, restante));
+      } else {
+        tamanhosDesejados.push(ppt);
+        restante -= ppt;
+      }
+    }
+  } else {
+    const totalDisponivel = Math.min(sortedAthletes.length, numTeams * ppt);
+    const baseCount = Math.floor(totalDisponivel / numTeams);
+    const resto = totalDisponivel % numTeams;
+    tamanhosDesejados = Array.from({ length: numTeams }, (_, i) => 
+      baseCount + (i < resto ? 1 : 0)
+    );
+  }
+
+  const teams = Array.from({ length: numTeamsReal }, (_, i) => ({
+    name: "Time " + (i + 1),
+    players: [],
+    skillSum: 0
+  }));
+
+  const atletasDisponiveis = [...sortedAthletes];
+  let direction = 1;
+  
+  while (atletasDisponiveis.length > 0) {
+    let colocouAlgum = false;
+    const startIdx = direction === 1 ? 0 : numTeamsReal - 1;
+    const endIdx = direction === 1 ? numTeamsReal : -1;
+    const step = direction === 1 ? 1 : -1;
+
+    for (let i = startIdx; i !== endIdx; i += step) {
+      const targetSize = tamanhosDesejados[i] || 0;
+      if (teams[i].players.length < targetSize && atletasDisponiveis.length > 0) {
+        const a = atletasDisponiveis.shift();
+        teams[i].players.push(a);
+        teams[i].skillSum += a.habilidade || a.skill || 3;
+        colocouAlgum = true;
+      }
+    }
+
+    if (!colocouAlgum) break;
+    direction *= -1;
+  }
+
+  const bench = cryptoShuffle(atletasDisponiveis);
+  return { fullTeams: teams, bench };
 }
 function buildInitialPeladaState(drawnTeams,bench,existingMatchLog=[],oldState=null){
   const queue=drawnTeams.map(t=>t.name);
@@ -7543,6 +7600,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const [numTeamsInput, setNumTeamsInput] = useState("2");
   const[ppt,setPpt]=useState(pelada.playersPerTeam||4);
   const [pptInput, setPptInput] = useState(String(pelada.playersPerTeam||4));
+  const [metodoFormacao, setMetodoFormacao] = useState(pelada.metodoFormacao || "igual");
   
 
   
@@ -8308,7 +8366,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     
     if(sorteaveis.length === 0){alert("Não existem atletas independentes presentes na data para realizar o sorteio!");return;}
     
-    const { fullTeams, bench } = drawBalancedTeams(sorteaveis, numTeams, ppt);
+    const { fullTeams, bench } = drawBalancedTeams(sorteaveis, numTeams, ppt, metodoFormacao);
     
     // Aloca os convidados de revezamento no mesmo time/banco que seus respectivos anfitriões
     revezadores.forEach(rev => {
@@ -8345,7 +8403,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       initialBench: bench,
       peladaState: ps,
       playersPerTeam: ppt,
-      numTeams
+      numTeams,
+      metodoFormacao
     });
   }
 
@@ -9961,6 +10020,51 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           }}
                           style={{...S.input,width:56}}
                         />
+                      </div>
+                    </div>
+
+                    {/* Metodo de Formacao de Times */}
+                    <div style={{marginBottom: 14, display: "flex", flexDirection: "column", gap: 6}}>
+                      <label style={{...S.label, margin: 0}}>Método de Formação dos Times:</label>
+                      <div style={{display: "flex", gap: 8}}>
+                        <button
+                          onClick={() => {
+                            setMetodoFormacao("igual");
+                            saveDateState({ metodoFormacao: "igual" });
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            background: metodoFormacao === "igual" ? "#7F77DD" : "transparent",
+                            color: metodoFormacao === "igual" ? "#fff" : t.textSec,
+                            border: `1.5px solid ${metodoFormacao === "igual" ? "#7F77DD" : t.cardBorder}`
+                          }}
+                        >
+                          ⚖️ Distribuir Igual (Equilibrado)
+                        </button>
+                        <button
+                          onClick={() => {
+                            setMetodoFormacao("completo");
+                            saveDateState({ metodoFormacao: "completo" });
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            background: metodoFormacao === "completo" ? "#7F77DD" : "transparent",
+                            color: metodoFormacao === "completo" ? "#fff" : t.textSec,
+                            border: `1.5px solid ${metodoFormacao === "completo" ? "#7F77DD" : t.cardBorder}`
+                          }}
+                        >
+                          🧱 Completar Times (Empilhado)
+                        </button>
                       </div>
                     </div>
 
