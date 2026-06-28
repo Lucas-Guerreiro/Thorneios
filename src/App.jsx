@@ -1795,7 +1795,18 @@ function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
         }
       });
       
-      const originalPlayers = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+      const originalPlayers = baseIds.map(id => {
+        const found = uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id));
+        if (found) {
+          const clean = { ...found };
+          delete clean.isEmprestado;
+          delete clean.isTemporary;
+          delete clean.originalTeamId;
+          delete clean.originalTeamName;
+          return clean;
+        }
+        return null;
+      }).filter(Boolean);
       return { ...t, players: originalPlayers };
     });
 
@@ -1873,14 +1884,26 @@ function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
       if (teamAObj) {
         for (let i = 0; i < precisaA && offset < candidatos.length; i++) {
           const emp = candidatos[offset++];
-          teamAObj.players.push({ ...emp, isEmprestado: true });
+          teamAObj.players.push({ 
+            ...emp, 
+            isEmprestado: true, 
+            isTemporary: true, 
+            originalTeamId: doadorNome, 
+            originalTeamName: doadorNome 
+          });
           teamAEmprestados.push(emp.id || emp.atleta_id || emp.idAtleta);
         }
       }
       if (teamBObj) {
         for (let i = 0; i < precisaB && offset < candidatos.length; i++) {
           const emp = candidatos[offset++];
-          teamBObj.players.push({ ...emp, isEmprestado: true });
+          teamBObj.players.push({ 
+            ...emp, 
+            isEmprestado: true, 
+            isTemporary: true, 
+            originalTeamId: doadorNome, 
+            originalTeamName: doadorNome 
+          });
           teamBEmprestados.push(emp.id || emp.atleta_id || emp.idAtleta);
         }
       }
@@ -1968,6 +1991,23 @@ function limparExcessoEmprestados(ps, pptParam = null) {
     
     if (emprestados.length > maxEmprestados) {
       const mantidosEmprestados = emprestados.slice(0, maxEmprestados);
+      const excluidosEmprestados = emprestados.slice(maxEmprestados);
+      
+      // Devolve temporários dispensados ao banco se vieram de lá
+      excluidosEmprestados.forEach(emp => {
+        if (emp.originalTeamId === "bench" || !emp.originalTeamId) {
+          const idStr = String(emp.id || emp.atleta_id || emp.idAtleta);
+          if (!ps.bench.some(b => String(b.id) === idStr)) {
+            const clean = { ...emp };
+            delete clean.isEmprestado;
+            delete clean.isTemporary;
+            delete clean.originalTeamId;
+            delete clean.originalTeamName;
+            ps.bench.push(clean);
+          }
+        }
+      });
+
       const atrasadosNeste = teamObj.players.filter(p => jogadoresAtrasadosIds.includes(String(p.id || p.atleta_id || p.idAtleta)));
       teamObj.players = [...basePlayers, ...mantidosEmprestados, ...atrasadosNeste];
       ps.currentMatch[emprestadosArrayKey] = mantidosEmprestados.map(p => p.id || p.atleta_id || p.idAtleta);
@@ -1989,6 +2029,16 @@ function deduplicarEstadoPelada(ps) {
     
     t.players = t.players.filter(p => {
       const idStr = String(p.id || p.atleta_id || p.idAtleta);
+      
+      // Se for um empréstimo ativo na partida atual, permitimos sem restrições
+      const isEmprestadoAtivo = ps.currentMatch && (
+        (ps.currentMatch.teamA === t.name && ps.currentMatch.teamAEmprestados?.map(id => String(id)).includes(idStr)) ||
+        (ps.currentMatch.teamB === t.name && ps.currentMatch.teamBEmprestados?.map(id => String(id)).includes(idStr))
+      );
+
+      if (isEmprestadoAtivo) {
+        return true;
+      }
       
       if (baseIds.includes(idStr)) {
         seenIds.add(idStr);
@@ -2012,13 +2062,7 @@ function deduplicarEstadoPelada(ps) {
       }
       
       if (pertenceAOutroTime) {
-        const isEmprestadoAtivo = ps.currentMatch && (
-          (ps.currentMatch.teamA === t.name && ps.currentMatch.teamAEmprestados?.map(id => String(id)).includes(idStr)) ||
-          (ps.currentMatch.teamB === t.name && ps.currentMatch.teamBEmprestados?.map(id => String(id)).includes(idStr))
-        );
-        if (!isEmprestadoAtivo) {
-          return false;
-        }
+        return false;
       }
       
       seenIds.add(idStr);
@@ -2100,6 +2144,32 @@ function resolveMatch(ps,scoreA,scoreB,dataRealizacaoId=""){
   let newBench = ps.bench ? [...ps.bench] : [];
   const modoRodizio = ps.modoRodizio || "misto";
 
+  // Estorno de jogadores de empréstimo vindos do banco de reservas
+  const emprestadosAtivosIds = new Set([
+    ...(ps.currentMatch?.teamAEmprestados || []),
+    ...(ps.currentMatch?.teamBEmprestados || [])
+  ].map(String));
+
+  const todosJogadoresPartida = [];
+  if (teamAObjOriginal) todosJogadoresPartida.push(...teamAObjOriginal.players);
+  if (teamBObjOriginal) todosJogadoresPartida.push(...teamBObjOriginal.players);
+
+  todosJogadoresPartida.forEach(p => {
+    const idStr = String(p.id || p.atleta_id || p.idAtleta);
+    if (emprestadosAtivosIds.has(idStr)) {
+      if (p.originalTeamId === "bench" || !p.originalTeamId) {
+        if (!newBench.some(b => String(b.id) === idStr)) {
+          const clean = { ...p };
+          delete clean.isEmprestado;
+          delete clean.isTemporary;
+          delete clean.originalTeamId;
+          delete clean.originalTeamName;
+          newBench.push(clean);
+        }
+      }
+    }
+  });
+
   if (ps.teamBases && modoRodizio !== "manual") {
     newTeams = newTeams.map(t => {
       const baseIds = ps.teamBases[t.name] || [];
@@ -2115,7 +2185,18 @@ function resolveMatch(ps,scoreA,scoreB,dataRealizacaoId=""){
           uniquePlayers.push(p);
         }
       });
-      const originalPlayers = baseIds.map(id => uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id))).filter(Boolean);
+      const originalPlayers = baseIds.map(id => {
+        const found = uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id));
+        if (found) {
+          const clean = { ...found };
+          delete clean.isEmprestado;
+          delete clean.isTemporary;
+          delete clean.originalTeamId;
+          delete clean.originalTeamName;
+          return clean;
+        }
+        return null;
+      }).filter(Boolean);
       return { ...t, players: originalPlayers };
     });
   }
@@ -2267,6 +2348,16 @@ function higienizarJogadoresDuplicados(ps) {
   ps.teams.forEach(t => {
     t.players = t.players.filter(p => {
       const idStr = String(p.id || p.atleta_id || p.idAtleta);
+      
+      const isEmprestadoAtivo = ps.currentMatch && (
+        (ps.currentMatch.teamA === t.name && ps.currentMatch.teamAEmprestados?.map(id => String(id)).includes(idStr)) ||
+        (ps.currentMatch.teamB === t.name && ps.currentMatch.teamBEmprestados?.map(id => String(id)).includes(idStr))
+      );
+
+      if (isEmprestadoAtivo) {
+        return true;
+      }
+
       if (idsVistos.has(idStr)) return false;
       idsVistos.add(idStr);
       return true;
@@ -2302,6 +2393,8 @@ function sincronizarBasesDosTimes(ps) {
   if (!ps || !ps.teams) return ps;
   ps = higienizarJogadoresDuplicados(ps);
   if (!ps.teamBases) ps.teamBases = {};
+  if (!ps.loanLocks) ps.loanLocks = {};
+  
   const emprestadosIds = new Set([
     ...(ps.currentMatch?.teamAEmprestados || []),
     ...(ps.currentMatch?.teamBEmprestados || [])
@@ -2321,6 +2414,14 @@ function sincronizarBasesDosTimes(ps) {
 
     const uniqueIds = Array.from(new Set([...novosIds, ...atrasadosDesteTime]));
     ps.teamBases[t.name] = uniqueIds;
+    
+    // REGRA DE LOCK AUTOMÁTICO: Todo time completo (nativePlayers.length === playersPerTeam) deve ter um estado isLocked: true (loanLocks[t.name] = true)
+    const ppt = ps.playersPerTeam || 6;
+    if (uniqueIds.length >= ppt) {
+      if (ps.loanLocks[t.name] === undefined) {
+        ps.loanLocks[t.name] = true;
+      }
+    }
   });
   return ps;
 }
@@ -8726,7 +8827,26 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       });
       
       const emprestadosObjList = novosEmprestadosIds.map(id => {
-        return uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id));
+        const found = uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id));
+        if (found) {
+          // Achar qual o time de origem desse jogador na base
+          let origTeam = "";
+          if (ps.teamBases) {
+            Object.keys(ps.teamBases).forEach(tName => {
+              if (ps.teamBases[tName].map(String).includes(String(id))) {
+                origTeam = tName;
+              }
+            });
+          }
+          return {
+            ...found,
+            isEmprestado: true,
+            isTemporary: true,
+            originalTeamId: origTeam || found.originalTeamId || "",
+            originalTeamName: origTeam || found.originalTeamName || ""
+          };
+        }
+        return null;
       }).filter(Boolean);
       
       const atrasadosObjList = teamObj.players.filter(p => {
@@ -8852,7 +8972,14 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
     // Adiciona ao destino
     if (target === "bench") {
-      newBench.push(...playersObjList);
+      newBench.push(...playersObjList.map(p => {
+        const clean = { ...p };
+        delete clean.isEmprestado;
+        delete clean.isTemporary;
+        delete clean.originalTeamId;
+        delete clean.originalTeamName;
+        return clean;
+      }));
     } else if (target.startsWith("t")) {
       const teamIndex = parseInt(target.replace("t", "")) - 1;
       if (newDrawnTeams[teamIndex]) {
@@ -8870,7 +8997,14 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       });
 
       if (target === "bench") {
-        ps.bench.push(...playersObjList);
+        ps.bench.push(...playersObjList.map(p => {
+          const clean = { ...p };
+          delete clean.isEmprestado;
+          delete clean.isTemporary;
+          delete clean.originalTeamId;
+          delete clean.originalTeamName;
+          return clean;
+        }));
       } else if (target.startsWith("t")) {
         const teamIndex = parseInt(target.replace("t", "")) - 1;
         const teamName = newDrawnTeams[teamIndex]?.name || `Time ${teamIndex + 1}`;
