@@ -1936,6 +1936,7 @@ function limparExcessoEmprestados(ps, pptParam = null) {
   
   const ppt = pptParam || ps.playersPerTeam || 6;
   const { teamA, teamB } = ps.currentMatch;
+  const jogadoresAtrasadosIds = (ps.currentMatch.jogadoresAtrasados || []).map(id => String(id));
   
   const teamAObj = ps.teams.find(t => t.name === teamA);
   const teamBObj = ps.teams.find(t => t.name === teamB);
@@ -1943,15 +1944,17 @@ function limparExcessoEmprestados(ps, pptParam = null) {
   const processarTime = (teamObj, emprestadosArrayKey) => {
     if (!teamObj) return;
     const baseIds = (ps.teamBases[teamObj.name] || []).map(id => String(id));
+    // Exclui jogadores atrasados do cálculo de base para não reduzir a cota de empréstimos
+    const baseIdsValidos = baseIds.filter(id => !jogadoresAtrasadosIds.includes(id));
     
     const basePlayers = teamObj.players.filter(p => {
       const idStr = String(p.id || p.atleta_id || p.idAtleta);
-      return baseIds.includes(idStr);
+      return baseIdsValidos.includes(idStr);
     });
     
     const emprestados = teamObj.players.filter(p => {
       const idStr = String(p.id || p.atleta_id || p.idAtleta);
-      return !baseIds.includes(idStr);
+      return !baseIds.includes(idStr) && !jogadoresAtrasadosIds.includes(idStr);
     });
     
     const basePlayerIds = basePlayers.map(p => String(p.id || p.atleta_id || p.idAtleta));
@@ -1965,7 +1968,8 @@ function limparExcessoEmprestados(ps, pptParam = null) {
     
     if (emprestados.length > maxEmprestados) {
       const mantidosEmprestados = emprestados.slice(0, maxEmprestados);
-      teamObj.players = [...basePlayers, ...mantidosEmprestados];
+      const atrasadosNeste = teamObj.players.filter(p => jogadoresAtrasadosIds.includes(String(p.id || p.atleta_id || p.idAtleta)));
+      teamObj.players = [...basePlayers, ...mantidosEmprestados, ...atrasadosNeste];
       ps.currentMatch[emprestadosArrayKey] = mantidosEmprestados.map(p => p.id || p.atleta_id || p.idAtleta);
     }
   };
@@ -2087,8 +2091,10 @@ function resolveMatch(ps,scoreA,scoreB,dataRealizacaoId=""){
   
   const teamAObjOriginal = ps.teams.find(t=>t.name===ps.currentMatch.teamA);
   const teamBObjOriginal = ps.teams.find(t=>t.name===ps.currentMatch.teamB);
-  const playersA = teamAObjOriginal ? deepClone(teamAObjOriginal.players) : [];
-  const playersB = teamBObjOriginal ? deepClone(teamBObjOriginal.players) : [];
+  
+  const jogadoresAtrasadosIds = (ps.currentMatch?.jogadoresAtrasados || []).map(String);
+  const playersA = teamAObjOriginal ? deepClone(teamAObjOriginal.players).filter(p => !jogadoresAtrasadosIds.includes(String(p.id || p.atleta_id || p.idAtleta))) : [];
+  const playersB = teamBObjOriginal ? deepClone(teamBObjOriginal.players).filter(p => !jogadoresAtrasadosIds.includes(String(p.id || p.atleta_id || p.idAtleta))) : [];
 
   let newTeams = ps.teams ? ps.teams.map(t => ({ ...t, players: t.players ? [...t.players] : [] })) : [];
   let newBench = ps.bench ? [...ps.bench] : [];
@@ -8723,7 +8729,12 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         return uniquePlayers.find(p => String(p.id || p.atleta_id || p.idAtleta) === String(id));
       }).filter(Boolean);
       
-      teamObj.players = [...basePlayers, ...emprestadosObjList];
+      const atrasadosObjList = teamObj.players.filter(p => {
+        const idStr = String(p.id || p.atleta_id || p.idAtleta);
+        return jogadoresAtrasados.map(String).includes(idStr);
+      });
+      
+      teamObj.players = [...basePlayers, ...emprestadosObjList, ...atrasadosObjList];
     };
     
     processarTime(teamAObj, teamAEmprestados, "teamAEmprestados");
@@ -10422,7 +10433,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           <div style={{width:8,height:8,borderRadius:"50%",background:colorOfTeam(peladaState.currentMatch.teamA),flexShrink:0}}/>
                         </div>
                         <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>
-                          {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players.map((p,pi)=>(
+                          {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players
+                            .filter(p => !(peladaState.currentMatch.jogadoresAtrasados || []).map(String).includes(String(p.id || p.atleta_id || p.idAtleta)))
+                            .map((p,pi)=>(
                             <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                               <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, peladaState.currentMatch.teamA)}</span>
                               {isRealizada ? (
@@ -10502,7 +10515,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           )}
                         </div>
                         <div style={{fontSize:11,color:t.textSec,marginTop:6,display:"flex",flexDirection:"column",gap:6}}>
-                          {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players.map((p,pi)=>(
+                          {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players
+                            .filter(p => !(peladaState.currentMatch.jogadoresAtrasados || []).map(String).includes(String(p.id || p.atleta_id || p.idAtleta)))
+                            .map((p,pi)=>(
                             <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                               {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>}
                               {!isRealizada && <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamB});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>}
