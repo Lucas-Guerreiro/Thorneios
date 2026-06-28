@@ -8079,7 +8079,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     if (dt && ps) {
       const teamBases = {};
       dt.forEach(t => {
-        teamBases[t.name] = t.players.map(p => p.id || p.atleta_id || p.idAtleta);
+        teamBases[t.name] = t.players
+          .filter(p => !p.isTemporary && !p.isEmprestado)
+          .map(p => p.id || p.atleta_id || p.idAtleta);
       });
       if (finalUpdates.drawnTeams !== undefined) {
         ps.teams = dt.map(t => {
@@ -8087,9 +8089,15 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         });
       }
       ps = { ...ps, teamBases };
+      ps = higienizarJogadoresDuplicados(ps);
       finalUpdates.peladaState = ps;
+      
+      setPeladaStateLocalReal(ps);
       if (finalUpdates.drawnTeams !== undefined) {
-        finalUpdates.drawnTeams = dt;
+        finalUpdates.drawnTeams = ps.teams;
+        setDrawnTeams(ps.teams);
+      } else if (drawnTeams) {
+        setDrawnTeams(ps.teams);
       }
     }
     onUpdateData(selDataSorteio, finalUpdates);
@@ -8966,6 +8974,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       },finalScoreA,finalScoreB,selDataSorteio);
       const ps3=startNextMatch(ps2, selDataSorteio, ppt);
       setBenchState(ps3.bench);
+      setDrawnTeams(ps3.teams);
       salvarPeladaStateComHistorico(ps3);
       setScoreA("0");setScoreB("0");
       setSumulaGols({});
