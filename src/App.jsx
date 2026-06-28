@@ -9872,93 +9872,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
                   <div style={{height: 1, background: t.cardBorder}}/>
 
-                  {/* 5. Mínimo de Atletas para formar time e reverter originais */}
-                  <div style={{display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 12}}>
-                    <div style={{display: "flex", alignItems: "center", gap: 10}}>
-                      <span style={{fontSize: 12, fontWeight: 600, color: t.text}}>⚽ Mínimo para formar time:</span>
-                      
-                      {!isEditingMinAtletas ? (
-                        <div style={{display: "flex", alignItems: "center", gap: 8}}>
-                          <span style={{fontSize: 13, fontWeight: 700, color: t.text, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 6, padding: "2px 8px"}}>
-                            {peladaState?.minAtletasNovoTime || 4} atletas
-                          </span>
-                          {!isRealizada && (
-                            <button
-                              onClick={() => setIsEditingMinAtletas(true)}
-                              title="Editar mínimo de atletas para novo time"
-                              style={{
-                                border: "none",
-                                background: "transparent",
-                                cursor: "pointer",
-                                fontSize: 14,
-                                color: t.accent,
-                                padding: "2px 6px",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 4
-                              }}
-                            >
-                              📝 <span style={{fontSize: 11, fontWeight: 600}}>Editar</span>
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <div style={{display: "flex", alignItems: "center", gap: 8}}>
-                          <div style={{display: "flex", alignItems: "center", gap: 4, background: t.inputBg, border: `1px solid ${t.inputBorder}`, borderRadius: 8, padding: "2px 6px"}}>
-                            <button
-                              onClick={() => {
-                                if (isRealizada) return;
-                                const currentMin = peladaState?.minAtletasNovoTime || 4;
-                                if (currentMin <= 1) return;
-                                const ps = { ...peladaState, minAtletasNovoTime: currentMin - 1 };
-                                setPeladaStateLocal(ps);
-                                saveDateState({ peladaState: ps });
-                              }}
-                              disabled={isRealizada || (peladaState?.minAtletasNovoTime || 4) <= 1}
-                              style={{border: "none", background: "transparent", color: t.text, cursor: "pointer", fontSize: 13, fontWeight: "bold", padding: "2px 6px"}}
-                            >
-                              -
-                            </button>
-                            <span style={{fontSize: 12, fontWeight: 700, color: t.text, minWidth: 16, textAlign: "center"}}>
-                              {peladaState?.minAtletasNovoTime || 4}
-                            </span>
-                            <button
-                              onClick={() => {
-                                if (isRealizada) return;
-                                const currentMin = peladaState?.minAtletasNovoTime || 4;
-                                const ps = { ...peladaState, minAtletasNovoTime: currentMin + 1 };
-                                setPeladaStateLocal(ps);
-                                saveDateState({ peladaState: ps });
-                              }}
-                              disabled={isRealizada}
-                              style={{border: "none", background: "transparent", color: t.text, cursor: "pointer", fontSize: 13, fontWeight: "bold", padding: "2px 6px"}}
-                            >
-                              +
-                            </button>
-                          </div>
-                          <button
-                            onClick={() => setIsEditingMinAtletas(false)}
-                            style={{
-                              border: "none",
-                              background: "#1D9E7522",
-                              color: "#1D9E75",
-                              cursor: "pointer",
-                              borderRadius: 6,
-                              padding: "4px 8px",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 4
-                            }}
-                          >
-                            💾 Salvar
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {peladaState?.teamBases && !isRealizada && (
+                  {/* 5. Reverter times originais */}
+                  {peladaState?.teamBases && !isRealizada && (
+                    <div style={{display: "flex", justifyContent: "flex-end"}}>
                       <button
                         onClick={reverterTimesOriginais}
                         style={S.btnSm("#E24B4A22", "#E24B4A")}
@@ -9966,8 +9882,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                       >
                         🔄 Voltar jogadores originais
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   <div style={{height: 1, background: t.cardBorder, marginTop: 4}}/>
 
