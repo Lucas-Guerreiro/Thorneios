@@ -1926,7 +1926,8 @@ function startNextMatch(ps,dataRealizacaoId="",pptParam=null){
       teamBEmprestados,
       timerRunning: false,
       timerSecondsAtStart: defaultSecs,
-      timerStartTimestamp: null
+      timerStartTimestamp: null,
+      jogadoresAtrasados: []
     }
   };
 }
@@ -2298,10 +2299,20 @@ function sincronizarBasesDosTimes(ps) {
     ...(ps.currentMatch?.teamBEmprestados || [])
   ].map(id => String(id)));
   
+  const jogadoresAtrasadosIds = (ps.currentMatch?.jogadoresAtrasados || []).map(id => String(id));
+  
   ps.teams.forEach(t => {
-    ps.teamBases[t.name] = t.players
+    const atrasadosDesteTime = (ps.teamBases[t.name] || [])
+      .map(id => String(id))
+      .filter(id => jogadoresAtrasadosIds.includes(id));
+
+    const novosIds = t.players
       .map(p => p.id || p.atleta_id || p.idAtleta)
-      .filter(id => id && !emprestadosIds.has(String(id)));
+      .filter(id => id && !emprestadosIds.has(String(id)))
+      .map(id => String(id));
+
+    const uniqueIds = Array.from(new Set([...novosIds, ...atrasadosDesteTime]));
+    ps.teamBases[t.name] = uniqueIds;
   });
   return ps;
 }
@@ -8666,7 +8677,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   function ajustarEInserirEmprestadosTemporarios(ps, pptParam = null) {
     if (!ps || !ps.currentMatch || !ps.teams) return ps;
     const ppt = pptParam || ps.playersPerTeam || 6;
-    const { teamA, teamB, teamAEmprestados = [], teamBEmprestados = [] } = ps.currentMatch;
+    const { teamA, teamB, teamAEmprestados = [], teamBEmprestados = [], jogadoresAtrasados = [] } = ps.currentMatch;
     
     const teamAObj = ps.teams.find(t => t.name === teamA);
     const teamBObj = ps.teams.find(t => t.name === teamB);
@@ -8674,9 +8685,11 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     const processarTime = (teamObj, emprestadosIds, emprestadosArrayKey) => {
       if (!teamObj) return;
       const baseIds = (ps.teamBases[teamObj.name] || []).map(id => String(id));
+      const baseIdsValidosPartidaAtual = baseIds.filter(id => !jogadoresAtrasados.map(String).includes(id));
+      
       const basePlayers = teamObj.players.filter(p => {
         const idStr = String(p.id || p.atleta_id || p.idAtleta);
-        return baseIds.includes(idStr);
+        return baseIdsValidosPartidaAtual.includes(idStr);
       });
       
       const basePlayerIds = basePlayers.map(p => String(p.id || p.atleta_id || p.idAtleta));
@@ -8853,6 +8866,21 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           targetTeam.players.push(...playersObjList);
         } else {
           ps.teams.push({ name: teamName, players: playersObjList });
+        }
+
+        // Se o time de destino esta jogando a partida ativa, marcar como atrasado
+        if (ps.currentMatch && !ps.currentMatch.played) {
+          if (ps.currentMatch.teamA === teamName || ps.currentMatch.teamB === teamName) {
+            if (!ps.currentMatch.jogadoresAtrasados) {
+              ps.currentMatch.jogadoresAtrasados = [];
+            }
+            playersObjList.forEach(p => {
+              const pIdStr = String(p.id || p.atleta_id || p.idAtleta);
+              if (!ps.currentMatch.jogadoresAtrasados.includes(pIdStr)) {
+                ps.currentMatch.jogadoresAtrasados.push(pIdStr);
+              }
+            });
+          }
         }
       }
       ps = sincronizarBasesDosTimes(ps);
