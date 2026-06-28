@@ -1985,6 +1985,11 @@ function deduplicarEstadoPelada(ps) {
     t.players = t.players.filter(p => {
       const idStr = String(p.id || p.atleta_id || p.idAtleta);
       
+      if (baseIds.includes(idStr)) {
+        seenIds.add(idStr);
+        return true;
+      }
+      
       if (seenIds.has(idStr)) {
         return false;
       }
@@ -7804,8 +7809,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
     }
 
     setDrawnTeams(ps.teams);
+    setBenchState(ps.bench);
     setPeladaStateLocal(ps);
-    saveDateState({ peladaState: ps, drawnTeams: ps.teams });
+    saveDateState({ peladaState: ps, drawnTeams: ps.teams, initialBench: ps.bench });
     setSobrasModalData(null);
     alert("Jogadores restaurados com sucesso para as equipes e banco originais!");
   };
