@@ -5895,8 +5895,8 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
               return true;
             });
             const presentesList = partesFiltradas.filter(p=>p.compareceu);
-            const pagantesList = presentesList.filter(p=>p.pagou);
-            const inadimplentesList = presentesList.filter(p=>!p.pagou);
+            const pagantesList = partesFiltradas.filter(p=>p.pagou); // todos que pagaram, presentes ou ausentes
+            const inadimplentesList = presentesList.filter(p=>!p.pagou); // presentes que não pagaram
             return(
               <div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
@@ -5910,7 +5910,11 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
                     <div style={{display:"flex",flexDirection:"column",gap:4}}>
                       {pagantesList.map(p=>{
                         const a = getAtletaById(atletas, p.atleta_id);
-                        return <div key={p.id} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}><PlayerAvatar atleta={a} size={16}/> {getPlayerName(a)}</div>;
+                        const ausente = !p.compareceu;
+                        return <div key={p.id} style={{fontSize:12,color: ausente ? t.textSec : t.text,display:"flex",alignItems:"center",gap:6}}>
+                          <PlayerAvatar atleta={a} size={16}/> {getPlayerName(a)}
+                          {ausente && <span style={{fontSize:9,fontWeight:700,background:"#BA751722",color:"#BA7517",padding:"1px 5px",borderRadius:10,whiteSpace:"nowrap"}}>ausente</span>}
+                        </div>;
                       })}
                       {pagantesList.length===0&&<div style={{fontSize:11,color:t.textSec}}>Ninguém.</div>}
                     </div>
