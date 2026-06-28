@@ -6696,7 +6696,23 @@ function AbaDatas({peladaId,datasRealizacao,onAdd,onUpdate,onRemove,t,quadras=[]
                     <option value="cancelado">Cancelado</option>
                   </select>
                   <button onClick={()=>{setEditId(d.id);setEditData(d.data);setEditLocal(d.local||"");setEditValor(d.valor||"");}} style={S.btnSm("#378ADD22","#378ADD")}>✏️</button>
-                  <button onClick={()=>onRemove(d.id)} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
+                  <button 
+                    onClick={() => {
+                      if (d.status === "realizado") {
+                        if (!confirm("⚠️ ATENÇÃO: Esta rodada está concluída/realizada! Excluí-la apagará permanentemente o histórico de jogos, gols e presenças. Tem certeza absoluta que deseja excluir?")) {
+                          return;
+                        }
+                      } else {
+                        if (!confirm("Deseja realmente excluir esta data?")) {
+                          return;
+                        }
+                      }
+                      onRemove(d.id);
+                    }} 
+                    style={S.btnSm("#E24B4A22","#E24B4A")}
+                  >
+                    🗑
+                  </button>
                 </div>
               </div>
             )}
