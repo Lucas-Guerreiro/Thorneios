@@ -5889,14 +5889,30 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
         <div style={{...S.card,marginBottom:16,borderColor:"#BA751755"}}>
           <div style={{fontWeight:700,color:"#BA7517",marginBottom:10}}>Resumo de Presenças e Pagamentos</div>
           {(()=>{
-            const partesFiltradas = participacoesVisiveis.filter(p=>{
-              if(String(p.pelada_id)!==String(filtroId)) return false;
-              if(p.data_realizacao_id === null || p.data_realizacao_id === undefined) return false; // ignora vínculos gerais sem data
-              if(filtroData!=="todas" && String(p.data_realizacao_id)!==String(filtroData)) return false;
-              return true;
+            const mapAtletas = new Map();
+            participacoesVisiveis.forEach(p => {
+              if(String(p.pelada_id)!==String(filtroId)) return;
+              if(filtroData!=="todas") {
+                if (String(p.data_realizacao_id)!==String(filtroData)) return;
+              } else {
+                if (p.data_realizacao_id === null || p.data_realizacao_id === undefined) return;
+              }
+              const atletaId = String(p.atleta_id);
+              if (!mapAtletas.has(atletaId)) {
+                mapAtletas.set(atletaId, { ...p });
+              } else {
+                const existente = mapAtletas.get(atletaId);
+                existente.compareceu = existente.compareceu || p.compareceu;
+                existente.pagou = existente.pagou || p.pagou;
+                if (Number(p.valor || 0) > Number(existente.valor || 0)) {
+                  existente.valor = p.valor;
+                }
+              }
             });
+            const partesFiltradas = Array.from(mapAtletas.values());
             const presentesList = partesFiltradas.filter(p=>p.compareceu);
             const pagantesList = partesFiltradas.filter(p=>p.pagou); // todos que pagaram, presentes ou ausentes
+            // Filtra pendentes e garante sincronia total entre contagem e lista exibida
             const inadimplentesList = partesFiltradas.filter(p=>!p.pagou); // todos que não pagaram, presentes ou ausentes
             return(
               <div>
