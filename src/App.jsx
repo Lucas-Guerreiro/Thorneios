@@ -4884,7 +4884,8 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
 
   const opcoesMeses = useMemo(() => {
     const map = new Map();
-    datas.forEach(d => {
+    const arrDatas = Array.isArray(datas) ? datas : [];
+    arrDatas.forEach(d => {
       if (!d.data) return;
       const [ano, mes] = d.data.split('-');
       const nomeMeses = [
@@ -4899,7 +4900,8 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
 
   const opcoesTrimestres = useMemo(() => {
     const map = new Map();
-    datas.forEach(d => {
+    const arrDatas = Array.isArray(datas) ? datas : [];
+    arrDatas.forEach(d => {
       if (!d.data) return;
       const [ano, mes] = d.data.split('-');
       const trim = Math.floor((parseInt(mes) - 1) / 3) + 1;
@@ -4919,37 +4921,38 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
     }
   }, [filtroPeriodoTipo, opcoesMeses, opcoesTrimestres]);
 
-  const colorOfTeam = n => {
-    const i = (peladaState?.teams || []).findIndex(x => x.name === n);
-    return COLORS[i % COLORS.length] || "#888";
-  };
+  try {
+    const colorOfTeam = n => {
+      const i = (peladaState?.teams || []).findIndex(x => x.name === n);
+      return COLORS[i % COLORS.length] || "#888";
+    };
 
-  const getFilteredMatches = () => {
-    const log = peladaState?.matchLog || [];
-    let matches = log.filter(m => m.played);
+    const getFilteredMatches = () => {
+      const log = peladaState?.matchLog || [];
+      let matches = log.filter(m => m.played);
 
-    if (String(selDataSorteio) !== "todas") {
-      matches = matches.filter(m => String(m.dataRealizacaoId) === String(selDataSorteio));
-    } else {
-      if (filtroPeriodoTipo === "mes" && filtroPeriodoValor) {
-        matches = matches.filter(m => {
-          const dObj = datas.find(x => String(x.id) === String(m.dataRealizacaoId));
-          if (!dObj || !dObj.data) return false;
-          const [ano, mes] = dObj.data.split('-');
-          return `${ano}-${mes}` === filtroPeriodoValor;
-        });
-      } else if (filtroPeriodoTipo === "trimestre" && filtroPeriodoValor) {
-        matches = matches.filter(m => {
-          const dObj = datas.find(x => String(x.id) === String(m.dataRealizacaoId));
-          if (!dObj || !dObj.data) return false;
-          const [ano, mes] = dObj.data.split('-');
-          const trim = Math.floor((parseInt(mes) - 1) / 3) + 1;
-          return `${ano}-T${trim}` === filtroPeriodoValor;
-        });
+      if (String(selDataSorteio) !== "todas") {
+        matches = matches.filter(m => String(m.dataRealizacaoId) === String(selDataSorteio));
+      } else {
+        if (filtroPeriodoTipo === "mes" && filtroPeriodoValor) {
+          matches = matches.filter(m => {
+            const dObj = (datas || []).find(x => String(x.id) === String(m.dataRealizacaoId));
+            if (!dObj || !dObj.data) return false;
+            const [ano, mes] = dObj.data.split('-');
+            return `${ano}-${mes}` === filtroPeriodoValor;
+          });
+        } else if (filtroPeriodoTipo === "trimestre" && filtroPeriodoValor) {
+          matches = matches.filter(m => {
+            const dObj = (datas || []).find(x => String(x.id) === String(m.dataRealizacaoId));
+            if (!dObj || !dObj.data) return false;
+            const [ano, mes] = dObj.data.split('-');
+            const trim = Math.floor((parseInt(mes) - 1) / 3) + 1;
+            return `${ano}-T${trim}` === filtroPeriodoValor;
+          });
+        }
       }
-    }
-    return matches;
-  };
+      return matches;
+    };
 
   const getPlayersFallback = (match, teamLetter) => {
     const teamName = teamLetter === 'A' ? match.teamA : match.teamB;
@@ -5682,7 +5685,17 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
         </div>
       </div>
     </div>
-  );
+    );
+  } catch (err) {
+    console.error("Erro na AbaRelatorioPelada:", err);
+    return (
+      <div style={{padding: 20, background: "#FFF5F5", border: "1px solid #E24B4A", borderRadius: 8, color: "#E24B4A", margin: "20px 0"}}>
+        <h3>⚠️ Ocorreu um erro ao carregar o Ranking</h3>
+        <p style={{fontWeight: 700}}>{err.message}</p>
+        <pre style={{fontSize: 11, overflow: "auto", background: "#FFEBEB", padding: 10, borderRadius: 4}}>{err.stack}</pre>
+      </div>
+    );
+  }
 }
 
 /* ─────────────────────────── FINANCEIRO ─────────────────────────── */
