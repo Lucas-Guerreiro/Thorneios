@@ -4883,41 +4883,60 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
   const [filtroPeriodoValor, setFiltroPeriodoValor] = useState("");
 
   const opcoesMeses = useMemo(() => {
-    const map = new Map();
-    const arrDatas = Array.isArray(datas) ? datas : [];
-    arrDatas.forEach(d => {
-      if (!d.data) return;
-      const [ano, mes] = d.data.split('-');
-      const nomeMeses = [
-        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-      ];
-      const rotulo = `${nomeMeses[parseInt(mes) - 1]} de ${ano}`;
-      map.set(`${ano}-${mes}`, rotulo);
-    });
-    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+    try {
+      const map = new Map();
+      const arrDatas = Array.isArray(datas) ? datas : [];
+      arrDatas.forEach(d => {
+        if (!d || !d.data) return;
+        const [ano, mes] = d.data.split('-');
+        if (!mes) return;
+        const nomeMeses = [
+          "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ];
+        const idx = parseInt(mes) - 1;
+        if (isNaN(idx) || idx < 0 || idx > 11) return;
+        const rotulo = `${nomeMeses[idx]} de ${ano}`;
+        map.set(`${ano}-${mes}`, rotulo);
+      });
+      return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+    } catch (e) {
+      console.error("Erro no useMemo opcoesMeses:", e);
+      return [];
+    }
   }, [datas]);
 
   const opcoesTrimestres = useMemo(() => {
-    const map = new Map();
-    const arrDatas = Array.isArray(datas) ? datas : [];
-    arrDatas.forEach(d => {
-      if (!d.data) return;
-      const [ano, mes] = d.data.split('-');
-      const trim = Math.floor((parseInt(mes) - 1) / 3) + 1;
-      const rotulo = `${trim}º Trimestre de ${ano}`;
-      map.set(`${ano}-T${trim}`, rotulo);
-    });
-    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+    try {
+      const map = new Map();
+      const arrDatas = Array.isArray(datas) ? datas : [];
+      arrDatas.forEach(d => {
+        if (!d || !d.data) return;
+        const [ano, mes] = d.data.split('-');
+        if (!mes) return;
+        const trim = Math.floor((parseInt(mes) - 1) / 3) + 1;
+        if (isNaN(trim) || trim < 1 || trim > 4) return;
+        const rotulo = `${trim}º Trimestre de ${ano}`;
+        map.set(`${ano}-T${trim}`, rotulo);
+      });
+      return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+    } catch (e) {
+      console.error("Erro no useMemo opcoesTrimestres:", e);
+      return [];
+    }
   }, [datas]);
 
   useEffect(() => {
-    if (filtroPeriodoTipo === "mes") {
-      setFiltroPeriodoValor(opcoesMeses[0] ? opcoesMeses[0][0] : "");
-    } else if (filtroPeriodoTipo === "trimestre") {
-      setFiltroPeriodoValor(opcoesTrimestres[0] ? opcoesTrimestres[0][0] : "");
-    } else {
-      setFiltroPeriodoValor("");
+    try {
+      if (filtroPeriodoTipo === "mes") {
+        setFiltroPeriodoValor(opcoesMeses[0] ? opcoesMeses[0][0] : "");
+      } else if (filtroPeriodoTipo === "trimestre") {
+        setFiltroPeriodoValor(opcoesTrimestres[0] ? opcoesTrimestres[0][0] : "");
+      } else {
+        setFiltroPeriodoValor("");
+      }
+    } catch (e) {
+      console.error("Erro no useEffect filtroPeriodo:", e);
     }
   }, [filtroPeriodoTipo, opcoesMeses, opcoesTrimestres]);
 
