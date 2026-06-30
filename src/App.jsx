@@ -4882,7 +4882,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
   const [filtroPeriodoTipo, setFiltroPeriodoTipo] = useState("geral"); // "geral" | "mes" | "trimestre"
   const [filtroPeriodoValor, setFiltroPeriodoValor] = useState("");
 
-  const opcoesMeses = useMemo(() => {
+  const opcoesMeses = React.useMemo(() => {
     try {
       const map = new Map();
       const arrDatas = Array.isArray(datas) ? datas : [];
@@ -4906,7 +4906,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
     }
   }, [datas]);
 
-  const opcoesTrimestres = useMemo(() => {
+  const opcoesTrimestres = React.useMemo(() => {
     try {
       const map = new Map();
       const arrDatas = Array.isArray(datas) ? datas : [];
