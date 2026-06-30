@@ -4879,7 +4879,46 @@ function StandingsTable({standings,teams,colorOf,accent,t,emblems}){
 function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSortBy, setRepSortBy, formatarData, t }) {
   const S = makeStyles(t);
   const [activeRankTab, setActiveRankTab] = useState("linha");
-  
+  const [filtroPeriodoTipo, setFiltroPeriodoTipo] = useState("geral"); // "geral" | "mes" | "trimestre"
+  const [filtroPeriodoValor, setFiltroPeriodoValor] = useState("");
+
+  const opcoesMeses = useMemo(() => {
+    const map = new Map();
+    datas.forEach(d => {
+      if (!d.data) return;
+      const [ano, mes] = d.data.split('-');
+      const nomeMeses = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+      ];
+      const rotulo = `${nomeMeses[parseInt(mes) - 1]} de ${ano}`;
+      map.set(`${ano}-${mes}`, rotulo);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [datas]);
+
+  const opcoesTrimestres = useMemo(() => {
+    const map = new Map();
+    datas.forEach(d => {
+      if (!d.data) return;
+      const [ano, mes] = d.data.split('-');
+      const trim = Math.floor((parseInt(mes) - 1) / 3) + 1;
+      const rotulo = `${trim}º Trimestre de ${ano}`;
+      map.set(`${ano}-T${trim}`, rotulo);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [datas]);
+
+  useEffect(() => {
+    if (filtroPeriodoTipo === "mes") {
+      setFiltroPeriodoValor(opcoesMeses[0] ? opcoesMeses[0][0] : "");
+    } else if (filtroPeriodoTipo === "trimestre") {
+      setFiltroPeriodoValor(opcoesTrimestres[0] ? opcoesTrimestres[0][0] : "");
+    } else {
+      setFiltroPeriodoValor("");
+    }
+  }, [filtroPeriodoTipo, opcoesMeses, opcoesTrimestres]);
+
   const colorOfTeam = n => {
     const i = (peladaState?.teams || []).findIndex(x => x.name === n);
     return COLORS[i % COLORS.length] || "#888";
@@ -4887,10 +4926,29 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
 
   const getFilteredMatches = () => {
     const log = peladaState?.matchLog || [];
-    if (String(selDataSorteio) === "todas") {
-      return log.filter(m => m.played);
+    let matches = log.filter(m => m.played);
+
+    if (String(selDataSorteio) !== "todas") {
+      matches = matches.filter(m => String(m.dataRealizacaoId) === String(selDataSorteio));
+    } else {
+      if (filtroPeriodoTipo === "mes" && filtroPeriodoValor) {
+        matches = matches.filter(m => {
+          const dObj = datas.find(x => String(x.id) === String(m.dataRealizacaoId));
+          if (!dObj || !dObj.data) return false;
+          const [ano, mes] = dObj.data.split('-');
+          return `${ano}-${mes}` === filtroPeriodoValor;
+        });
+      } else if (filtroPeriodoTipo === "trimestre" && filtroPeriodoValor) {
+        matches = matches.filter(m => {
+          const dObj = datas.find(x => String(x.id) === String(m.dataRealizacaoId));
+          if (!dObj || !dObj.data) return false;
+          const [ano, mes] = dObj.data.split('-');
+          const trim = Math.floor((parseInt(mes) - 1) / 3) + 1;
+          return `${ano}-T${trim}` === filtroPeriodoValor;
+        });
+      }
     }
-    return log.filter(m => m.played && String(m.dataRealizacaoId) === String(selDataSorteio));
+    return matches;
   };
 
   const getPlayersFallback = (match, teamLetter) => {
@@ -5160,7 +5218,17 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
     .sort(sortRanking);
 
   const getSelectedDateText = () => {
-    if (String(selDataSorteio) === "todas") return "Todas as Datas";
+    if (String(selDataSorteio) === "todas") {
+      if (filtroPeriodoTipo === "mes" && filtroPeriodoValor) {
+        const opcao = opcoesMeses.find(o => o[0] === filtroPeriodoValor);
+        return opcao ? opcao[1] : "Todas as Datas";
+      }
+      if (filtroPeriodoTipo === "trimestre" && filtroPeriodoValor) {
+        const opcao = opcoesTrimestres.find(o => o[0] === filtroPeriodoValor);
+        return opcao ? opcao[1] : "Todas as Datas";
+      }
+      return "Todas as Datas";
+    }
     const dataObj = datas.find(x => String(x.id) === String(selDataSorteio));
     return dataObj ? formatarData(dataObj.data) : "—";
   };
@@ -5224,6 +5292,53 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
             ))}
           </div>
         </div>
+
+        {/* Filtro por Período (Apenas para Todas as Datas) */}
+        {String(selDataSorteio) === "todas" && (
+          <div style={{ ...S.card, marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", borderColor: (t.accent || "#0095F6") + "44" }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: t.text }}>📅 Filtrar por Período:</div>
+            
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <select 
+                value={filtroPeriodoTipo} 
+                onChange={e => setFiltroPeriodoTipo(e.target.value)}
+                style={{ ...S.select, padding: "4px 8px", fontSize: 12, width: 160 }}
+              >
+                <option value="geral">Geral (Todo o histórico)</option>
+                <option value="mes">Mensal</option>
+                <option value="trimestre">Trimestral</option>
+              </select>
+            </div>
+
+            {filtroPeriodoTipo === "mes" && opcoesMeses.length > 0 && (
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <select 
+                  value={filtroPeriodoValor} 
+                  onChange={e => setFiltroPeriodoValor(e.target.value)}
+                  style={{ ...S.select, padding: "4px 8px", fontSize: 12, width: 180 }}
+                >
+                  {opcoesMeses.map(([chave, rotulo]) => (
+                    <option key={chave} value={chave}>{rotulo}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {filtroPeriodoTipo === "trimestre" && opcoesTrimestres.length > 0 && (
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <select 
+                  value={filtroPeriodoValor} 
+                  onChange={e => setFiltroPeriodoValor(e.target.value)}
+                  style={{ ...S.select, padding: "4px 8px", fontSize: 12, width: 200 }}
+                >
+                  {opcoesTrimestres.map(([chave, rotulo]) => (
+                    <option key={chave} value={chave}>{rotulo}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Cards de Resumo & Botões de Ação */}
         <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "stretch" }} className="no-print">
