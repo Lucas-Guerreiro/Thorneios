@@ -5362,6 +5362,14 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
           </div>
         )}
 
+        {/* Dica para habilitar filtro de período se estiver visualizando uma data ativa específica */}
+        {String(selDataSorteio) !== "todas" && (
+          <div style={{ fontSize: 12, color: t.textSec, marginBottom: 16, background: (t.accent || "#0095F6") + "11", padding: "10px 14px", borderRadius: 8, border: `1.5px dashed ${(t.accent || "#0095F6")}44`, display: "flex", alignItems: "center", gap: 6 }}>
+            <span>💡</span>
+            <span><strong>Dica:</strong> Para filtrar o ranking por período (mensal/trimestral), selecione a opção <strong>"Todas as Datas"</strong> no seletor de <strong>"Dia da Pelada"</strong> lá no topo da página.</span>
+          </div>
+        )}
+
         {/* Cards de Resumo & Botões de Ação */}
         <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "stretch" }} className="no-print">
           <div style={{ ...S.card, flex: 1, minWidth: 140, padding: 12, textAlign: "center", borderColor: (t.accent || "#0095F6") + "33", display: "flex", flexDirection: "column", justifyContent: "center" }}>
