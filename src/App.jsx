@@ -7916,6 +7916,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[editGoleiroB,setEditGoleiroB]=useState("");
   const[editGoleiroAInteiro,setEditGoleiroAInteiro]=useState(true);
   const[editGoleiroBInteiro,setEditGoleiroBInteiro]=useState(true);
+  const[editPlayersA,setEditPlayersA]=useState([]);
+  const[editPlayersB,setEditPlayersB]=useState([]);
  
   // Estado para modal de "Sair do Jogo"
   const[sairModal,setSairModal]=useState(null); // {playerId, playerName, teamName}
@@ -9054,7 +9056,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         goleiroA: editGoleiroA,
         goleiroB: editGoleiroB,
         goleiroAInteiro: editGoleiroAInteiro,
-        goleiroBInteiro: editGoleiroBInteiro
+        goleiroBInteiro: editGoleiroBInteiro,
+        playersA: editPlayersA,
+        playersB: editPlayersB
       };
 
       setPeladaStateLocal(ps);
@@ -11045,7 +11049,6 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       {(peladaState?.matchLog||[]).map((m, originalIndex) => ({m, originalIndex})).filter(({m}) => String(m.dataRealizacaoId) === String(selDataSorteio)).reverse().map(({m, originalIndex})=>(
                         <div key={originalIndex} style={{...S.card,padding:"10px 12px",position:"relative"}}>
-                          {!isRealizada && (
                             <button 
                               onClick={() => {
                                 setEditMatchId(originalIndex);
@@ -11056,6 +11059,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                 setEditGoleiroB(m.goleiroB || "");
                                 setEditGoleiroAInteiro(m.goleiroAInteiro !== false);
                                 setEditGoleiroBInteiro(m.goleiroBInteiro !== false);
+                                setEditPlayersA(m.playersA || []);
+                                setEditPlayersB(m.playersB || []);
                               }}
                               style={{
                                 position: "absolute",
@@ -11071,7 +11076,6 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             >
                               ✏️
                             </button>
-                          )}
                           <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:8}}>
                             <span style={{fontWeight:800,fontSize:15,color:"#378ADD"}}>{m.scoreA} × {m.scoreB}</span>
                             <div style={{marginTop:2,textAlign:"center"}}>
@@ -11411,9 +11415,23 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               <div style={{borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:10}}>
                 <div style={{fontWeight:700,color:colorOfTeam(peladaState.matchLog[editMatchId].teamA),fontSize:12,marginBottom:6}}>{peladaState.matchLog[editMatchId].teamA} (Marcadores)</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                  {(peladaState.matchLog[editMatchId].playersA || []).map(p => (
+                  {(editPlayersA || []).map(p => (
                     <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:12}}>
-                      <span style={{color:t.text}}>{getPlayerName(p)}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <button 
+                          onClick={() => {
+                            setEditPlayersA(prev => prev.filter(x => String(x.id) !== String(p.id)));
+                            setEditSumula(prev => {
+                              const next = { ...prev };
+                              delete next[p.id];
+                              return next;
+                            });
+                          }}
+                          style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"2px 4px"}}
+                          title="Remover Jogador da Partida"
+                        >❌</button>
+                        <span style={{color:t.text}}>{getPlayerName(p)}</span>
+                      </div>
                       <div style={{display:"flex",alignItems:"center",gap:4}}>
                         <input 
                           type="number" 
@@ -11428,15 +11446,55 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     </div>
                   ))}
                 </div>
+                {/* Adicionar Jogador Time A */}
+                <div style={{marginTop: 8, display: "flex", gap: 6, alignItems: "center"}}>
+                  <select 
+                    id="add-player-a-select"
+                    style={{...S.select, padding: "3px 6px", fontSize: 11, flex: 1}}
+                    defaultValue=""
+                  >
+                    <option value="">+ Adicionar ao {peladaState.matchLog[editMatchId].teamA}...</option>
+                    {atletas.filter(a => ![...editPlayersA, ...editPlayersB].map(x => String(x.id)).includes(String(a.id))).map(a => (
+                      <option key={a.id} value={a.id}>{getPlayerName(a)}</option>
+                    ))}
+                  </select>
+                  <button 
+                    onClick={() => {
+                      const select = document.getElementById("add-player-a-select");
+                      if (select && select.value) {
+                        const atleta = atletas.find(x => String(x.id) === String(select.value));
+                        if (atleta) {
+                          setEditPlayersA(prev => [...prev, { id: atleta.id, nome: atleta.nome, apelido: atleta.apelido, goleiro: atleta.goleiro }]);
+                        }
+                        select.value = "";
+                      }
+                    }}
+                    style={{...S.btnSm("#1D9E7522","#1D9E75"), padding: "4px 8px"}}
+                  >Add</button>
+                </div>
               </div>
 
               {/* Marcadores Time B */}
               <div>
                 <div style={{fontWeight:700,color:colorOfTeam(peladaState.matchLog[editMatchId].teamB),fontSize:12,marginBottom:6}}>{peladaState.matchLog[editMatchId].teamB} (Marcadores)</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                  {(peladaState.matchLog[editMatchId].playersB || []).map(p => (
+                  {(editPlayersB || []).map(p => (
                     <div key={p.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:12}}>
-                      <span style={{color:t.text}}>{getPlayerName(p)}</span>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <button 
+                          onClick={() => {
+                            setEditPlayersB(prev => prev.filter(x => String(x.id) !== String(p.id)));
+                            setEditSumula(prev => {
+                              const next = { ...prev };
+                              delete next[p.id];
+                              return next;
+                            });
+                          }}
+                          style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"2px 4px"}}
+                          title="Remover Jogador da Partida"
+                        >❌</button>
+                        <span style={{color:t.text}}>{getPlayerName(p)}</span>
+                      </div>
                       <div style={{display:"flex",alignItems:"center",gap:4}}>
                         <input 
                           type="number" 
@@ -11450,6 +11508,32 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                       </div>
                     </div>
                   ))}
+                </div>
+                {/* Adicionar Jogador Time B */}
+                <div style={{marginTop: 8, display: "flex", gap: 6, alignItems: "center"}}>
+                  <select 
+                    id="add-player-b-select"
+                    style={{...S.select, padding: "3px 6px", fontSize: 11, flex: 1}}
+                    defaultValue=""
+                  >
+                    <option value="">+ Adicionar ao {peladaState.matchLog[editMatchId].teamB}...</option>
+                    {atletas.filter(a => ![...editPlayersA, ...editPlayersB].map(x => String(x.id)).includes(String(a.id))).map(a => (
+                      <option key={a.id} value={a.id}>{getPlayerName(a)}</option>
+                    ))}
+                  </select>
+                  <button 
+                    onClick={() => {
+                      const select = document.getElementById("add-player-b-select");
+                      if (select && select.value) {
+                        const atleta = atletas.find(x => String(x.id) === String(select.value));
+                        if (atleta) {
+                          setEditPlayersB(prev => [...prev, { id: atleta.id, nome: atleta.nome, apelido: atleta.apelido, goleiro: atleta.goleiro }]);
+                        }
+                        select.value = "";
+                      }
+                    }}
+                    style={{...S.btnSm("#1D9E7522","#1D9E75"), padding: "4px 8px"}}
+                  >Add</button>
                 </div>
               </div>
             </div>
@@ -11468,7 +11552,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     style={{...S.select,padding:"3px 6px",fontSize:11,width:"60%"}}
                   >
                     <option value="">Nenhum</option>
-                    {(peladaState.matchLog[editMatchId].playersA || []).map(p => (
+                    {(editPlayersA || []).map(p => (
                       <option key={p.id} value={p.id}>{getPlayerName(p)}</option>
                     ))}
                   </select>
@@ -11494,7 +11578,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     style={{...S.select,padding:"3px 6px",fontSize:11,width:"60%"}}
                   >
                     <option value="">Nenhum</option>
-                    {(peladaState.matchLog[editMatchId].playersB || []).map(p => (
+                    {(editPlayersB || []).map(p => (
                       <option key={p.id} value={p.id}>{getPlayerName(p)}</option>
                     ))}
                   </select>
