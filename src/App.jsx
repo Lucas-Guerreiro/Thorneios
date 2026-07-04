@@ -5121,39 +5121,44 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
       {/* Lista de Confirmados na Pelada */}
       {(() => {
         const confirmadosParts = activeDate?.participacoes || [];
-        if (confirmadosParts.length === 0) return null;
         
         return (
           <div style={{...S.card, padding: 14, borderRadius: 12, marginBottom: 16}}>
             <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text, display: "flex", alignItems: "center", gap: 6}}>
               <span>👥 Lista de Confirmados ({confirmadosParts.length})</span>
             </h4>
-            <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
-              {confirmadosParts.map((part, index) => {
-                const a = atletas.find(x => String(x.id) === String(part.atleta_id));
-                const nomeExibido = a ? (a.apelido || a.nome) : `Jogador #${part.atleta_id}`;
-                return (
-                  <span
-                    key={index}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      fontSize: 11.5,
-                      padding: "4px 10px",
-                      borderRadius: 16,
-                      background: t.inputBg,
-                      color: t.text,
-                      fontWeight: 600,
-                      border: `1px solid ${t.cardBorder}`
-                    }}
-                  >
-                    <PlayerAvatar atleta={a} size={16}/>
-                    {nomeExibido}
-                  </span>
-                );
-              })}
-            </div>
+            {confirmadosParts.length > 0 ? (
+              <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
+                {confirmadosParts.map((part, index) => {
+                  const a = atletas.find(x => String(x.id) === String(part.atleta_id));
+                  const nomeExibido = a ? (a.apelido || a.nome) : `Jogador #${part.atleta_id}`;
+                  return (
+                    <span
+                      key={index}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 11.5,
+                        padding: "4px 10px",
+                        borderRadius: 16,
+                        background: t.inputBg,
+                        color: t.text,
+                        fontWeight: 600,
+                        border: `1px solid ${t.cardBorder}`
+                      }}
+                    >
+                      <PlayerAvatar atleta={a} size={16}/>
+                      {nomeExibido}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{fontSize: 11, color: t.textSec, textAlign: "center", padding: 10}}>
+                Nenhum atleta confirmado nesta data.
+              </div>
+            )}
           </div>
         );
       })()}
