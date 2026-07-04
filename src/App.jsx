@@ -16654,68 +16654,64 @@ export default function App(){
     const isDark = dark;
     const ac = t.accent || "#22D9C8";
     
-    // Determinar o contexto ativo para o resumo do caixa (pelada atual, campeonato atual ou visão geral)
-    let isGeral = true;
-    let isPelada = false;
-    let isChamp = false;
-    let filtroId = null;
-
-    if (screen === "gerenciarPelada" && current?.id) {
-      isGeral = false;
-      isPelada = true;
-      filtroId = current.id;
-    } else if (screen === "gerenciarChamp" && current?.id) {
-      isGeral = false;
-      isChamp = true;
-      filtroId = current.id;
-    } else if (screen === "home") {
-      if (dashboardSelectedId !== "") {
-        isGeral = false;
-        if (dashboardTab === "campeonatos") {
-          isChamp = true;
-        } else {
-          isPelada = true;
-        }
-        filtroId = Number(dashboardSelectedId);
-      }
-    }
-
-    // 1. Filtrar lançamentos manuais do caixa correspondentes ao contexto
+    // -------------------------------------------------------------
+    // CALCULO DO CAIXA DE CAMPEONATOS
+    // -------------------------------------------------------------
     const allEntries = financeiroFiltered?.entries || [];
-    const entries = allEntries.filter(e => {
-      if (isChamp) return String(e.champ_id) === String(filtroId);
-      if (isPelada) return String(e.pelada_id) === String(filtroId);
-      return true; // Geral
+    
+    const visibleChamps = campeonatos; 
+    
+    const champEntries = allEntries.filter(e => {
+      if (sidebarChampId === "all") {
+        return e.champ_id && String(e.champ_id) !== "null" && String(e.champ_id) !== "";
+      } else {
+        return String(e.champ_id) === String(sidebarChampId) || String(e.champ_id) === "champ:" + sidebarChampId;
+      }
+    });
+    
+    const champDespesas = champEntries.filter(e => e.type === "despesa").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const champReceitas = champEntries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const champSaldo = champReceitas - champDespesas;
+
+    // -------------------------------------------------------------
+    // CALCULO DO CAIXA DE PELADAS
+    // -------------------------------------------------------------
+    const visiblePeladas = peladas;
+    const visiblePeladaIds = peladas.map(p => String(p.id));
+    const activeDatasIds = datasRealizacao.map(d => String(d.id));
+
+    const peladaEntries = allEntries.filter(e => {
+      if (sidebarPeladaId === "all") {
+        return e.pelada_id && String(e.pelada_id) !== "null" && String(e.pelada_id) !== "";
+      } else {
+        return String(e.pelada_id) === String(sidebarPeladaId) || String(e.pelada_id) === "pelada:" + sidebarPeladaId;
+      }
     });
 
-    const totalDespesa = entries.filter(e => e.type === "despesa").reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const receitasManuais = entries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const peladaDespesas = peladaEntries.filter(e => e.type === "despesa").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const peladaReceitasManuais = peladaEntries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
-    // 2. Calcular as receitas automáticas de diárias (autoIncome) seguindo as regras do financeiro
-    const visiblePeladaIds = peladas.map(p => String(p.id));
-    const participacoesVisiveis = participacoes.filter(p => visiblePeladaIds.includes(String(p.pelada_id)));
-
-    let autoIncome = 0;
-    if (isGeral) {
-      const activeDatasIds = datasRealizacao.map(d => String(d.id));
-      autoIncome = participacoesVisiveis.filter(p => {
+    let peladaAutoIncome = 0;
+    if (sidebarPeladaId === "all") {
+      const participacoesVisiveis = participacoes.filter(p => visiblePeladaIds.includes(String(p.pelada_id)));
+      peladaAutoIncome = participacoesVisiveis.filter(p => {
         if (!p.pagou || p.usou_saldo) return false;
         if (p.data_realizacao_id === null || p.data_realizacao_id === undefined || String(p.data_realizacao_id) === "null" || String(p.data_realizacao_id) === "") return false;
         if (!activeDatasIds.includes(String(p.data_realizacao_id))) return false;
         return true;
       }).reduce((sum, p) => sum + Number(p.valor || 0), 0);
-    } else if (isPelada) {
-      const activeDatasPeladaIds = datasRealizacao.filter(d => String(d.pelada_id) === String(filtroId)).map(d => String(d.id));
-      autoIncome = participacoes.filter(p => {
-        if (!p.pagou || String(p.pelada_id) !== String(filtroId)) return false;
+    } else {
+      const activeDatasPeladaIds = datasRealizacao.filter(d => String(d.pelada_id) === String(sidebarPeladaId)).map(d => String(d.id));
+      peladaAutoIncome = participacoes.filter(p => {
+        if (!p.pagou || String(p.pelada_id) !== String(sidebarPeladaId)) return false;
         if (p.data_realizacao_id === null || p.data_realizacao_id === undefined || String(p.data_realizacao_id) === "null" || String(p.data_realizacao_id) === "") return false;
         if (!activeDatasPeladaIds.includes(String(p.data_realizacao_id))) return false;
         return true;
       }).reduce((sum, p) => sum + Number(p.valor || 0), 0);
     }
 
-    const totalReceita = receitasManuais + autoIncome;
-    const saldoFinal = totalReceita - totalDespesa;
+    const peladaReceitas = peladaReceitasManuais + peladaAutoIncome;
+    const peladaSaldo = peladaReceitas - peladaDespesas;
 
     const accentOptions = [
       { name: "Ciano", color: "#22D9C8" },
@@ -16871,37 +16867,125 @@ export default function App(){
           </div>
         </div>
 
-        {/* Bloco 3: Resumo Financeiro */}
+        {/* Bloco 3: Resumo Financeiro - Campeonatos */}
         <div style={S.card}>
-          <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 12}}>
-            Resumo do Caixa
+          <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 8}}>
+            Caixa - Campeonatos
           </div>
-          <div style={{display: "flex", flexDirection: "column", gap: 8, fontSize: 12}}>
+          <div style={{marginBottom: 10}}>
+            <select
+              value={sidebarChampId}
+              onChange={e => setSidebarChampId(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "5px 8px",
+                borderRadius: 6,
+                border: `1px solid ${t.cardBorder}`,
+                background: t.inputBg,
+                color: t.text,
+                fontSize: 11,
+                fontWeight: 600,
+                outline: "none",
+                fontFamily: "'Outfit', sans-serif"
+              }}
+            >
+              <option value="all">🏆 Todos os Campeonatos</option>
+              {visibleChamps.map(c => (
+                <option key={c.id} value={c.id}>🏆 {c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{display: "flex", flexDirection: "column", gap: 6, fontSize: 11.5}}>
             <div style={{display: "flex", justifyContent: "space-between"}}>
               <span style={{color: t.textSec}}>Arrecadado:</span>
-              <span style={{fontWeight: 700, color: "#10B981"}}>{fmtCur(totalReceita)}</span>
+              <span style={{fontWeight: 700, color: "#10B981"}}>{fmtCur(champReceitas)}</span>
             </div>
             <div style={{display: "flex", justifyContent: "space-between"}}>
               <span style={{color: t.textSec}}>Despesas:</span>
-              <span style={{fontWeight: 700, color: "#EF4444"}}>{fmtCur(totalDespesa)}</span>
+              <span style={{fontWeight: 700, color: "#EF4444"}}>{fmtCur(champDespesas)}</span>
             </div>
             <div style={{height: 1, background: t.cardBorder, margin: "2px 0"}} />
             <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
-              <span style={{fontWeight: 800, color: t.text}}>Saldo Final:</span>
-              <span style={{fontWeight: 900, color: saldoFinal >= 0 ? ac : "#EF4444", fontSize: 14}}>{fmtCur(saldoFinal)}</span>
+              <span style={{fontWeight: 800, color: t.text}}>Saldo:</span>
+              <span style={{fontWeight: 900, color: champSaldo >= 0 ? ac : "#EF4444", fontSize: 13}}>{fmtCur(champSaldo)}</span>
             </div>
           </div>
           <button
             onClick={() => setScreen("financeiro")}
             style={{
-              marginTop: 12,
+              marginTop: 10,
               width: "100%",
-              padding: "7px 10px",
-              borderRadius: 8,
+              padding: "6px 8px",
+              borderRadius: 6,
               border: `1px solid ${ac}33`,
               background: `${ac}10`,
               color: ac,
-              fontSize: 11,
+              fontSize: 10.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = `${ac}20`; }}
+            onMouseLeave={e => { e.currentTarget.style.background = `${ac}10`; }}
+          >
+            Ver Caixa Completo
+          </button>
+        </div>
+
+        {/* Bloco 4: Resumo Financeiro - Peladas */}
+        <div style={S.card}>
+          <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 8}}>
+            Caixa - Peladas
+          </div>
+          <div style={{marginBottom: 10}}>
+            <select
+              value={sidebarPeladaId}
+              onChange={e => setSidebarPeladaId(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "5px 8px",
+                borderRadius: 6,
+                border: `1px solid ${t.cardBorder}`,
+                background: t.inputBg,
+                color: t.text,
+                fontSize: 11,
+                fontWeight: 600,
+                outline: "none",
+                fontFamily: "'Outfit', sans-serif"
+              }}
+            >
+              <option value="all">👟 Todas as Peladas</option>
+              {visiblePeladas.map(p => (
+                <option key={p.id} value={p.id}>👟 {p.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{display: "flex", flexDirection: "column", gap: 6, fontSize: 11.5}}>
+            <div style={{display: "flex", justifyContent: "space-between"}}>
+              <span style={{color: t.textSec}}>Arrecadado:</span>
+              <span style={{fontWeight: 700, color: "#10B981"}}>{fmtCur(peladaReceitas)}</span>
+            </div>
+            <div style={{display: "flex", justifyContent: "space-between"}}>
+              <span style={{color: t.textSec}}>Despesas:</span>
+              <span style={{fontWeight: 700, color: "#EF4444"}}>{fmtCur(peladaDespesas)}</span>
+            </div>
+            <div style={{height: 1, background: t.cardBorder, margin: "2px 0"}} />
+            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+              <span style={{fontWeight: 800, color: t.text}}>Saldo:</span>
+              <span style={{fontWeight: 900, color: peladaSaldo >= 0 ? ac : "#EF4444", fontSize: 13}}>{fmtCur(peladaSaldo)}</span>
+            </div>
+          </div>
+          <button
+            onClick={() => setScreen("financeiro")}
+            style={{
+              marginTop: 10,
+              width: "100%",
+              padding: "6px 8px",
+              borderRadius: 6,
+              border: `1px solid ${ac}33`,
+              background: `${ac}10`,
+              color: ac,
+              fontSize: 10.5,
               fontWeight: 700,
               cursor: "pointer",
               transition: "all 0.2s"
@@ -17152,6 +17236,24 @@ export default function App(){
   const [dashboardTab, setDashboardTab] = useState("campeonatos");
   const [dashboardSelectedId, setDashboardSelectedId] = useState("");
   const [dashboardSelectedDataId, setDashboardSelectedDataId] = useState("");
+  const [sidebarPeladaId, setSidebarPeladaId] = useState("all");
+  const [sidebarChampId, setSidebarChampId] = useState("all");
+
+  useEffect(() => {
+    if (screen === "gerenciarPelada" && current?.id) {
+      setSidebarPeladaId(String(current.id));
+    } else if (screen === "gerenciarChamp" && current?.id) {
+      setSidebarChampId(String(current.id));
+    } else if (screen === "home") {
+      if (dashboardSelectedId !== "") {
+        if (dashboardTab === "campeonatos") {
+          setSidebarChampId(String(dashboardSelectedId));
+        } else {
+          setSidebarPeladaId(String(dashboardSelectedId));
+        }
+      }
+    }
+  }, [screen, current, dashboardSelectedId, dashboardTab]);
 
   // Sincroniza dinamicamente o escopo do manager com base nos seus vínculos reais de colaboração
   useEffect(() => {
