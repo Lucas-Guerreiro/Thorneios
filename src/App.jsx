@@ -6633,7 +6633,28 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
                     <div style={{display:"flex",flexDirection:"column",gap:4}}>
                       {pagantesList.map(p=>{
                         const a = atletas.find(x=>String(x.id)===String(p.atleta_id));
-                        const ausente = !p.compareceu;
+                        const ausente = (() => {
+                          if (filtroData !== "todas") {
+                            return !p.compareceu;
+                          }
+                          // Na visão "Todas as datas":
+                          // O atleta só é considerado "ausente" se ele tem pelo menos uma participação em data REALIZADA onde compareceu = false,
+                          // E NÃO compareceu a nenhuma outra data REALIZADA.
+                          // Se ele só participou de datas futuras (não-realizadas), não é considerado ausente.
+                          const partsRealizadasAtleta = participacoes.filter(x => 
+                            String(x.atleta_id) === String(p.atleta_id) && 
+                            String(x.pelada_id) === String(filtroId) && 
+                            x.data_realizacao_id
+                          ).filter(x => {
+                            const dObj = datasPelada.find(d => String(d.id) === String(x.data_realizacao_id));
+                            return dObj?.status === "realizado";
+                          });
+                          
+                          if (partsRealizadasAtleta.length === 0) return false;
+                          
+                          const compareceuAlguma = partsRealizadasAtleta.some(x => x.compareceu);
+                          return !compareceuAlguma;
+                        })();
                         return <div key={p.id} style={{fontSize:12,color: ausente ? t.textSec : t.text,display:"flex",alignItems:"center",gap:6}}>
                           <PlayerAvatar atleta={a} size={16}/> {getPlayerName(a)}
                           {ausente && <span style={{fontSize:9,fontWeight:700,background:"#BA751722",color:"#BA7517",padding:"1px 5px",borderRadius:10,whiteSpace:"nowrap"}}>ausente</span>}
