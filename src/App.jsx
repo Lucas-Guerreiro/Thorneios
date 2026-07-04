@@ -6307,8 +6307,11 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
   let autoIncomeSaldo = 0;
 
   if(isGeral){
+    const activeDatasIds = datasRealizacao.map(d => String(d.id));
     autoIncomeDinheiro = participacoesVisiveis.filter(p=>{
       if(!p.pagou || p.usou_saldo) return false;
+      if(p.data_realizacao_id === null || p.data_realizacao_id === undefined || String(p.data_realizacao_id) === "null" || String(p.data_realizacao_id) === "") return false;
+      if(!activeDatasIds.includes(String(p.data_realizacao_id))) return false;
       if(filtroMesFin !== "todos") {
         const d = datasRealizacao.find(x => String(x.id) === String(p.data_realizacao_id));
         if (!d || !d.data || !d.data.startsWith(filtroMesFin)) return false;
@@ -6318,6 +6321,8 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
 
     autoIncomeSaldo = participacoesVisiveis.filter(p=>{
       if(!p.pagou || !p.usou_saldo) return false;
+      if(p.data_realizacao_id === null || p.data_realizacao_id === undefined || String(p.data_realizacao_id) === "null" || String(p.data_realizacao_id) === "") return false;
+      if(!activeDatasIds.includes(String(p.data_realizacao_id))) return false;
       if(filtroMesFin !== "todos") {
         const d = datasRealizacao.find(x => String(x.id) === String(p.data_realizacao_id));
         if (!d || !d.data || !d.data.startsWith(filtroMesFin)) return false;
@@ -6327,13 +6332,18 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
 
     autoIncome = autoIncomeDinheiro;
   } else if(isPelada){
+    const activeDatasPeladaIds = datasPelada.map(d => String(d.id));
     autoIncomeDinheiro = participacoes.filter(p=>{
       if(!p.pagou || p.usou_saldo || String(p.pelada_id)!==String(filtroId)) return false;
       if(filtroData!=="todas") {
         if (String(p.data_realizacao_id)!==String(filtroData)) return false;
-      } else if (filtroMesFin !== "todos") {
-        const d = datasPelada.find(x => String(x.id) === String(p.data_realizacao_id));
-        if (!d || !d.data || !d.data.startsWith(filtroMesFin)) return false;
+      } else {
+        if(p.data_realizacao_id === null || p.data_realizacao_id === undefined || String(p.data_realizacao_id) === "null" || String(p.data_realizacao_id) === "") return false;
+        if(!activeDatasPeladaIds.includes(String(p.data_realizacao_id))) return false;
+        if (filtroMesFin !== "todos") {
+          const d = datasPelada.find(x => String(x.id) === String(p.data_realizacao_id));
+          if (!d || !d.data || !d.data.startsWith(filtroMesFin)) return false;
+        }
       }
       return true;
     }).reduce((acc,p)=>acc+Number(p.valor||0),0);
@@ -6342,9 +6352,13 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
       if(!p.pagou || !p.usou_saldo || String(p.pelada_id)!==String(filtroId)) return false;
       if(filtroData!=="todas") {
         if (String(p.data_realizacao_id)!==String(filtroData)) return false;
-      } else if (filtroMesFin !== "todos") {
-        const d = datasPelada.find(x => String(x.id) === String(p.data_realizacao_id));
-        if (!d || !d.data || !d.data.startsWith(filtroMesFin)) return false;
+      } else {
+        if(p.data_realizacao_id === null || p.data_realizacao_id === undefined || String(p.data_realizacao_id) === "null" || String(p.data_realizacao_id) === "") return false;
+        if(!activeDatasPeladaIds.includes(String(p.data_realizacao_id))) return false;
+        if (filtroMesFin !== "todos") {
+          const d = datasPelada.find(x => String(x.id) === String(p.data_realizacao_id));
+          if (!d || !d.data || !d.data.startsWith(filtroMesFin)) return false;
+        }
       }
       return true;
     }).reduce((acc,p)=>acc+Number(p.valor||0),0);
@@ -6583,6 +6597,8 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
                 if (String(p.data_realizacao_id)!==String(filtroData)) return;
               } else {
                 if (p.data_realizacao_id === null || p.data_realizacao_id === undefined || String(p.data_realizacao_id) === "null" || String(p.data_realizacao_id) === "") return;
+                const dataExiste = datasPelada.some(d => String(d.id) === String(p.data_realizacao_id));
+                if (!dataExiste) return;
                 if (filtroMesFin !== "todos") {
                   const d = datasPelada.find(x => String(x.id) === String(p.data_realizacao_id));
                   if (!d || !d.data || !d.data.startsWith(filtroMesFin)) return;
@@ -16660,17 +16676,19 @@ export default function App(){
 
     let autoIncome = 0;
     if (isGeral) {
-      // No geral, soma apenas diárias em dinheiro/pix para evitar contagem dupla de mensalidades (que entram como receitas manuais de recarga)
+      const activeDatasIds = datasRealizacao.map(d => String(d.id));
       autoIncome = participacoesVisiveis.filter(p => {
         if (!p.pagou || p.usou_saldo) return false;
-        if (p.data_realizacao_id === null) return false;
+        if (p.data_realizacao_id === null || p.data_realizacao_id === undefined || String(p.data_realizacao_id) === "null" || String(p.data_realizacao_id) === "") return false;
+        if (!activeDatasIds.includes(String(p.data_realizacao_id))) return false;
         return true;
       }).reduce((sum, p) => sum + Number(p.valor || 0), 0);
     } else if (isPelada) {
-      // Na pelada específica, soma todas as diárias pagas (inclusive com saldo)
+      const activeDatasPeladaIds = datasRealizacao.filter(d => String(d.pelada_id) === String(filtroId)).map(d => String(d.id));
       autoIncome = participacoes.filter(p => {
         if (!p.pagou || String(p.pelada_id) !== String(filtroId)) return false;
-        if (p.data_realizacao_id === null) return false;
+        if (p.data_realizacao_id === null || p.data_realizacao_id === undefined || String(p.data_realizacao_id) === "null" || String(p.data_realizacao_id) === "") return false;
+        if (!activeDatasPeladaIds.includes(String(p.data_realizacao_id))) return false;
         return true;
       }).reduce((sum, p) => sum + Number(p.valor || 0), 0);
     }
@@ -18505,7 +18523,14 @@ export default function App(){
       return x;
     }));
   };
-  const removerData  =id=>setDatasRealizacao(p=>p.filter(x=>String(x.id)!==String(id)));
+  const removerData = id => {
+    setDatasRealizacao(p => p.filter(x => String(x.id) !== String(id)));
+    setParticipacoes(p => p.filter(x => String(x.data_realizacao_id) !== String(id)));
+    setFinanceiro(f => ({
+      ...f,
+      entries: (f.entries || []).filter(e => String(e.data_id) !== String(id))
+    }));
+  };
 
   // ── CRUD Participações ─────────────────────────────────────────
   const adicionarPart=(d)=>{
