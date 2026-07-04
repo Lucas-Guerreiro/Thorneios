@@ -5117,6 +5117,46 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
           )}
         </div>
       </div>
+      
+      {/* Lista de Confirmados na Pelada */}
+      {(() => {
+        const confirmadosParts = activeDate?.participacoes || [];
+        if (confirmadosParts.length === 0) return null;
+        
+        return (
+          <div style={{...S.card, padding: 14, borderRadius: 12, marginBottom: 16}}>
+            <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text, display: "flex", alignItems: "center", gap: 6}}>
+              <span>👥 Lista de Confirmados ({confirmadosParts.length})</span>
+            </h4>
+            <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
+              {confirmadosParts.map((part, index) => {
+                const a = atletas.find(x => String(x.id) === String(part.atleta_id));
+                const nomeExibido = a ? (a.apelido || a.nome) : `Jogador #${part.atleta_id}`;
+                return (
+                  <span
+                    key={index}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      fontSize: 11.5,
+                      padding: "4px 10px",
+                      borderRadius: 16,
+                      background: t.inputBg,
+                      color: t.text,
+                      fontWeight: 600,
+                      border: `1px solid ${t.cardBorder}`
+                    }}
+                  >
+                    <PlayerAvatar atleta={a} size={16}/>
+                    {nomeExibido}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Card único do Ranking do Dia (Histórico de Jogos removido) */}
       <div style={{...S.card, padding: 14, borderRadius: 12, marginBottom: 16}}>
@@ -17599,30 +17639,41 @@ export default function App(){
             try {
               const datasPel = (appState.datasRealizacao || [])
                 .filter(d => d.pelada_id === pel.id)
-                .map(d => ({
-                  id: d.id,
-                  dateStr: d.dateStr || d.data || "",
-                  data: d.data || "",
-                  local: d.local || "",
-                  valor: d.valor || "",
-                  status: d.status || "",
-                  peladaState: d.peladaState ? {
-                    currentMatch: d.peladaState.currentMatch || null,
-                    queue: d.peladaState.queue || [],
-                    bench: d.peladaState.bench || [],
-                    matchLog: d.peladaState.matchLog || [],
-                    teams: d.peladaState.teams || [],
-                    regraEmpate: d.peladaState.regraEmpate || null,
-                    empateAmbosSaem: d.peladaState.empateAmbosSaem || false,
-                    // Campos necessários para destacar candidatos a empréstimo na tela pública
-                    modoRodizio: d.peladaState.modoRodizio || "misto",
-                    teamBases: d.peladaState.teamBases || null,
-                    loanLocks: d.peladaState.loanLocks || {},
-                    historicoEmprestimos: d.peladaState.historicoEmprestimos || {},
-                    limiteVitorias: d.peladaState.limiteVitorias || 0,
-                    minAtletasNovoTime: d.peladaState.minAtletasNovoTime || null
-                  } : null
-                }));
+                .map(d => {
+                  const partsDia = (appState.participacoes || [])
+                    .filter(p => String(p.pelada_id) === String(pel.id) && String(p.data_realizacao_id) === String(d.id))
+                    .map(p => ({
+                      id: p.id,
+                      atleta_id: p.atleta_id,
+                      pagou: Boolean(p.pagou),
+                      compareceu: Boolean(p.compareceu),
+                      valor: Number(p.valor || 0)
+                    }));
+                  return {
+                    id: d.id,
+                    dateStr: d.dateStr || d.data || "",
+                    data: d.data || "",
+                    local: d.local || "",
+                    valor: d.valor || "",
+                    status: d.status || "",
+                    participacoes: partsDia,
+                    peladaState: d.peladaState ? {
+                      currentMatch: d.peladaState.currentMatch || null,
+                      queue: d.peladaState.queue || [],
+                      bench: d.peladaState.bench || [],
+                      matchLog: d.peladaState.matchLog || [],
+                      teams: d.peladaState.teams || [],
+                      regraEmpate: d.peladaState.regraEmpate || null,
+                      empateAmbosSaem: d.peladaState.empateAmbosSaem || false,
+                      modoRodizio: d.peladaState.modoRodizio || "misto",
+                      teamBases: d.peladaState.teamBases || null,
+                      loanLocks: d.peladaState.loanLocks || {},
+                      historicoEmprestimos: d.peladaState.historicoEmprestimos || {},
+                      limiteVitorias: d.peladaState.limiteVitorias || 0,
+                      minAtletasNovoTime: d.peladaState.minAtletasNovoTime || null
+                    } : null
+                  };
+                });
 
               const atletasSimplificados = (appState.atletas || [])
                 .filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("pelada_" + String(pel.id)))
@@ -18440,41 +18491,51 @@ export default function App(){
 
       const datasPel = (activeState.datasRealizacao || [])
         .filter(d => d.pelada_id === pel.id)
-        .map(d => ({
-          id: d.id,
-          dateStr: d.data || d.dateStr || "",
-          data: d.data || "",
-          local: d.local || "",
-          valor: d.valor || "",
-          status: d.status || "",
-          playersPerTeam: d.playersPerTeam || 4,
-          numTeams: d.numTeams || 2,
-          peladaState: d.peladaState ? {
-            currentMatch: d.peladaState.currentMatch ? {
-              ...d.peladaState.currentMatch,
-              // Garante que campos de timer são primitivos seguros (sem Firestore Timestamps)
-              timerRunning: Boolean(d.peladaState.currentMatch.timerRunning),
-              timerSecondsAtStart: Number(d.peladaState.currentMatch.timerSecondsAtStart) || 600,
-              timerStartTimestamp: (
-                d.peladaState.currentMatch.timerStartTimestamp !== null &&
-                d.peladaState.currentMatch.timerStartTimestamp !== undefined
-              ) ? Number(d.peladaState.currentMatch.timerStartTimestamp) : null
-            } : null,
-            queue: d.peladaState.queue || [],
-            bench: d.peladaState.bench || [],
-            matchLog: d.peladaState.matchLog || [],
-            teams: d.peladaState.teams || [],
-            regraEmpate: d.peladaState.regraEmpate || null,
-            empateAmbosSaem: d.peladaState.empateAmbosSaem || false,
-            // Campos necessários para destacar candidatos a empréstimo na tela pública
-            modoRodizio: d.peladaState.modoRodizio || "misto",
-            teamBases: d.peladaState.teamBases || null,
-            loanLocks: d.peladaState.loanLocks || {},
-            historicoEmprestimos: d.peladaState.historicoEmprestimos || {},
-            limiteVitorias: d.peladaState.limiteVitorias || 0,
-            minAtletasNovoTime: d.peladaState.minAtletasNovoTime || null
-          } : null
-        }));
+        .map(d => {
+          const partsDia = (activeState.participacoes || [])
+            .filter(p => String(p.pelada_id) === String(pel.id) && String(p.data_realizacao_id) === String(d.id))
+            .map(p => ({
+              id: p.id,
+              atleta_id: p.atleta_id,
+              pagou: Boolean(p.pagou),
+              compareceu: Boolean(p.compareceu),
+              valor: Number(p.valor || 0)
+            }));
+          return {
+            id: d.id,
+            dateStr: d.dateStr || d.data || "",
+            data: d.data || "",
+            local: d.local || "",
+            valor: d.valor || "",
+            status: d.status || "",
+            playersPerTeam: d.playersPerTeam || 4,
+            numTeams: d.numTeams || 2,
+            participacoes: partsDia,
+            peladaState: d.peladaState ? {
+              currentMatch: d.peladaState.currentMatch ? {
+                ...d.peladaState.currentMatch,
+                timerRunning: Boolean(d.peladaState.currentMatch.timerRunning),
+                timerSecondsAtStart: Number(d.peladaState.currentMatch.timerSecondsAtStart) || 600,
+                timerStartTimestamp: (
+                  d.peladaState.currentMatch.timerStartTimestamp !== null &&
+                  d.peladaState.currentMatch.timerStartTimestamp !== undefined
+                ) ? Number(d.peladaState.currentMatch.timerStartTimestamp) : null
+              } : null,
+              queue: d.peladaState.queue || [],
+              bench: d.peladaState.bench || [],
+              matchLog: d.peladaState.matchLog || [],
+              teams: d.peladaState.teams || [],
+              regraEmpate: d.peladaState.regraEmpate || null,
+              empateAmbosSaem: d.peladaState.empateAmbosSaem || false,
+              modoRodizio: d.peladaState.modoRodizio || "misto",
+              teamBases: d.peladaState.teamBases || null,
+              loanLocks: d.peladaState.loanLocks || {},
+              historicoEmprestimos: d.peladaState.historicoEmprestimos || {},
+              limiteVitorias: d.peladaState.limiteVitorias || 0,
+              minAtletasNovoTime: d.peladaState.minAtletasNovoTime || null
+            } : null
+          };
+        });
 
       const atletasSimplificados = (activeState.atletas || [])
         .filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("pelada_" + String(pel.id)))
