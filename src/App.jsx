@@ -16617,10 +16617,65 @@ export default function App(){
     const isDark = dark;
     const ac = t.accent || "#22D9C8";
     
-    // Calcular dados financeiro para exibir no painel
-    const entries = financeiroFiltered?.entries || [];
-    const totalReceita = entries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    // Determinar o contexto ativo para o resumo do caixa (pelada atual, campeonato atual ou visão geral)
+    let isGeral = true;
+    let isPelada = false;
+    let isChamp = false;
+    let filtroId = null;
+
+    if (screen === "gerenciarPelada" && current?.id) {
+      isGeral = false;
+      isPelada = true;
+      filtroId = current.id;
+    } else if (screen === "gerenciarChamp" && current?.id) {
+      isGeral = false;
+      isChamp = true;
+      filtroId = current.id;
+    } else if (screen === "home") {
+      if (dashboardSelectedId !== "") {
+        isGeral = false;
+        if (dashboardTab === "campeonatos") {
+          isChamp = true;
+        } else {
+          isPelada = true;
+        }
+        filtroId = Number(dashboardSelectedId);
+      }
+    }
+
+    // 1. Filtrar lançamentos manuais do caixa correspondentes ao contexto
+    const allEntries = financeiroFiltered?.entries || [];
+    const entries = allEntries.filter(e => {
+      if (isChamp) return String(e.champ_id) === String(filtroId);
+      if (isPelada) return String(e.pelada_id) === String(filtroId);
+      return true; // Geral
+    });
+
     const totalDespesa = entries.filter(e => e.type === "despesa").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+    const receitasManuais = entries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    // 2. Calcular as receitas automáticas de diárias (autoIncome) seguindo as regras do financeiro
+    const visiblePeladaIds = peladas.map(p => String(p.id));
+    const participacoesVisiveis = participacoes.filter(p => visiblePeladaIds.includes(String(p.pelada_id)));
+
+    let autoIncome = 0;
+    if (isGeral) {
+      // No geral, soma apenas diárias em dinheiro/pix para evitar contagem dupla de mensalidades (que entram como receitas manuais de recarga)
+      autoIncome = participacoesVisiveis.filter(p => {
+        if (!p.pagou || p.usou_saldo) return false;
+        if (p.data_realizacao_id === null) return false;
+        return true;
+      }).reduce((sum, p) => sum + Number(p.valor || 0), 0);
+    } else if (isPelada) {
+      // Na pelada específica, soma todas as diárias pagas (inclusive com saldo)
+      autoIncome = participacoes.filter(p => {
+        if (!p.pagou || String(p.pelada_id) !== String(filtroId)) return false;
+        if (p.data_realizacao_id === null) return false;
+        return true;
+      }).reduce((sum, p) => sum + Number(p.valor || 0), 0);
+    }
+
+    const totalReceita = receitasManuais + autoIncome;
     const saldoFinal = totalReceita - totalDespesa;
 
     const accentOptions = [
