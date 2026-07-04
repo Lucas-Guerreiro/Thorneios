@@ -17239,22 +17239,6 @@ export default function App(){
   const [sidebarPeladaId, setSidebarPeladaId] = useState("all");
   const [sidebarChampId, setSidebarChampId] = useState("all");
 
-  useEffect(() => {
-    if (screen === "gerenciarPelada" && current?.id) {
-      setSidebarPeladaId(String(current.id));
-    } else if (screen === "gerenciarChamp" && current?.id) {
-      setSidebarChampId(String(current.id));
-    } else if (screen === "home") {
-      if (dashboardSelectedId !== "") {
-        if (dashboardTab === "campeonatos") {
-          setSidebarChampId(String(dashboardSelectedId));
-        } else {
-          setSidebarPeladaId(String(dashboardSelectedId));
-        }
-      }
-    }
-  }, [screen, current, dashboardSelectedId, dashboardTab]);
-
   // Sincroniza dinamicamente o escopo do manager com base nos seus vínculos reais de colaboração
   useEffect(() => {
     if (auth.role !== "manager" || !auth.email) return;
@@ -18592,6 +18576,22 @@ export default function App(){
   };
 
   const[current,setCurrent]=useState(null);
+
+  useEffect(() => {
+    if (screen === "gerenciarPelada" && current?.id) {
+      setSidebarPeladaId(String(current.id));
+    } else if (screen === "gerenciarChamp" && current?.id) {
+      setSidebarChampId(String(current.id));
+    } else if (screen === "home") {
+      if (dashboardSelectedId !== "") {
+        if (dashboardTab === "campeonatos") {
+          setSidebarChampId(String(dashboardSelectedId));
+        } else {
+          setSidebarPeladaId(String(dashboardSelectedId));
+        }
+      }
+    }
+  }, [screen, current, dashboardSelectedId, dashboardTab]);
 
   const [storageSize, setStorageSize] = useState(0);
 
