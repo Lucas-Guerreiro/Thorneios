@@ -118,3 +118,11 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 400 !important; /* Peso Regular */
   color: #8E929E !important; /* Cinza claro */
 }
+
+/* ── Alinhamento vertical centralizado para textos e ícones nas linhas ── */
+[style*="display: flex"]:not([style*="flex-direction: column"]):not([style*="flex-direction:column"]),
+[style*="display: inline-flex"]:not([style*="flex-direction: column"]):not([style*="flex-direction:column"]),
+[style*="display:flex"]:not([style*="flex-direction: column"]):not([style*="flex-direction:column"]),
+[style*="display:inline-flex"]:not([style*="flex-direction: column"]):not([style*="flex-direction:column"]) {
+  align-items: center !important;
+}
