@@ -406,8 +406,8 @@ function makeStyles(t){
   };
 
   return{
-    page:  {minHeight:"100vh",padding:pad("24px 0"),maxWidth:1200,margin:"0 auto",background:t.bg,color:t.text,fontFamily:"'Outfit', sans-serif"},
-    card:  {background:t.card,borderRadius:16,padding:pad("16px"),border:"1px solid " + t.cardBorder,boxShadow:!isDark?"0 4px 20px rgba(0,0,0,0.04)":"none",transition:"all 0.25s"},
+    page:  {minHeight:"100vh",padding:pad("24px 0"),maxWidth:1200,margin:"0 auto",background:t.bg,color:t.text,fontFamily:"'Inter', sans-serif"},
+    card:  {background:t.card,borderRadius:12,padding:pad("16px"),border:"1px solid " + t.cardBorder,boxShadow:!isDark?"0 4px 20px rgba(0,0,0,0.04)":"none",transition:"all 0.25s"},
     input: {padding:pad("10px 14px"),borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:fs(14),background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease",focus:{borderColor:t.accent}},
     select:{padding:pad("10px 14px"),borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:fs(14),background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease"},
     btn:   (bg,c)=>{
@@ -437,7 +437,7 @@ function makeStyles(t){
       const textColor = c || (isNeonGreen ? "#0F1116" : t.text);
       return {
         padding:pad("6px 14px"),
-        borderRadius:10,
+        borderRadius:12,
         border:"1px solid " + t.cardBorder,
         background:backColor,
         color:textColor,
@@ -1024,7 +1024,7 @@ function MuralPostCard({
   // Se este post específico estiver sendo editado e o usuário for administrador
   if (isAdmin && item.id === editingPostId) {
     return (
-      <div className="mural-card" style={{ borderColor: "#22b7d9", background: t.inputBg, borderStyle: "solid", borderWidth: "2px", borderRadius: 20, padding: 22, display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="mural-card" style={{ borderColor: "#22b7d9", background: t.inputBg, borderStyle: "solid", borderWidth: "2px", borderRadius: 12, padding: 22, display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${t.cardBorder}`, paddingBottom: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 800, color: "#22b7d9", display: "flex", alignItems: "center", gap: 6 }}><IconEdit size={12} /> Editar Publicação</span>
@@ -1073,7 +1073,7 @@ function MuralPostCard({
       <div className="instagram-post" style={{ 
         background: t.card, 
         border: `1px solid ${t.cardBorder}`, 
-        borderRadius: 20, 
+        borderRadius: 12, 
         overflow: "hidden", 
         marginBottom: 24, 
         boxShadow: "0 6px 20px rgba(0,0,0,0.03)",
@@ -1216,7 +1216,7 @@ function MuralPostCard({
       <div className="x-tweet" style={{ 
         background: t.card, 
         border: `1px solid ${t.cardBorder}`, 
-        borderRadius: 20, 
+        borderRadius: 12, 
         padding: "20px", 
         marginBottom: 24, 
         display: "flex", 
@@ -1270,7 +1270,7 @@ function MuralPostCard({
           {hasMedia && (
             <div style={{ 
               border: `1px solid ${t.cardBorder}`, 
-              borderRadius: 16, 
+              borderRadius: 12, 
               overflow: "hidden", 
               marginTop: 6,
               background: t.inputBg,
@@ -1374,7 +1374,7 @@ function MuralLightboxModal({ post, onClose, t, isAdmin, onStartEdit, onDelete, 
           maxHeight: "90vh", 
           overflowY: "auto", 
           background: t.card, 
-          borderRadius: 24, 
+          borderRadius: 12, 
           border: `1px solid ${t.cardBorder}`,
           boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
           position: "relative"
@@ -3292,7 +3292,7 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
           background: isDark ? "rgba(18, 18, 18, 0.75)" : "rgba(255, 255, 255, 0.8)",
           backdropFilter: "blur(18px)",
           WebkitBackdropFilter: "blur(18px)",
-          borderRadius: 24,
+          borderRadius: 12,
           padding: "32px 28px",
           border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"}`,
           boxShadow: isDark 
@@ -4838,7 +4838,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
       minHeight: "100vh",
       background: t.bg,
       color: t.text,
-      fontFamily: "Outfit, Inter, sans-serif"
+      fontFamily: "Inter, sans-serif"
     }}>
       <div style={{
         display: "flex",
@@ -4890,7 +4890,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
             background: "#1D9E7515",
             color: "#1D9E75",
             padding: "4px 10px",
-            borderRadius: 20,
+            borderRadius: 12,
             fontWeight: 700,
             display: "inline-flex",
             alignItems: "center",
@@ -10682,7 +10682,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     </div>
                     
                     <div style={{display: "flex", alignItems: "center", gap: 8}}>
-                      <div style={{display: "flex", background: t.inputBg, padding: 3, borderRadius: 20, border: `1px solid ${t.inputBorder}`, width: isMobile ? "100%" : "auto"}}>
+                      <div style={{display: "flex", background: t.inputBg, padding: 3, borderRadius: 12, border: `1px solid ${t.inputBorder}`, width: isMobile ? "100%" : "auto"}}>
                         {[
                           { key: "misto", label: "Automático", icon: "Automático", title: "Fila de times e rodízio de banco automáticos com empréstimo pontual de desfalques" },
                           { key: "manual", label: "Manual", icon: "Manual", title: "Gestão livre: selecione quem joga e monte os times manualmente" }
@@ -12615,7 +12615,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
             padding: 24,
             background: t.card,
             border: `1px solid ${t.cardBorder}`,
-            borderRadius: 16,
+            borderRadius: 12,
             boxShadow: "0 10px 25px rgba(0,0,0,0.3)"
           }}>
             <h3 style={{fontSize: 16, fontWeight: 800, margin: "0 0 8px 0", color: t.text}}>📱 QR Code do Acompanhamento</h3>
@@ -14861,7 +14861,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {customFields.map(f => (
-                    <span key={f} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, padding: "4px 10px", borderRadius: 16, background: `${t.inputBg}`, border: `1px solid ${t.cardBorder}`, color: t.text, fontWeight: 600 }}>
+                    <span key={f} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, padding: "4px 10px", borderRadius: 12, background: `${t.inputBg}`, border: `1px solid ${t.cardBorder}`, color: t.text, fontWeight: 600 }}>
                       {f}
                       <button onClick={()=>handleRemoveField(f)} style={{ background: "none", border: "none", color: "#E24B4A", fontWeight: 800, cursor: "pointer", padding: 0 }}>×</button>
                     </span>
@@ -15142,7 +15142,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                 <label style={{
                   display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",
                   padding:"6px 12px",borderRadius:10,border:`1px dashed ${t.cardBorder}`,
-                  fontSize:12,color:t.textSec,marginTop: photos.length>0?8:0,fontFamily:"'Outfit',sans-serif"
+                  fontSize:12,color:t.textSec,marginTop: photos.length>0?8:0,fontFamily:"'Inter',sans-serif"
                 }}>
                   <span>📷</span> Adicionar foto do jogo
                   <input
@@ -15236,7 +15236,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
             <div style={{
               background: "linear-gradient(135deg, rgba(32, 226, 120, 0.1) 0%, rgba(212, 175, 55, 0.1) 100%)",
               border: "2px solid #D4AF37",
-              borderRadius: 16,
+              borderRadius: 12,
               padding: 16,
               display: "flex",
               flexDirection: "column",
@@ -16373,7 +16373,7 @@ export default function App(){
                   gap: 6,
                   padding: "6px 8px",
                   borderRadius: 4,
-                  fontFamily: "'Outfit', sans-serif",
+                  fontFamily: "'Inter', sans-serif",
                   fontWeight: "800",
                   fontSize: 11,
                   textTransform: "uppercase",
@@ -16390,7 +16390,7 @@ export default function App(){
                   fontSize: 18,
                   fontWeight: "900",
                   color: "#fff",
-                  fontFamily: "'Outfit', sans-serif",
+                  fontFamily: "'Inter', sans-serif",
                   letterSpacing: "0.5px",
                   cursor: "pointer",
                   userSelect: "none"
@@ -16401,7 +16401,7 @@ export default function App(){
             </div>
             <div style={{display: "flex", alignItems: "center", gap: 12}}>
               {!isMobile && (
-                <span style={{fontSize: 12, color: "#fff", opacity: 0.9, fontFamily: "'Outfit', sans-serif"}}>
+                <span style={{fontSize: 12, color: "#fff", opacity: 0.9, fontFamily: "'Inter', sans-serif"}}>
                   Olá, <strong>{auth.name || "Gestor"}</strong>
                 </span>
               )}
@@ -16439,7 +16439,7 @@ export default function App(){
           boxShadow: "4px 0 24px rgba(0,0,0,0.15)",
           display: "flex",
           flexDirection: "column",
-          fontFamily: "'Outfit', sans-serif"
+          fontFamily: "'Inter', sans-serif"
         }}>
           <div style={{
             height: 48,
@@ -16630,7 +16630,7 @@ export default function App(){
         backgroundColor: t.card,
         height: "100%",
         overflowY: "auto",
-        fontFamily: "'Outfit', sans-serif",
+        fontFamily: "'Inter', sans-serif",
         gap: 0,
         position: "sticky",
         top: 0,
@@ -16696,7 +16696,7 @@ export default function App(){
                   fontWeight: isActive ? 800 : 500,
                   fontSize: 13,
                   cursor: "pointer",
-                  fontFamily: "'Outfit', sans-serif",
+                  fontFamily: "'Inter', sans-serif",
                   transition: "all 0.15s ease",
                 }}
                 onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = t.inputBg; } }}
@@ -16717,7 +16717,7 @@ export default function App(){
             display: "flex", justifyContent: "space-between", alignItems: "center"
           }}>
             <span>Ligas ({campeonatos.length})</span>
-            <button onClick={() => setScreen("novoChamp")} style={{background: "none", border: "none", color: t.accent, fontWeight: 900, cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "'Outfit', sans-serif"}}>
+            <button onClick={() => setScreen("novoChamp")} style={{background: "none", border: "none", color: t.accent, fontWeight: 900, cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "'Inter', sans-serif"}}>
               + Nova
             </button>
           </div>
@@ -16739,7 +16739,7 @@ export default function App(){
                     color: isCur ? t.accent : t.text,
                     fontWeight: isCur ? 800 : 500,
                     fontSize: 12, cursor: "pointer",
-                    fontFamily: "'Outfit', sans-serif",
+                    fontFamily: "'Inter', sans-serif",
                     transition: "all 0.15s ease",
                   }}
                   onMouseEnter={e => { if (!isCur) e.currentTarget.style.background = t.inputBg; }}
@@ -16764,7 +16764,7 @@ export default function App(){
             display: "flex", justifyContent: "space-between", alignItems: "center"
           }}>
             <span>Peladas ({peladas.length})</span>
-            <button onClick={() => setScreen("novaPelada")} style={{background: "none", border: "none", color: "#22b7d9", fontWeight: 900, cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "'Outfit', sans-serif"}}>
+            <button onClick={() => setScreen("novaPelada")} style={{background: "none", border: "none", color: "#22b7d9", fontWeight: 900, cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "'Inter', sans-serif"}}>
               + Nova
             </button>
           </div>
@@ -16784,7 +16784,7 @@ export default function App(){
                     color: isCur ? "#22b7d9" : t.text,
                     fontWeight: isCur ? 800 : 500,
                     fontSize: 12, cursor: "pointer",
-                    fontFamily: "'Outfit', sans-serif",
+                    fontFamily: "'Inter', sans-serif",
                     transition: "all 0.15s ease",
                   }}
                   onMouseEnter={e => { if (!isCur) e.currentTarget.style.background = t.inputBg; }}
@@ -16901,7 +16901,7 @@ export default function App(){
         background: isDark ? "#0D1320" : "#F8FAFC",
         height: "100%",
         overflowY: "auto",
-        fontFamily: "'Outfit', sans-serif",
+        fontFamily: "'Inter', sans-serif",
         position: "sticky",
         top: 0,
         alignSelf: "flex-start",
@@ -17051,7 +17051,7 @@ export default function App(){
                 fontSize: 11,
                 fontWeight: 600,
                 outline: "none",
-                fontFamily: "'Outfit', sans-serif"
+                fontFamily: "'Inter', sans-serif"
               }}
             >
               <option value="all">Todos os Campeonatos</option>
@@ -17116,7 +17116,7 @@ export default function App(){
                 fontSize: 11,
                 fontWeight: 600,
                 outline: "none",
-                fontFamily: "'Outfit', sans-serif"
+                fontFamily: "'Inter', sans-serif"
               }}
             >
               <option value="all">Todas as Peladas</option>
@@ -19639,7 +19639,7 @@ export default function App(){
         </div>
 
         {/* Seleção de Modalidade (Tabs) */}
-        <div style={{display: "flex", gap: 10, background: t.inputBg, padding: 6, borderRadius: 16, border: `1px solid ${t.cardBorder}`}}>
+        <div style={{display: "flex", gap: 10, background: t.inputBg, padding: 6, borderRadius: 12, border: `1px solid ${t.cardBorder}`}}>
           <button 
             onClick={() => { setDashboardTab("campeonatos"); setDashboardSelectedId(""); setDashboardSelectedDataId(""); }}
             style={{
@@ -19724,7 +19724,7 @@ export default function App(){
                 <span style={{fontSize: 11, fontWeight: 800, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>{sc.label}</span>
                 <span style={{display: "flex", alignItems: "center", justifyContent: "center", color: sc.color}}>{sc.icon}</span>
               </div>
-              <div style={{fontSize: 22, fontWeight: 900, color: sc.color, fontFamily: "'Outfit', sans-serif"}}>{sc.value}</div>
+              <div style={{fontSize: 22, fontWeight: 900, color: sc.color, fontFamily: "'Inter', sans-serif"}}>{sc.value}</div>
             </div>
           ))}
         </div>

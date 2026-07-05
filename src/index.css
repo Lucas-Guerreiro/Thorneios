@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 body {
   margin: 0;
   padding: 0;
   background: #080C14;
-  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -85,7 +85,7 @@ body.scale-145 #root { zoom: 1.45; }
     justify-content: center !important;
     margin: 2px 4px !important;
     background-color: rgba(34, 217, 200, 0.1) !important;
-    border-radius: 8px !important;
+    border-radius: 12px !important;
     border: 1px solid rgba(34, 217, 200, 0.2) !important;
   }
 
@@ -107,4 +107,14 @@ body.scale-145 #root { zoom: 1.45; }
   }
 
   .hide-on-mobile { display: none !important; }
+}
+
+/* ── Padronização de Fontes (Títulos Bold e Apoios Regular) ── */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700 !important; /* Peso Bold */
+}
+
+.text-support {
+  font-weight: 400 !important; /* Peso Regular */
+  color: #8E929E !important; /* Cinza claro */
 }
