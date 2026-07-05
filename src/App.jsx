@@ -1556,7 +1556,11 @@ function agruparUnidades(players) {
 }
 
 function drawBalancedTeams(athletes, numTeams, ppt, metodoFormacao = "igual") {
-  const sortedAthletes = [...athletes].sort((a, b) => {
+  // Primeiro, embaralha aleatoriamente todos os atletas para que o desempate
+  // de atletas com a mesma nota de habilidade seja 100% randômico.
+  const shuffled = cryptoShuffle(athletes);
+
+  const sortedAthletes = shuffled.sort((a, b) => {
     const s1 = a.habilidade || a.skill || 3;
     const s2 = b.habilidade || b.skill || 3;
     return s2 - s1;
