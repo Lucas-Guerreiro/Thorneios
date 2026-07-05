@@ -377,7 +377,7 @@ const todayStr= () => {
 const SKILL_COLORS = ["#888","#BA7517","#22b7d9","#1D9E75","#D85A30"];
 const SKILL_NAMES  = ["Iniciante","Básico","Intermediário","Avançado","Elite"];
 const LIGHT = { bg: "#F3F4F6", card: "#ffffff", cardBorder: "#E5E7EB", inputBg: "#F9FAFB", inputBorder: "#D1D5DB", inputColor: "#1A1C23", text: "#1A1C23", textSec: "#6B7280", tabBorder: "#E5E7EB" };
-const DARK  = { bg: "#000000", card: "#0B0D11", cardBorder: "#1B1E24", inputBg: "#050608", inputBorder: "#1F242C", inputColor: "#F5F6F8", text: "#F5F6F8", textSec: "#8E929E", tabBorder: "#1B1E24" };
+const DARK  = { bg: "#000000", card: "#0B0D11", cardBorder: "#1B1E24", inputBg: "#12141A", inputBorder: "#1F242C", inputColor: "#F5F6F8", text: "#F5F6F8", textSec: "#8E929E", tabBorder: "#1B1E24" };
 
 function useTheme(){ 
   const [dark, setDark] = useState(() => {
@@ -408,8 +408,8 @@ function makeStyles(t){
   return{
     page:  {minHeight:"100vh",padding:pad("24px 0"),maxWidth:1200,margin:"0 auto",background:t.bg,color:t.text,fontFamily:"'Inter', sans-serif"},
     card:  {background:t.card,borderRadius:12,padding:pad("24px"),border:"1px solid " + t.cardBorder,boxShadow:!isDark?"0 4px 20px rgba(0,0,0,0.04)":"none",transition:"all 0.25s"},
-    input: {padding:pad("10px 14px"),borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:fs(14),background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease",focus:{borderColor:t.accent}},
-    select:{padding:pad("10px 14px"),borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:fs(14),background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease"},
+    input: {padding:pad("10px 14px"),borderRadius:8,border:"1px solid " + t.inputBorder,fontSize:fs(14),background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease",focus:{borderColor:t.accent}},
+    select:{padding:pad("10px 14px"),borderRadius:8,border:"1px solid " + t.inputBorder,fontSize:fs(14),background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease"},
     btn:   (bg,c)=>{
       const backColor = bg || t.accent || "#22b7d9";
       const isNeonGreen = backColor.toLowerCase() === "#20e278" || backColor.toLowerCase() === "#00e676" || backColor.toLowerCase() === "#1d9e75" || backColor.toLowerCase() === "#06aa48";
