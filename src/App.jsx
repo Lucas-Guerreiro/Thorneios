@@ -377,7 +377,7 @@ const todayStr= () => {
 const SKILL_COLORS = ["#888","#BA7517","#22b7d9","#1D9E75","#D85A30"];
 const SKILL_NAMES  = ["Iniciante","Básico","Intermediário","Avançado","Elite"];
 const LIGHT = { bg: "#F3F4F6", card: "#ffffff", cardBorder: "#E5E7EB", inputBg: "#F9FAFB", inputBorder: "#D1D5DB", inputColor: "#1A1C23", text: "#1A1C23", textSec: "#6B7280", tabBorder: "#E5E7EB" };
-const DARK  = { bg: "#0F1116", card: "#171A21", cardBorder: "#212631", inputBg: "#1B1E26", inputBorder: "#2D3342", inputColor: "#F5F6F8", text: "#F5F6F8", textSec: "#8E929E", tabBorder: "#212631" };
+const DARK  = { bg: "#000000", card: "#0B0D11", cardBorder: "#1B1E24", inputBg: "#050608", inputBorder: "#1F242C", inputColor: "#F5F6F8", text: "#F5F6F8", textSec: "#8E929E", tabBorder: "#1B1E24" };
 
 function useTheme(){ 
   const [dark, setDark] = useState(() => {
@@ -411,7 +411,7 @@ function makeStyles(t){
     input: {padding:pad("10px 14px"),borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:fs(14),background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease",focus:{borderColor:t.accent}},
     select:{padding:pad("10px 14px"),borderRadius:12,border:"1px solid " + t.inputBorder,fontSize:fs(14),background:t.inputBg,color:t.inputColor,width:"100%",boxSizing:"border-box",outline:"none",transition:"all 0.2s ease"},
     btn:   (bg,c)=>{
-      const backColor = bg || t.accent || "#20E278";
+      const backColor = bg || t.accent || "#22b7d9";
       const isNeonGreen = backColor.toLowerCase() === "#20e278" || backColor.toLowerCase() === "#00e676" || backColor.toLowerCase() === "#1d9e75" || backColor.toLowerCase() === "#06aa48";
       const textColor = c || (isNeonGreen ? "#0F1116" : "#fff");
       return {
@@ -5461,7 +5461,7 @@ function Avatar({name,size=28,color="#22b7d9",src}){
   );
 }
 
-function Tag({label,color="#1D9E75"}){
+function Tag({label,color="#22b7d9"}){
   return (
     <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",padding:"4px 10px",borderRadius:999,background:color+"22",color:color,fontSize:11,fontWeight:700,letterSpacing:0.3}}>{label}</span>
   );
@@ -5471,7 +5471,7 @@ function Sec({title,children,t}){return<div style={{marginBottom:24}}><h3 style=
 
 /* ─────────────────────────── STANDINGS ──────────────────────────── */
 function StandingsTable({standings,teams,colorOf,accent,t,emblems}){
-  const ac=accent||"#1D9E75";
+  const ac=accent||"#22b7d9";
   return(
     <div style={{overflowX:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:340}}>
@@ -7006,7 +7006,7 @@ function CRUDAtletas({
 
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <input style={{...S.input,flex:1,minWidth:120}} placeholder="Buscar atleta por nome/apelido..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
-        <button onClick={abrirNovo} style={S.btn("#1D9E75")}>+ Novo Atleta</button>
+        <button onClick={abrirNovo} style={S.btn("#10b981")}>+ Novo Atleta</button>
         <button onClick={()=>setExpandMenu(!expandMenu)} style={{...S.btn("#a0a0a0"),display:"inline-flex",gap:6}}>
           <span>⚙️ Importar/Exportar</span>
           <span style={{transform:expandMenu?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.3s",display:"inline-block"}}>▼</span>
@@ -7446,7 +7446,7 @@ function CRUDQuadras({
 
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
         <input style={{...S.input,flex:1,minWidth:120}} placeholder="Buscar quadra por nome ou endereço..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
-        <button onClick={abrirNovo} style={S.btn("#22b7d9")}>+ Nova Quadra</button>
+        <button onClick={abrirNovo} style={S.btn("#10b981")}>+ Nova Quadra</button>
         <button onClick={()=>setExpandMenu(!expandMenu)} style={{...S.btn("#a0a0a0"),display:"inline-flex",gap:6}}>
           <span>⚙️ Importar/Exportar</span>
           <span style={{transform:expandMenu?"rotate(180deg)":"rotate(0deg)",transition:"transform 0.3s",display:"inline-block"}}>▼</span>
@@ -7520,7 +7520,7 @@ function CRUDQuadras({
             </div>
 
             <div style={{display:"flex",gap:8,marginTop:16}}>
-              <button onClick={salvar} style={S.btn("#22b7d9")}>Salvar</button>
+              <button onClick={salvar} style={S.btn("#10b981")}>Salvar</button>
               <button onClick={()=>setModal(false)} style={S.btn(t.card,t.textSec)}>Cancelar</button>
             </div>
           </div>
@@ -7542,7 +7542,7 @@ function CriarPelada({onSave,initial,t}){
       <div><label style={S.label}>Nome da pelada</label><input style={S.input} value={nome} onChange={e=>setNome(e.target.value)} placeholder="Ex: Pelada de Quinta"/></div>
       <div><label style={S.label}>Data de criação</label><input style={S.input} type="date" value={dataCriacao} onChange={e=>setDataCriacao(e.target.value)}/></div>
       <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={ativo} onChange={e=>setAtivo(e.target.checked)}/>Ativa</label>
-      <button onClick={handle} style={S.btn("#22b7d9")}>{initial?"Salvar Alterações":"Criar Pelada"}</button>
+      <button onClick={handle} style={S.btn(initial ? t.accent : "#10b981")}>{initial?"Salvar Alterações":"Criar Pelada"}</button>
     </div>
   );
 }
@@ -7895,7 +7895,7 @@ function AbaAtletasPelada({
           onChange={e=>setFiltro(e.target.value)}
           disabled={isRealizada}
         />
-        <button onClick={abrirNovoAtleta} style={S.btnSm(t.accent, "#fff")} disabled={isRealizada}>Novo Atleta</button>
+        <button onClick={abrirNovoAtleta} style={S.btnSm("#10b981", "#fff")} disabled={isRealizada}>Novo Atleta</button>
         <button onClick={abrirModalConvidado} style={S.btnSm("#7F77DD22", "#7F77DD")} disabled={isRealizada} title="Adicionar convidado vinculado a um anfitrião"><IconUser size={13} style={{marginRight: 4}} /> Convidado</button>
       </div>
 
@@ -14528,7 +14528,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
               <div style={{display:"flex",gap:8}}>
                 <input style={{...S.input,flex:1,margin:0}} placeholder="Buscar atleta para escalar..." value={filtroElenco} onChange={e=>setFiltroElenco(e.target.value)}/>
                 {filtroElenco.trim() && (
-                  <button onClick={abrirNovoAtletaCamp} style={S.btn("#22b7d9")}>+ Novo Atleta</button>
+                  <button onClick={abrirNovoAtletaCamp} style={S.btn("#10b981")}>+ Novo Atleta</button>
                 )}
               </div>
               {gruposUnicos.length > 0 && (
@@ -16202,7 +16202,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
       </div>
 
       <div style={{display:"flex",gap:8}}>
-        <button onClick={criar} style={{...S.btn(),flex:1,justifyContent:"center"}}>Criar Campeonato</button>
+        <button onClick={criar} style={{...S.btn("#10b981"),flex:1,justifyContent:"center"}}>Criar Campeonato</button>
         <button onClick={onCancel} style={S.btn(t.card,t.textSec)}>Cancelar</button>
       </div>
     </div>
@@ -16269,7 +16269,7 @@ export default function App(){
   }, []);
 
   const [accentColor, setAccentColor] = useState(() => {
-    return localStorage.getItem("system_accent") || "#20E278";
+    return localStorage.getItem("system_accent") || "#22b7d9";
   });
   const changeAccentColor = (color) => {
     setAccentColor(color);
@@ -16507,7 +16507,7 @@ export default function App(){
             <div>
               <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, padding: "0 20px 8px 20px", textTransform: "uppercase", letterSpacing: "1px", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                 <span>Minhas Ligas ({campeonatos.length})</span>
-                <button onClick={() => { setScreen("novoChamp"); setMenuOpen(false); }} style={{background: "none", border: "none", color: t.accent, fontWeight: "900", cursor: "pointer", fontSize: 11, padding: 0}}>+ Nova</button>
+                <button onClick={() => { setScreen("novoChamp"); setMenuOpen(false); }} style={{background: "none", border: "none", color: "#10b981", fontWeight: "900", cursor: "pointer", fontSize: 11, padding: 0}}>+ Nova</button>
               </div>
               <div style={{display: "flex", flexDirection: "column", maxHeight: 180, overflowY: "auto"}}>
                 {campeonatos.map(c => {
@@ -16548,7 +16548,7 @@ export default function App(){
             <div>
               <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, padding: "0 20px 8px 20px", textTransform: "uppercase", letterSpacing: "1px", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                 <span>Minhas Peladas ({peladas.length})</span>
-                <button onClick={() => { setScreen("novaPelada"); setMenuOpen(false); }} style={{background: "none", border: "none", color: "#22b7d9", fontWeight: "900", cursor: "pointer", fontSize: 11, padding: 0}}>+ Nova</button>
+                <button onClick={() => { setScreen("novaPelada"); setMenuOpen(false); }} style={{background: "none", border: "none", color: "#10b981", fontWeight: "900", cursor: "pointer", fontSize: 11, padding: 0}}>+ Nova</button>
               </div>
               <div style={{display: "flex", flexDirection: "column", maxHeight: 150, overflowY: "auto"}}>
                 {peladas.map(p => {
@@ -16898,7 +16898,7 @@ export default function App(){
         display: "flex",
         flexDirection: "column",
         borderLeft: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)"}`,
-        background: isDark ? "#0D1320" : "#F8FAFC",
+        background: isDark ? "#000000" : "#F8FAFC",
         height: "100%",
         overflowY: "auto",
         fontFamily: "'Inter', sans-serif",
@@ -19589,8 +19589,8 @@ export default function App(){
           <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>Ações Rápidas</div>
           <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12}}>
             {[
-              {icon: <IconTrophy size={28} />, label: "Novo Campeonato", sub: "Grupos, pontos ou chaves", action: () => setScreen("novoChamp"), color: t.accent, scope: "campeonato"},
-              {icon: <IconSoccer size={28} />, label: "Nova Pelada", sub: "Sorteador de times rápidos", action: () => setScreen("novaPelada"), color: "#22b7d9", scope: "pelada"},
+              {icon: <IconTrophy size={28} />, label: "Novo Campeonato", sub: "Grupos, pontos ou chaves", action: () => setScreen("novoChamp"), color: "#10b981", scope: "campeonato"},
+              {icon: <IconSoccer size={28} />, label: "Nova Pelada", sub: "Sorteador de times rápidos", action: () => setScreen("novaPelada"), color: "#10b981", scope: "pelada"},
             ].filter(b => auth.role === "adm" || auth.scope === "geral" || auth.scope === b.scope).map(b => (
               <button key={b.label} onClick={b.action}
                 style={{
