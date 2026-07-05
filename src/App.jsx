@@ -247,6 +247,113 @@ const IconHome = ({size=18,color="currentColor"}) => (
   </svg>
 );
 
+const IconTrash = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    <line x1="10" y1="11" x2="10" y2="17"/>
+    <line x1="14" y1="11" x2="14" y2="17"/>
+  </svg>
+);
+
+const IconPlus = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+);
+
+const IconCheck = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);
+
+const IconX = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
+const IconUser = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+    <circle cx="12" cy="7" r="4"/>
+  </svg>
+);
+
+const IconLogout = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+    <polyline points="16 17 21 12 16 7"/>
+    <line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+);
+
+const IconLock = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+);
+
+const IconMail = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+    <polyline points="22,6 12,13 2,6"/>
+  </svg>
+);
+
+const IconPhone = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+  </svg>
+);
+
+const IconInfo = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="12" y1="16" x2="12" y2="12"/>
+    <line x1="12" y1="8" x2="12.01" y2="8"/>
+  </svg>
+);
+
+const IconShare = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+    <polyline points="16 6 12 2 8 6"/>
+    <line x1="12" y1="2" x2="12" y2="15"/>
+  </svg>
+);
+
+const IconCamera = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+    <circle cx="12" cy="13" r="4"/>
+  </svg>
+);
+
+const IconActivity = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+  </svg>
+);
+
+const IconClock = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <polyline points="12 6 12 12 16 14"/>
+  </svg>
+);
+
+const IconMapPin = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-10a9 9 0 0 1 18 0z"/>
+    <circle cx="12" cy="10" r="3"/>
+  </svg>
+);
+
 /* ─────────────────────────── CONSTANTES ─────────────────────────── */
 const COLORS = ["#1D9E75","#22b7d9","#D85A30","#7F77DD","#BA7517","#D4537E","#639922","#E24B4A","#5F5E5A","#0F6E56"];
 const MODALIDADES_ESPORTIVAS = [
@@ -920,7 +1027,7 @@ function MuralPostCard({
       <div className="mural-card" style={{ borderColor: "#22b7d9", background: t.inputBg, borderStyle: "solid", borderWidth: "2px", borderRadius: 20, padding: 22, display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${t.cardBorder}`, paddingBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: "#22b7d9", display: "flex", alignItems: "center", gap: 6 }}>✏️ Editar Publicação</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: "#22b7d9", display: "flex", alignItems: "center", gap: 6 }}><IconEdit size={12} /> Editar Publicação</span>
             <button 
               onClick={() => setEditingPostId(null)}
               style={{ background: "none", border: "none", color: t.textSec, cursor: "pointer", fontSize: 18, padding: 0 }}
@@ -931,8 +1038,8 @@ function MuralPostCard({
           <div>
             <label style={S.label}>Tipo de Publicação</label>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={()=>setEditType("noticia")} style={{ ...S.btnSm(editType === "noticia" ? "#0095F6" : "transparent", editType === "noticia" ? "#fff" : t.textSec), border: `1px solid ${editType === "noticia" ? "#0095F6" : t.cardBorder}`, flex: 1, padding: "8px" }}>📢 Notícia</button>
-              <button onClick={()=>setEditType("midia")} style={{ ...S.btnSm(editType === "midia" ? "#0095F6" : "transparent", editType === "midia" ? "#fff" : t.textSec), border: `1px solid ${editType === "midia" ? "#0095F6" : t.cardBorder}`, flex: 1, padding: "8px" }}>🎬 Foto / Vídeo</button>
+              <button onClick={()=>setEditType("noticia")} style={{ ...S.btnSm(editType === "noticia" ? "#0095F6" : "transparent", editType === "noticia" ? "#fff" : t.textSec), border: `1px solid ${editType === "noticia" ? "#0095F6" : t.cardBorder}`, flex: 1, padding: "8px" }}>Notícia</button>
+              <button onClick={()=>setEditType("midia")} style={{ ...S.btnSm(editType === "midia" ? "#0095F6" : "transparent", editType === "midia" ? "#fff" : t.textSec), border: `1px solid ${editType === "midia" ? "#0095F6" : t.cardBorder}`, flex: 1, padding: "8px" }}>Foto / Vídeo</button>
             </div>
           </div>
 
@@ -952,7 +1059,7 @@ function MuralPostCard({
           </div>
 
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button onClick={() => onSaveEdit(item.id)} style={{ ...S.btn("#0095F6"), padding: "10px 14px", fontSize: 13, flex: 1, justifyContent: "center" }}>💾 Salvar Alterações</button>
+            <button onClick={() => onSaveEdit(item.id)} style={{ ...S.btn("#0095F6"), padding: "10px 14px", fontSize: 13, flex: 1, justifyContent: "center" }}>Salvar Alterações</button>
             <button onClick={() => setEditingPostId(null)} style={{ ...S.btn(t.card, t.textSec), border: `1.5px solid ${t.cardBorder}`, padding: "10px 14px", fontSize: 13, cursor: "pointer" }}>Cancelar</button>
           </div>
         </div>
@@ -1013,7 +1120,7 @@ function MuralPostCard({
                   transition: "background 0.2s"
                 }}
               >
-                ✏️ Editar
+                <IconEdit size={12} /> Editar
               </button>
               <button 
                 onClick={() => onDelete(item.id)} 
@@ -1029,7 +1136,7 @@ function MuralPostCard({
                   transition: "background 0.2s"
                 }}
               >
-                🗑 Excluir
+                Excluir
               </button>
             </div>
           )}
@@ -1088,9 +1195,9 @@ function MuralPostCard({
 
         {/* Instagram Action Row */}
         <div style={{ padding: "14px 20px 8px", display: "flex", gap: 18, fontSize: 22, borderTop: hasMedia ? "none" : `1px solid ${t.cardBorder}33` }}>
-          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Curtir">❤️</span>
-          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Comentar">💬</span>
-          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Compartilhar">✈️</span>
+          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Curtir"><IconCheck size={14} /></span>
+          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Comentar"><IconClipboard size={14} /></span>
+          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Compartilhar"><IconShare size={14} /></span>
         </div>
 
         {/* Title & Caption */}
@@ -1147,8 +1254,8 @@ function MuralPostCard({
             </div>
             {isAdmin && (
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => onStartEdit(item)} style={{ background: "none", border: "none", color: "#22b7d9", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 6px" }}>✏️ Editar</button>
-                <button onClick={() => onDelete(item.id)} style={{ background: "none", border: "none", color: "#E24B4A", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 6px" }}>🗑 Excluir</button>
+                <button onClick={() => onStartEdit(item)} style={{ background: "none", border: "none", color: "#22b7d9", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 6px" }}><IconEdit size={12} /> Editar</button>
+                <button onClick={() => onDelete(item.id)} style={{ background: "none", border: "none", color: "#E24B4A", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 6px" }}>Excluir</button>
               </div>
             )}
           </div>
@@ -1232,10 +1339,10 @@ function MuralPostCard({
 
           {/* Twitter Action bar */}
           <div style={{ display: "flex", justifyContent: "space-between", maxWidth: 380, marginTop: 10, color: t.textSec, fontSize: 14 }}>
-            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Responder">💬 <span style={{ fontSize: 11.5 }}>15</span></span>
-            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Retweetar">🔁 <span style={{ fontSize: 11.5 }}>8</span></span>
-            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Curtir">❤️ <span style={{ fontSize: 11.5 }}>142</span></span>
-            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Visualizações">📊 <span style={{ fontSize: 11.5 }}>2.4K</span></span>
+            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Responder"><IconClipboard size={14} /> <span style={{ fontSize: 11.5 }}>15</span></span>
+            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Retweetar"><IconRefresh size={14} /> <span style={{ fontSize: 11.5 }}>8</span></span>
+            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Curtir"><IconCheck size={14} /> <span style={{ fontSize: 11.5 }}>142</span></span>
+            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Visualizações"><IconDatabase size={14} /> <span style={{ fontSize: 11.5 }}>2.4K</span></span>
           </div>
         </div>
       </div>
@@ -1384,7 +1491,7 @@ function AbaGaleriaOrganizador({ c, onUpdate, t }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}>🎬 Galeria de Fotos & Vídeos (Estilo Instagram)</h3>
+      <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}><IconCamera size={16} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Galeria de Fotos & Vídeos (Estilo Instagram)</h3>
       
       {midias.length === 0 ? (
         <div style={{ ...S.card, textAlign: "center", padding: 24, color: t.textSec }}>
@@ -3033,7 +3140,7 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey, onTimerUpdate }) {
                   marginLeft: "auto"
                 }}
               >
-                🔊 Apitar
+                Apitar
               </button>
             )}
           </div>
@@ -3295,7 +3402,7 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
               <div>
                 <label style={S.label}>Senha</label>
                 <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>🔒</span>
+                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}><IconLock size={12} /></span>
                   <input 
                     style={{ ...S.input, paddingLeft: 38, paddingRight: 42 }} 
                     type={showPassword ? "text" : "password"} 
@@ -3603,8 +3710,8 @@ function ManagerRegistry({managers,onAdd,onUpdate,onRemove,onBack,t}){
                 <div style={{fontSize:12,color:t.textSec}}>{m.scope==="campeonato"?"Campeonato":m.scope==="pelada"?"Pelada":"Geral"}</div>
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
-                <button onClick={()=>iniciarEdicao(m)} style={S.btnSm("#22b7d922","#22b7d9")}>✏️</button>
-                <button onClick={()=>{if(window.confirm(`Excluir gestor ${m.name}?`))onRemove(m.id);}} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
+                <button onClick={()=>iniciarEdicao(m)} style={S.btnSm("#22b7d922","#22b7d9")}><IconEdit size={12} /></button>
+                <button onClick={()=>{if(window.confirm(`Excluir gestor ${m.name}?`))onRemove(m.id);}} style={S.btnSm("#E24B4A22","#E24B4A")}><IconTrash size={12} /></button>
               </div>
             </div>
           ))}
@@ -3668,9 +3775,9 @@ function PublicScreen({campeonatos,atletas,current,setCurrent,onBack,t}){
       return (
         <div style={{display:"flex",flexDirection:"column",gap:6,padding:10,border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.inputBg}}>
           <div style={{fontSize:12,fontWeight:700,color:t.text}}>{sideName}</div>
-          {goalsSide.length>0 ? goalsSide.map((e,i)=><div key={`g-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>⚽</span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum gol</div>}
-          {yellowSide.length>0 ? yellowSide.map((e,i)=><div key={`y-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>🟨</span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum amarelo</div>}
-          {redSide.length>0 ? redSide.map((e,i)=><div key={`r-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>🟥</span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum vermelho</div>}
+          {goalsSide.length>0 ? goalsSide.map((e,i)=><div key={`g-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><IconSoccer size={12} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum gol</div>}
+          {yellowSide.length>0 ? yellowSide.map((e,i)=><div key={`y-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#BA7517",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum amarelo</div>}
+          {redSide.length>0 ? redSide.map((e,i)=><div key={`r-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#E24B4A",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum vermelho</div>}
         </div>
       );
     };
@@ -3902,7 +4009,7 @@ function CloudPublicChampScreen({champ,onBack,t}){
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}>📢 Mural de Comunicados (Estilo X)</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}><IconAlertCircle size={16} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Mural de Comunicados (Estilo X)</h3>
         
         {noticias.length === 0 ? (
           <div style={{ ...S.card, textAlign: "center", padding: 30, color: t.textSec }}>
@@ -3927,7 +4034,7 @@ function CloudPublicChampScreen({champ,onBack,t}){
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}>🎬 Galeria de Fotos e Mídias (Estilo Instagram)</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}><IconCamera size={16} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Galeria de Fotos e Mídias (Estilo Instagram)</h3>
         
         {midias.length === 0 ? (
           <div style={{ ...S.card, textAlign: "center", padding: 30, color: t.textSec }}>
@@ -3975,7 +4082,7 @@ function CloudPublicChampScreen({champ,onBack,t}){
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={S.card}>
-          <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, marginBottom: 8 }}>✍️ Ficha de Inscrição Online</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, marginBottom: 8 }}><IconFile size={16} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Ficha de Inscrição Online</h3>
           <p style={{ fontSize: 12, color: t.textSec, lineHeight: 1.5, marginBottom: 14 }}>
             Preencha a ficha abaixo para enviar a solicitação de inscrição do seu time. A organização analisará os dados no painel do torneio.
           </p>
@@ -4232,9 +4339,9 @@ function CloudPublicChampScreen({champ,onBack,t}){
       return (
         <div style={{display:"flex",flexDirection:"column",gap:6,padding:10,border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.inputBg}}>
           <div style={{fontSize:12,fontWeight:700,color:t.text}}>{sideName}</div>
-          {goalsSide.length>0 ? goalsSide.map((e,i)=><div key={`g-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>⚽</span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum gol</div>}
-          {yellowSide.length>0 ? yellowSide.map((e,i)=><div key={`y-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>🟨</span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum amarelo</div>}
-          {redSide.length>0 ? redSide.map((e,i)=><div key={`r-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>🟥</span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum vermelho</div>}
+          {goalsSide.length>0 ? goalsSide.map((e,i)=><div key={`g-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><IconSoccer size={12} /></span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum gol</div>}
+          {yellowSide.length>0 ? yellowSide.map((e,i)=><div key={`y-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#BA7517",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum amarelo</div>}
+          {redSide.length>0 ? redSide.map((e,i)=><div key={`r-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#E24B4A",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum vermelho</div>}
         </div>
       );
     };
@@ -4270,7 +4377,7 @@ function CloudPublicChampScreen({champ,onBack,t}){
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <button onClick={onBack} style={{...S.btnSm(t.card,t.text),border:`1px solid ${t.cardBorder}`,padding:"8px 12px"}}>← Sair</button>
           <div>
-            <h2 style={{fontSize:20,fontWeight:800,color:t.text,margin:0}}>🏆 {c.name}</h2>
+            <h2 style={{fontSize:20,fontWeight:800,color:t.text,margin:0}}>{c.name}</h2>
             <div style={{fontSize:11,color:t.textSec,marginTop:2}}>
               Nuvem · Atualizado em: {formatarDataLocal(c.lastPublished)}
             </div>
@@ -4340,7 +4447,7 @@ function CloudPublicChampScreen({champ,onBack,t}){
 
       {tab==="artilharia"&&(
         <div style={{display:"flex",flexDirection:"column",gap:18}}>
-          <Sec title="⚽ Artilharia (Gols)" t={t}>
+          <Sec title="Artilharia (Gols)" t={t}>
             {topGols.length===0 ? <div style={{fontSize:12,color:t.textSec}}>Nenhum gol marcado</div> : (
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {topGols.map((s,i)=>(
@@ -4750,7 +4857,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
         </div>
         <div style={{display: "flex", gap: 8}}>
           <button onClick={() => setModalPixOpen(true)} style={{...S.btnSm(t.accent, "#000"), background: t.accent, color: "#000", fontWeight: 700}}>
-            💳 Pagar Diária (Pix)
+            Pagar Diária (Pix)
           </button>
           <button onClick={onBack} style={S.btnSm(t.card, t.text)}>
             ⬅️ Sair
@@ -4767,7 +4874,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
         marginBottom: 16
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: t.text, display: "flex", alignItems: "center", gap: 6 }}>
-          📅 {formatarData(activeDate?.dateStr || activeDate?.data) || "Carregando..."}
+          <IconCalendar size={13} style={{marginRight: 4}} /> {formatarData(activeDate?.dateStr || activeDate?.data) || "Carregando..."}
         </div>
         
         <div style={{display: "flex", alignItems: "center", gap: 8}}>
@@ -4821,7 +4928,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
             textAlign: "center",
             letterSpacing: 1
           }}>
-            🔥 JOGO EM ANDAMENTO
+            <IconActivity size={12} style={{marginRight: 4}} /> JOGO EM ANDAMENTO
           </div>
 
           <IndependentPublicTimer
@@ -4883,7 +4990,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                         <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                           {goals ? (
                             <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginRight:2,flexShrink:0}}>
-                              ⚽{goals > 1 ? ` ${goals}` : ""}
+                              <IconSoccer size={12} style={{marginRight: 2}} />{goals > 1 ? ` ${goals}` : ""}
                             </span>
                           ) : null}
                           <span style={{
@@ -4904,7 +5011,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                   </div>
                   {currentMatch.goleiroA && (
                     <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", justifyContent: "flex-end", fontSize: 10, color: t.textSec, gap: 4}}>
-                      🧤 Goleiro: <b>{getPlayerName({ id: currentMatch.goleiroA })}</b>
+                      <IconGoalkeeper size={12} style={{marginRight: 4}} /> Goleiro: <b>{getPlayerName({ id: currentMatch.goleiroA })}</b>
                     </div>
                   )}
                 </div>
@@ -4948,7 +5055,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                           }}>{isProxEmprestado ? "🔄 " : ""}{getPlayerName(p)}{getLoanTag(p, currentMatch.teamB)}</span>
                           {goals ? (
                             <span style={{fontSize:10,fontWeight:600,color:"#BA7517",marginLeft:2,flexShrink:0}}>
-                              ⚽{goals > 1 ? ` ${goals}` : ""}
+                              <IconSoccer size={12} style={{marginRight: 2}} />{goals > 1 ? ` ${goals}` : ""}
                             </span>
                           ) : null}
                         </div>
@@ -4957,7 +5064,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                   </div>
                   {currentMatch.goleiroB && (
                     <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", justifyContent: "flex-start", fontSize: 10, color: t.textSec, gap: 4}}>
-                      🧤 Goleiro: <b>{getPlayerName({ id: currentMatch.goleiroB })}</b>
+                      <IconGoalkeeper size={12} style={{marginRight: 4}} /> Goleiro: <b>{getPlayerName({ id: currentMatch.goleiroB })}</b>
                     </div>
                   )}
                 </div>
@@ -4974,7 +5081,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
           marginBottom: 16,
           borderRadius: 12
         }}>
-          ⚽ Nenhum jogo rolando no momento.
+          <IconSoccer size={14} style={{marginRight: 4}} /> Nenhum jogo rolando no momento.
         </div>
       )}
 
@@ -4982,7 +5089,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
       <div style={{display: "flex", flexDirection: "column", gap: 14, marginBottom: 16}}>
         <div style={{...S.card, padding: 14, borderRadius: 12}}>
           <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text, display: "flex", alignItems: "center", gap: 6}}>
-            <span>📋 Próximos Times (Fila)</span>
+            <span>Próximos Times (Fila)</span>
             <span style={{fontSize: 10, background: "#7F77DD22", color: "#7F77DD", padding: "1px 6px", borderRadius: 4}}>{queue.slice(2).length}</span>
           </h4>
           {queue.slice(2).length > 0 ? (
@@ -5039,7 +5146,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                               }}
                             >
                               <PlayerAvatar atleta={p} size={16}/>
-                              <span style={{fontWeight:600, color: "#1D9E75"}}>{getPlayerName(p)} 🤝 ({sigla})</span>
+                              <span style={{fontWeight:600, color: "#1D9E75"}}>{getPlayerName(p)} <IconHandshake size={10} style={{marginLeft: 2}} /> ({sigla})</span>
                             </div>
                           );
                         }
@@ -5080,7 +5187,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
 
         <div style={{...S.card, padding: 14, borderRadius: 12}}>
           <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text, display: "flex", alignItems: "center", gap: 6}}>
-            <span>👤 Reservas no Banco</span>
+            <span>Reservas no Banco</span>
             <span style={{fontSize: 10, background: "#BA751722", color: "#BA7517", padding: "1px 6px", borderRadius: 4}}>{bench.length}</span>
           </h4>
           {bench.length > 0 ? (
@@ -5110,7 +5217,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                     }}
                   >
                     <PlayerAvatar atleta={b} size={16}/>
-                    {b.goleiro ? "🧤" : "⚽"} {getPlayerName(b)}{isCandidatoEmprestimo && " 🤝"}
+                    {b.goleiro ? <IconGoalkeeper size={14} /> : <IconSoccer size={14} />} {getPlayerName(b)}{isCandidatoEmprestimo && " 🤝"}
                     {isRev && <span title={`Reveza com ${anfitriaoNome}`} style={{fontSize:9,opacity:0.85}}>🔄{anfitriaoNome}</span>}
                   </span>
                 );
@@ -5134,7 +5241,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
         return (
           <div style={{...S.card, padding: 14, borderRadius: 12, marginBottom: 16}}>
             <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text, display: "flex", alignItems: "center", gap: 6}}>
-              <span>👥 Lista de Confirmados ({confirmadosParts.length})</span>
+              <span>Lista de Confirmados ({confirmadosParts.length})</span>
             </h4>
             {confirmadosSorted.length > 0 ? (
               <div style={{
@@ -5178,7 +5285,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
 
       {/* Card único do Ranking do Dia (Histórico de Jogos removido) */}
       <div style={{...S.card, padding: 14, borderRadius: 12, marginBottom: 16}}>
-        <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text}}>📊 Ranking do Dia</h4>
+        <h4 style={{fontSize: 13, fontWeight: 700, margin: "0 0 10px 0", color: t.text}}>Ranking do Dia</h4>
         {ranking.length > 0 ? (
           <div style={{display: "flex", flexDirection: "column", gap: 4, maxHeight: 300, overflowY: "auto"}}>
             {ranking.map((row, i) => (
@@ -5207,14 +5314,14 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
       </div>
       
       <div style={{textAlign: "center", fontSize: 10, color: t.textSec, marginTop: 30, opacity: 0.6}}>
-        Desenvolvido com ⚽ pelo Futebol Manager
+        Desenvolvido com <IconSoccer size={12} /> pelo Futebol Manager
       </div>
 
       {modalPixOpen && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
           <div style={{...S.card,width:"100%",maxWidth:400,maxHeight:"90vh",overflowY:"auto",display:"flex",flexDirection:"column"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <div style={{fontWeight:700,fontSize:16,color:t.text}}>💳 Pagar Diária via Pix</div>
+              <div style={{fontWeight:700,fontSize:16,color:t.text}}>Pagar Diária via Pix</div>
               <button onClick={() => {
                 setModalPixOpen(false);
                 setPixQrCode(null);
@@ -5325,7 +5432,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
                 )}
 
                 <button onClick={handleGerarPix} disabled={pixLoading} style={{...S.btn(t.accent),width:"100%",marginTop:10,justifyContent:"center"}}>
-                  {pixLoading ? "Gerando Pix..." : "Gerar QR Code Pix ⚡"}
+                  {pixLoading ? "Gerando Pix..." : "Gerar QR Code Pix "}
                 </button>
               </div>
             )}
@@ -5795,7 +5902,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
       <div className="no-print">
         {/* Seletor de Cores do Relatório & Sistema */}
         <div style={{ ...S.card, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, borderColor: (t.accent || "#0095F6") + "55" }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: t.text }}>🎨 Tema de Cor (Ranking & Sistema):</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: t.text }}>Tema de Cor (Ranking & Sistema):</div>
           <div style={{ display: "flex", gap: 8 }}>
             {[
               { name: "Azul Instagram", color: "#0095F6" },
@@ -5827,7 +5934,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
         {/* Filtro por Período (Apenas para Todas as Datas) */}
         {String(selDataSorteio) === "todas" && (
           <div style={{ ...S.card, marginBottom: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", borderColor: (t.accent || "#0095F6") + "44" }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: t.text }}>📅 Filtrar por Período:</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: t.text }}>Filtrar por Período:</div>
             
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <select 
@@ -5874,7 +5981,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
         {/* Dica para habilitar filtro de período se estiver visualizando uma data ativa específica */}
         {String(selDataSorteio) !== "todas" && (
           <div style={{ fontSize: 12, color: t.textSec, marginBottom: 16, background: (t.accent || "#0095F6") + "11", padding: "10px 14px", borderRadius: 8, border: `1.5px dashed ${(t.accent || "#0095F6")}44`, display: "flex", alignItems: "center", gap: 6 }}>
-            <span>💡</span>
+            <span><IconInfo size={14} /></span>
             <span><strong>Dica:</strong> Para filtrar o ranking por período (mensal/trimestral), selecione a opção <strong>"Todas as Datas"</strong> no seletor de <strong>"Dia da Pelada"</strong> lá no topo da página.</span>
           </div>
         )}
@@ -5891,7 +5998,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
               onClick={() => window.print()} 
               style={{...S.btnSm(t.accent || "#0095F6", "#fff"), fontWeight: 700, padding: "10px 14px"}}
             >
-              📄 Exportar PDF do Ranking
+              Exportar PDF do Ranking
             </button>
           </div>
         </div>
@@ -5901,7 +6008,7 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
           {[
             { id: "linha", label: "👟 Jogadores de Linha" },
             { id: "goleiros", label: "🧤 Goleiros" },
-            { id: "artilharia", label: "⚽ Artilharia" }
+            { id: "artilharia", label: "Artilharia" }
           ].map(tb => (
             <button 
               key={tb.id} 
@@ -5951,9 +6058,9 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
                   <tbody>
                     {rankingJogadoresLinha.map((item, idx) => {
                       let badge = idx + 1;
-                      if (idx === 0) badge = "🥇";
-                      else if (idx === 1) badge = "🥈";
-                      else if (idx === 2) badge = "🥉";
+                      if (idx === 0) badge = <span style={{color:"#BA7517",fontWeight:800}}>1º</span>;
+                      else if (idx === 1) badge = <span style={{color:"#8E929E",fontWeight:800}}>2º</span>;
+                      else if (idx === 2) badge = <span style={{color:"#CD7F32",fontWeight:800}}>3º</span>;
                       
                       const isInqualificavel = item.pctPresenca < 50;
                       
@@ -6019,9 +6126,9 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
                   <tbody>
                     {rankingGoleiros.map((item, idx) => {
                       let badge = idx + 1;
-                      if (idx === 0) badge = "🥇";
-                      else if (idx === 1) badge = "🥈";
-                      else if (idx === 2) badge = "🥉";
+                      if (idx === 0) badge = <span style={{color:"#BA7517",fontWeight:800}}>1º</span>;
+                      else if (idx === 1) badge = <span style={{color:"#8E929E",fontWeight:800}}>2º</span>;
+                      else if (idx === 2) badge = <span style={{color:"#CD7F32",fontWeight:800}}>3º</span>;
                       
                       const pctGoleiro = totalPartidas > 0 ? (item.jogosGoleiro / totalPartidas) * 100 : 0;
                       const isInqualificavel = pctGoleiro < 50;
@@ -6082,9 +6189,9 @@ function AbaRelatorioPelada({ peladaState, datas, atletas, selDataSorteio, repSo
                   <tbody>
                     {rankingArtilheiros.map((item, idx) => {
                       let badge = idx + 1;
-                      if (idx === 0) badge = "🥇";
-                      else if (idx === 1) badge = "🥈";
-                      else if (idx === 2) badge = "🥉";
+                      if (idx === 0) badge = <span style={{color:"#BA7517",fontWeight:800}}>1º</span>;
+                      else if (idx === 1) badge = <span style={{color:"#8E929E",fontWeight:800}}>2º</span>;
+                      else if (idx === 2) badge = <span style={{color:"#CD7F32",fontWeight:800}}>3º</span>;
                       
                       return (
                         <tr key={item.player.id} style={{ borderBottom: `1px solid ${t.cardBorder}`, background: idx === 0 ? (t.accent ? t.accent + "11" : "#0095F611") : "transparent" }}>
@@ -6301,8 +6408,8 @@ function FinancialPanel({finance,onChange,autoIncome=0,filtro="geral",filtroData
             <div style={{display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
               <span style={{fontWeight:700,color:e.type==="receita"?"#1D9E75":"#E24B4A",fontSize:13}}>{e.type==="receita"?"+":"-"}{fmtCur(e.amount)}</span>
               <div style={{display:"flex",gap:6}} className="no-print">
-                <button onClick={()=>startEdit(e)} style={S.btnSm("#22b7d922","#22b7d9")}>✏️</button>
-                <button onClick={()=>onChange({entries:allEntries.filter(x=>x.id!==e.id)})} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
+                <button onClick={()=>startEdit(e)} style={S.btnSm("#22b7d922","#22b7d9")}><IconEdit size={12} /></button>
+                <button onClick={()=>onChange({entries:allEntries.filter(x=>x.id!==e.id)})} style={S.btnSm("#E24B4A22","#E24B4A")}><IconTrash size={12} /></button>
               </div>
             </div>
           </div>
@@ -6520,7 +6627,7 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}} className="no-print">
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <button onClick={()=>setScreen("home")} style={S.btnSm()}>← Voltar</button>
-          <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>💰 Financeiro</h2>
+          <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>Financeiro</h2>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <button onClick={() => window.print()} style={S.btnSm("#1D9E7522","#1D9E75")}>🖨️ Imprimir</button>
@@ -6533,8 +6640,8 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
           <label style={{...S.label,marginRight:10}}>Visualizando Evento:</label>
           <select style={{...S.select,display:"inline-block"}} value={filtro} onChange={e=>setFiltro(e.target.value)}>
             {(!auth || auth.role === "adm" || auth.scope === "geral") && <option value="geral">Visão Geral (Todas as Peladas e Caixa Livre)</option>}
-            {(!auth || auth.role === "adm" || auth.scope === "geral" || auth.scope === "campeonato") && campeonatos.map(c=> <option key={`champ:${c.id}`} value={`champ:${c.id}`}>🏆 {c.name}</option>)}
-            {(!auth || auth.role === "adm" || auth.scope === "geral" || auth.scope === "pelada") && peladas.map(p=> <option key={`pelada:${p.id}`} value={`pelada:${p.id}`}>👟 {p.nome}</option>)}
+            {(!auth || auth.role === "adm" || auth.scope === "geral" || auth.scope === "campeonato") && campeonatos.map(c=> <option key={`champ:${c.id}`} value={`champ:${c.id}`}>{c.name}</option>)}
+            {(!auth || auth.role === "adm" || auth.scope === "geral" || auth.scope === "pelada") && peladas.map(p=> <option key={`pelada:${p.id}`} value={`pelada:${p.id}`}>{p.nome}</option>)}
           </select>
         </div>
         {filtro!=="geral"&&(
@@ -6877,14 +6984,14 @@ function CRUDAtletas({
           value={filtroVinculo} 
           onChange={e=>{ setFiltroVinculo(e.target.value); setFiltro(""); }}
         >
-          <option value="todos">🌍 Todos os Atletas (Sem Filtro)</option>
+          <option value="todos">Todos os Atletas (Sem Filtro)</option>
           {campeonatos && campeonatos.length > 0 && (
-            <optgroup label="🏆 Ligas / Campeonatos">
+            <optgroup label="Ligas / Campeonatos">
               {campeonatos.map(c => <option key={c.id} value={"campeonato_" + c.id}>{c.name}</option>)}
             </optgroup>
           )}
           {peladas && peladas.length > 0 && (
-            <optgroup label="👟 Peladas">
+            <optgroup label="Peladas">
               {peladas.map(p => <option key={p.id} value={"pelada_" + p.id}>{p.nome}</option>)}
             </optgroup>
           )}
@@ -6898,7 +7005,7 @@ function CRUDAtletas({
       </div>
 
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
-        <input style={{...S.input,flex:1,minWidth:120}} placeholder="🔍 Buscar atleta por nome/apelido..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
+        <input style={{...S.input,flex:1,minWidth:120}} placeholder="Buscar atleta por nome/apelido..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
         <button onClick={abrirNovo} style={S.btn("#1D9E75")}>+ Novo Atleta</button>
         <button onClick={()=>setExpandMenu(!expandMenu)} style={{...S.btn("#a0a0a0"),display:"inline-flex",gap:6}}>
           <span>⚙️ Importar/Exportar</span>
@@ -6971,18 +7078,18 @@ function CRUDAtletas({
                 <div style={{fontSize:11,color:t.textSec,marginTop:4,display:"flex",flexDirection:"column",gap:2}}>
                   <div style={{color:SKILL_COLORS[a.habilidade-1],fontWeight:700}}>
                     {"⭐".repeat(a.habilidade)} · {SKILL_NAMES[a.habilidade-1]}
-                    {a.dataNascimento && ` · 🎂 Nasc: ${a.dataNascimento.split("-").reverse().join("/")}`}
+                    {a.dataNascimento && ` · <IconCalendar size={11} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> Nasc: ${a.dataNascimento.split("-").reverse().join("/")}`}
                     {a.documento && ` · 🪪 RG/CPF: ${a.documento}`}
                   </div>
                   <div>
                     <span style={{fontWeight:700,color:a.tipoAtleta === "Adventista" ? "#1D9E75" : "#BA7517"}}>
-                      ⛪ {a.tipoAtleta || "Adventista"} {a.igrejaMembro ? `(${a.igrejaMembro})` : ""}
+                      <IconHome size={11} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> {a.tipoAtleta || "Adventista"} {a.igrejaMembro ? `(${a.igrejaMembro})` : ""}
                     </span>
                     {a.celular1 && ` · 📞 ${a.celular1}`}
                     {a.email && ` · ✉️ ${a.email}`}
                   </div>
-                  {a.nomeMae && <div>👤 Mãe: {a.nomeMae}</div>}
-                  {(a.nomeVia || a.bairro) && <div>📍 Endereço: {a.logradouro || ""} {a.nomeVia || ""}, {a.bairro || ""}</div>}
+                  {a.nomeMae && <div><IconUser size={11} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> Mãe: {a.nomeMae}</div>}
+                  {(a.nomeVia || a.bairro) && <div><IconMapPin size={11} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> Endereço: {a.logradouro || ""} {a.nomeVia || ""}, {a.bairro || ""}</div>}
                   
                   {Array.isArray(a.modalidades) && a.modalidades.length > 0 && (
                     <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:3}}>
@@ -6998,8 +7105,8 @@ function CRUDAtletas({
                     </div>
                   )}
                   <div style={{display:"flex",gap:8,marginTop:4}}>
-                    {a.foto ? <span style={{color:"#1D9E75", fontSize: 10.5}}>✓ Foto Perfil 👤</span> : <span style={{color:"#E24B4A", fontSize: 10.5}}>✕ Sem Foto 👤</span>}
-                    {a.docFoto ? <span style={{color:"#1D9E75", fontSize: 10.5}}>✓ Doc. Anexado 🪪</span> : <span style={{color:"#E24B4A", fontSize: 10.5}}>✕ Sem Doc. 🪪</span>}
+                    {a.foto ? <span style={{color:"#1D9E75", fontSize: 10.5}}>Foto Perfil Anexada</span> : <span style={{color:"#E24B4A", fontSize: 10.5}}>Sem Foto Perfil</span>}
+                    {a.docFoto ? <span style={{color:"#1D9E75", fontSize: 10.5}}>Documento Anexado</span> : <span style={{color:"#E24B4A", fontSize: 10.5}}>Sem Documento</span>}
                   </div>
                 </div>
 
@@ -7012,8 +7119,8 @@ function CRUDAtletas({
                 )}
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
-                <button onClick={()=>abrirEdicao(a)} style={S.btnSm("#22b7d922","#22b7d9")}>✏️</button>
-                <button onClick={()=>{if(window.confirm("Excluir atleta?"))handleRemove(a.id);}} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
+                <button onClick={()=>abrirEdicao(a)} style={S.btnSm("#22b7d922","#22b7d9")}><IconEdit size={12} /></button>
+                <button onClick={()=>{if(window.confirm("Excluir atleta?"))handleRemove(a.id);}} style={S.btnSm("#E24B4A22","#E24B4A")}><IconTrash size={12} /></button>
               </div>
             </div>
           </div>
@@ -7023,7 +7130,7 @@ function CRUDAtletas({
       {modal&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
           <div style={{...S.card,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editId ? "✏️ Editar Atleta" : "🆕 Novo Atleta"}</div>
+            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editId ? "<IconEdit size={12} /> Editar Atleta" : "Novo Atleta"}</div>
             
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               {/* 1. Identificação Básica */}
@@ -7086,7 +7193,7 @@ function CRUDAtletas({
                                 });
                               }}
                             />
-                            🏆 {c.name}
+                            {c.name}
                           </label>
                         );
                       })}
@@ -7113,7 +7220,7 @@ function CRUDAtletas({
                                 });
                               }}
                             />
-                            👟 {p.nome}
+                            {p.nome}
                           </label>
                         );
                       })}
@@ -7225,7 +7332,7 @@ function CRUDAtletas({
                   {form.foto&&<img src={form.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
                   <input style={{...S.input,flex:1}} value={form.foto} onChange={e=>setForm(v=>({...v,foto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
                   <label style={{...S.btn("#22b7d922","#22b7d9"),margin:0}}>
-                    📁 Rosto
+                    Foto de Rosto
                     <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setForm(v=>({...v,foto:b64})))}}/>
                   </label>
                 </div>
@@ -7237,7 +7344,7 @@ function CRUDAtletas({
                   {form.docFoto&&<img src={form.docFoto} style={{width:40,height:40,borderRadius:4,objectFit:"cover"}}/>}
                   <input style={{...S.input,flex:1}} value={form.docFoto} onChange={e=>setForm(v=>({...v,docFoto:e.target.value}))} placeholder="Cole URL ou selecione arquivo..."/>
                   <label style={{...S.btn("#1D9E7522","#1D9E75"),margin:0}}>
-                    📁 Doc. Foto
+                    Foto do Documento
                     <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],600,(b64)=>setForm(v=>({...v,docFoto:b64})))}}/>
                   </label>
                 </div>
@@ -7338,7 +7445,7 @@ function CRUDQuadras({
       </div>
 
       <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
-        <input style={{...S.input,flex:1,minWidth:120}} placeholder="🔍 Buscar quadra por nome ou endereço..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
+        <input style={{...S.input,flex:1,minWidth:120}} placeholder="Buscar quadra por nome ou endereço..." value={filtro} onChange={e=>setFiltro(e.target.value)}/>
         <button onClick={abrirNovo} style={S.btn("#22b7d9")}>+ Nova Quadra</button>
         <button onClick={()=>setExpandMenu(!expandMenu)} style={{...S.btn("#a0a0a0"),display:"inline-flex",gap:6}}>
           <span>⚙️ Importar/Exportar</span>
@@ -7382,8 +7489,8 @@ function CRUDQuadras({
                 </div>
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
-                <button onClick={()=>abrirEdicao(q)} style={S.btnSm("#22b7d922","#22b7d9")}>✏️</button>
-                <button onClick={()=>{if(window.confirm("Excluir quadra?"))onRemove(q.id);}} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
+                <button onClick={()=>abrirEdicao(q)} style={S.btnSm("#22b7d922","#22b7d9")}><IconEdit size={12} /></button>
+                <button onClick={()=>{if(window.confirm("Excluir quadra?"))onRemove(q.id);}} style={S.btnSm("#E24B4A22","#E24B4A")}><IconTrash size={12} /></button>
               </div>
             </div>
           </div>
@@ -7393,7 +7500,7 @@ function CRUDQuadras({
       {modal&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
           <div style={{...S.card,width:"100%",maxWidth:420,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editId ? "✏️ Editar Quadra" : "🆕 Nova Quadra"}</div>
+            <div style={{fontWeight:700,fontSize:16,color:t.text,marginBottom:16}}>{editId ? "<IconEdit size={12} /> Editar Quadra" : "Nova Quadra"}</div>
             
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               <div>
@@ -7435,7 +7542,7 @@ function CriarPelada({onSave,initial,t}){
       <div><label style={S.label}>Nome da pelada</label><input style={S.input} value={nome} onChange={e=>setNome(e.target.value)} placeholder="Ex: Pelada de Quinta"/></div>
       <div><label style={S.label}>Data de criação</label><input style={S.input} type="date" value={dataCriacao} onChange={e=>setDataCriacao(e.target.value)}/></div>
       <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={ativo} onChange={e=>setAtivo(e.target.checked)}/>Ativa</label>
-      <button onClick={handle} style={S.btn("#22b7d9")}>{initial?"Salvar Alterações":"Criar Pelada 👟"}</button>
+      <button onClick={handle} style={S.btn("#22b7d9")}>{initial?"Salvar Alterações":"Criar Pelada"}</button>
     </div>
   );
 }
@@ -7496,7 +7603,7 @@ function AbaDatas({peladaId,datasRealizacao,onAdd,onUpdate,onRemove,t,quadras=[]
             ):(
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
                 <div>
-                  <div style={{fontWeight:600,fontSize:14,color:t.text}}>📅 {formatarData(d.data)}</div>
+                  <div style={{fontWeight:600,fontSize:14,color:t.text}}>{formatarData(d.data)}</div>
                   <div style={{fontSize:12,color:t.textSec,marginTop:2}}>{d.local||"Local não definido"} {d.valor ? `· ${fmtCur(d.valor)}` : ""}</div>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
@@ -7505,7 +7612,7 @@ function AbaDatas({peladaId,datasRealizacao,onAdd,onUpdate,onRemove,t,quadras=[]
                     <option value="realizado">Realizado</option>
                     <option value="cancelado">Cancelado</option>
                   </select>
-                  <button onClick={()=>{setEditId(d.id);setEditData(d.data);setEditLocal(d.local||"");setEditValor(d.valor||"");}} style={S.btnSm("#22b7d922","#22b7d9")}>✏️</button>
+                  <button onClick={()=>{setEditId(d.id);setEditData(d.data);setEditLocal(d.local||"");setEditValor(d.valor||"");}} style={S.btnSm("#22b7d922","#22b7d9")}><IconEdit size={12} /></button>
                   <button 
                     onClick={() => {
                       if (d.status === "realizado") {
@@ -7521,7 +7628,7 @@ function AbaDatas({peladaId,datasRealizacao,onAdd,onUpdate,onRemove,t,quadras=[]
                     }} 
                     style={S.btnSm("#E24B4A22","#E24B4A")}
                   >
-                    🗑
+                    <IconTrash size={12} />
                   </button>
                 </div>
               </div>
@@ -7783,13 +7890,13 @@ function AbaAtletasPelada({
       <div style={{marginBottom: 16, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap"}}>
         <input 
           style={{...S.input, flex: 1, minWidth: 160}} 
-          placeholder="🔍 Buscar atleta por nome ou apelido..." 
+          placeholder="Buscar atleta por nome ou apelido..." 
           value={filtro} 
           onChange={e=>setFiltro(e.target.value)}
           disabled={isRealizada}
         />
-        <button onClick={abrirNovoAtleta} style={S.btnSm(t.accent, "#fff")} disabled={isRealizada}>🆕 Novo Atleta</button>
-        <button onClick={abrirModalConvidado} style={S.btnSm("#7F77DD22", "#7F77DD")} disabled={isRealizada} title="Adicionar convidado vinculado a um anfitrião">👤 Convidado</button>
+        <button onClick={abrirNovoAtleta} style={S.btnSm(t.accent, "#fff")} disabled={isRealizada}>Novo Atleta</button>
+        <button onClick={abrirModalConvidado} style={S.btnSm("#7F77DD22", "#7F77DD")} disabled={isRealizada} title="Adicionar convidado vinculado a um anfitrião"><IconUser size={13} style={{marginRight: 4}} /> Convidado</button>
       </div>
 
       <div style={{marginBottom: 14}}>
@@ -7804,9 +7911,9 @@ function AbaAtletasPelada({
       <div style={{marginBottom: 16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
           <div style={{fontWeight:700,fontSize:13,color:"#1D9E75"}}>
-            {selDataSorteio === "todas" ? `👤 Elenco Permanente da Pelada (${vinculadosFiltrados.length})` : `✅ Atletas Vinculados à Data (${vinculadosFiltrados.length})`}
+            {selDataSorteio === "todas" ? `Elenco Permanente da Pelada (${vinculadosFiltrados.length})` : `Atletas Vinculados à Data (${vinculadosFiltrados.length})`}
           </div>
-          <button onClick={()=>setModalRelatorio(true)} style={S.btnSm(t.cardBorder,t.text)}>📋 Mensalistas</button>
+          <button onClick={()=>setModalRelatorio(true)} style={S.btnSm(t.cardBorder,t.text)}>Mensalistas</button>
         </div>
         
         {vinculadosFiltrados.length===0 ? (
@@ -7823,7 +7930,7 @@ function AbaAtletasPelada({
               const anfitriao = a.isConvidado && a.convidadoDe ? atletas.find(x => x.id === a.convidadoDe) : null;
               return(
                 <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:12,background: a.isProvisorio ? "#BA751710" : (a.isConvidado ? "#7F77DD10" : `${t.accent}10`),border: a.isProvisorio ? "1px solid #BA751733" : (a.isConvidado ? "1px solid #7F77DD33" : `1px solid ${t.accent}33`),flexWrap:"wrap"}}>
-                  <span style={{fontSize:16}}>{a.goleiro?"🧤":"⚽"}</span>
+                  <span style={{fontSize:16}}>{a.goleiro ? <IconGoalkeeper size={14} /> : <IconSoccer size={14} />}</span>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontWeight:600,fontSize:13,color:t.text,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                       {a.nome}{a.apelido ? ` (${a.apelido})` : ""}
@@ -7856,7 +7963,7 @@ function AbaAtletasPelada({
                       setFormSaldo(vinculo?.saldo || 0);
                       setRecargaVal("");
                       setSaldoOp("add");
-                    }} style={S.btnSm("#BA751722","#BA7517")} disabled={isRealizada}>⚙️ Ajustar</button>
+                    }} style={S.btnSm("#BA751722","#BA7517")} disabled={isRealizada}>Ajustar</button>
                     <button onClick={()=>desvincular(a.id)} style={S.btnSm("#E24B4A22","#E24B4A")} disabled={isRealizada}>Remover</button>
                   </div>
                 </div>
@@ -7867,7 +7974,7 @@ function AbaAtletasPelada({
       </div>
 
       <div style={{marginBottom: 16}}>
-        <div style={{fontWeight:700,fontSize:13,color:t.textSec,marginBottom:8}}>➕ Disponíveis no Cadastro ({disponiveisFiltrados.length})</div>
+        <div style={{fontWeight:700,fontSize:13,color:t.textSec,marginBottom:8}}>Disponíveis no Cadastro ({disponiveisFiltrados.length})</div>
         {disponiveisFiltrados.length===0 ? (
           <div style={{...S.card,color:t.textSec,fontSize:13,textAlign:"center",padding:24}}>
             {filtro ? "Nenhum atleta correspondente disponível." : "Todos os atletas do cadastro já estão vinculados a esta data."}
@@ -7881,10 +7988,10 @@ function AbaAtletasPelada({
                 : `Diarista (Diária: ${fmtCur(vinculoGeral?.valor_padrao||0)})`;
               return (
                 <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:12,background:t.card,border:`1px solid ${t.cardBorder}`,flexWrap:"wrap"}}>
-                  <span style={{fontSize:16}}>{a.goleiro?"🧤":"⚽"}</span>
+                  <span style={{fontSize:16}}>{a.goleiro ? <IconGoalkeeper size={14} /> : <IconSoccer size={14} />}</span>
                   <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13,color:t.text}}>{a.nome}{a.apelido ? ` (${a.apelido})` : ""}</div><div style={{fontSize:11,color:t.textSec}}>{infoPag}</div></div>
                   <div>
-                    <button onClick={()=>vincular(a.id)} style={S.btnSm(`${t.accent}22`,t.accent)} disabled={isRealizada}>➕ Vincular à Data</button>
+                    <button onClick={()=>vincular(a.id)} style={S.btnSm(`${t.accent}22`,t.accent)} disabled={isRealizada}>Vincular à Data</button>
                   </div>
                 </div>
               );
@@ -8011,7 +8118,7 @@ function AbaAtletasPelada({
                   {formAtleta.foto&&<img src={formAtleta.foto} style={{width:40,height:40,borderRadius:"50%",objectFit:"cover"}}/>}
                   <input style={{...S.input,flex:1}} value={formAtleta.foto} onChange={e=>setFormAtleta(v=>({...v,foto:e.target.value}))} placeholder="Cole URL da foto..."/>
                   <label style={{...S.btn("#22b7d922","#22b7d9"),margin:0}}>
-                    📁 Arquivo
+                    Selecionar Arquivo
                     <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])resizeImage(e.target.files[0],300,(b64)=>setFormAtleta(v=>({...v,foto:b64})))}}/>
                   </label>
                 </div>
@@ -8039,11 +8146,11 @@ function AbaAtletasPelada({
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1002,padding:16}}>
           <div style={{...S.card,width:"100%",maxWidth:400,maxHeight:"90vh",overflowY:"auto"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <div style={{fontWeight:800,fontSize:16,color:"#7F77DD"}}>👤 Adicionar Convidado</div>
+              <div style={{fontWeight:800,fontSize:16,color:"#7F77DD"}}>Adicionar Convidado</div>
               <button onClick={()=>setModalConvidado(false)} style={{background:"none",border:"none",color:t.textSec,cursor:"pointer",fontSize:20,padding:0}}>×</button>
             </div>
             <div style={{fontSize:12,color:t.textSec,marginBottom:16,background:"#7F77DD10",border:"1px solid #7F77DD30",borderRadius:8,padding:"8px 12px"}}>
-              🔄 Convidados de revezamento entram no mesmo time do anfitrião e se revezam com ele durante a pelada.
+              Convidados de revezamento entram no mesmo time do anfitrião e se revezam com ele durante a pelada.
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:14}}>
               <div>
@@ -8083,7 +8190,7 @@ function AbaAtletasPelada({
               </div>
             </div>
             <div style={{display:"flex",gap:8,marginTop:20}}>
-              <button onClick={salvarConvidado} style={{...S.btn("#7F77DD"),flex:1,justifyContent:"center"}}>✓ Adicionar Convidado</button>
+              <button onClick={salvarConvidado} style={{...S.btn("#7F77DD"),flex:1,justifyContent:"center"}}>Adicionar Convidado</button>
               <button onClick={()=>setModalConvidado(false)} style={{...S.btn(t.card,t.textSec),border:`1px solid ${t.cardBorder}`,justifyContent:"center"}}>Cancelar</button>
             </div>
           </div>
@@ -8119,7 +8226,7 @@ function AbaAtletasPelada({
               onClick={handleSalvar} 
               style={S.btnSm("#1D9E75", "#fff")}
             >
-              💾 Salvar Vínculos
+              Salvar Vínculos
             </button>
           </div>
         </div>
@@ -8322,8 +8429,8 @@ function AbaParticipacoes({
                       </div>
                     </div>
                     <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-                      <button onClick={()=>registrarPresenca(aid)} style={{padding:"5px 12px",borderRadius:20,fontSize:12,border:`1px solid ${compareceu?t.accent:"#ccc"}`,background:compareceu?t.accent:"transparent",color:compareceu?"#fff":t.textSec,cursor:"pointer",fontWeight:600}}>{compareceu?"✓ Presente":"Ausente"}</button>
-                      <button onClick={()=>togglePagou(aid)} style={{padding:"5px 12px",borderRadius:20,fontSize:12,border:`1px solid ${pagou?(part?.usou_saldo?"#BA7517":"#22b7d9"):"#ccc"}`,background:pagou?(part?.usou_saldo?"#BA7517":"#22b7d9"):"transparent",color:pagou?"#fff":t.textSec,cursor:"pointer",fontWeight:600}}>{pagou?(part?.usou_saldo?"💳 Pago (Saldo)":"💰 Pago"):(vinculo?.tipo_pagamento==="mensalista" ? ((vinculo?.saldo||0)>=Number(dataAtual?.valor||pelada.valor_contribuicao||vinculo?.valor_padrao||0)?"💳 Debitar Saldo":"Pendente") : "Pendente")}</button>
+                      <button onClick={()=>registrarPresenca(aid)} style={{padding:"5px 12px",borderRadius:20,fontSize:12,border:`1px solid ${compareceu?t.accent:"#ccc"}`,background:compareceu?t.accent:"transparent",color:compareceu?"#fff":t.textSec,cursor:"pointer",fontWeight:600}}>{compareceu?"Presente":"Ausente"}</button>
+                      <button onClick={()=>togglePagou(aid)} style={{padding:"5px 12px",borderRadius:20,fontSize:12,border:`1px solid ${pagou?(part?.usou_saldo?"#BA7517":"#22b7d9"):"#ccc"}`,background:pagou?(part?.usou_saldo?"#BA7517":"#22b7d9"):"transparent",color:pagou?"#fff":t.textSec,cursor:"pointer",fontWeight:600}}>{pagou?(part?.usou_saldo?"💳 Pago (Saldo)":"Pago"):(vinculo?.tipo_pagamento==="mensalista" ? ((vinculo?.saldo||0)>=Number(dataAtual?.valor||pelada.valor_contribuicao||vinculo?.valor_padrao||0)?"💳 Debitar Saldo":"Pendente") : "Pendente")}</button>
                     </div>
                   </div>
                 </div>
@@ -8409,7 +8516,7 @@ function AbaParticipacoes({
               onClick={handleSalvar} 
               style={S.btnSm("#1D9E75", "#fff")}
             >
-              💾 Salvar Presenças
+              Salvar Presenças
             </button>
           </div>
         </div>
@@ -8532,7 +8639,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         if (ids.some(id => String(id) === athleteId)) {
           const matches = teamName.match(/\d+/);
           const sigla = matches ? `T${matches[0]}` : teamName.substring(0, 3).toUpperCase();
-          return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado do ${teamName}`}>🤝 ({sigla})</span>;
+          return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado do ${teamName}`}><IconHandshake size={10} style={{marginLeft: 2}} /> ({sigla})</span>;
         }
       }
     }
@@ -8558,14 +8665,14 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       if (match.teamA === originalTeamName) return null;
       const matches = match.teamA.match(/\d+/);
       const sigla = matches ? `T${matches[0]}` : match.teamA.substring(0, 3).toUpperCase();
-      return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado para o ${match.teamA}`}>🤝 ({sigla})</span>;
+      return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado para o ${match.teamA}`}><IconHandshake size={10} style={{marginLeft: 2}} /> ({sigla})</span>;
     }
     const isB = (match.teamBEmprestados || []).some(id => String(id) === athleteId);
     if (isB) {
       if (match.teamB === originalTeamName) return null;
       const matches = match.teamB.match(/\d+/);
       const sigla = matches ? `T${matches[0]}` : match.teamB.substring(0, 3).toUpperCase();
-      return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado para o ${match.teamB}`}>🤝 ({sigla})</span>;
+      return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado para o ${match.teamB}`}><IconHandshake size={10} style={{marginLeft: 2}} /> ({sigla})</span>;
     }
     return null;
   };
@@ -10338,7 +10445,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         </div>
         <div style={{display:"flex",gap:6,flexShrink:0}}>
           {!pelada.ativo&&<Tag label="Inativa" color="#E24B4A"/>}
-          <button onClick={()=>onRemovePelada(pelada.id)} style={S.btnSm("#E24B4A22","#E24B4A")}>🗑</button>
+          <button onClick={()=>onRemovePelada(pelada.id)} style={S.btnSm("#E24B4A22","#E24B4A")}><IconTrash size={12} /></button>
         </div>
       </div>
 
@@ -10356,7 +10463,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           background: t.card
         }}>
           <div style={{fontSize: 13, fontWeight: 700, color: t.textSec, display: "flex", alignItems: "center", gap: 6}}>
-            📅 Data Ativa:
+            Data Ativa:
           </div>
           <div style={{display: "flex", gap: 8, flex: 1, minWidth: 280, flexWrap: "wrap"}}>
             <div style={{flex: 1, minWidth: 90}}>
@@ -10431,7 +10538,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           <div style={{display:"flex", flexDirection:"column", gap:12}}>
             <div style={S.card}>
               <div style={{fontWeight:600,fontSize:13,color:t.text,marginBottom:8}}>Informações da Pelada</div>
-              <div style={{fontSize:13,color:t.textSec,lineHeight:2}}><b style={{color:t.text}}>Nome:</b> {pelada.nome}<br/><b style={{color:t.text}}>Criada em:</b> {formatarData(pelada.data_criacao)}<br/><b style={{color:t.text}}>Status:</b> {pelada.ativo?"🟢 Ativa":"🔴 Inativa"}</div>
+              <div style={{fontSize:13,color:t.textSec,lineHeight:2}}><b style={{color:t.text}}>Nome:</b> {pelada.nome}<br/><b style={{color:t.text}}>Criada em:</b> {formatarData(pelada.data_criacao)}<br/><b style={{color:t.text}}>Status:</b> {pelada.ativo ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:"#10B981"}} /> Ativa</span> : <span style={{display:"inline-flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:"#EF4444"}} /> Inativa</span>}</div>
             </div>
             <CriarPelada onSave={(d)=>onUpdatePelada(pelada.id,d)} initial={pelada} t={t}/>
           </div>
@@ -10524,7 +10631,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 }}
               >
                 <div style={{fontWeight: 700, fontSize: 13, color: t.text, display: "flex", alignItems: "center", gap: 6}}>
-                  <span>⚙️ Configurações e Regras da Rodada</span>
+                  <span>Configurações e Regras da Rodada</span>
                   {!peladaState?.modoRodizioFixo && (
                     <span style={{fontSize: 10, background: "#7F77DD22", color: "#7F77DD", padding: "2px 6px", borderRadius: 4, fontWeight: 600}}>
                       Modo Inteligente Ativo
@@ -10541,7 +10648,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                   <div style={{display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 12}}>
                     <div>
                       <div style={{fontWeight: 700, fontSize: 12, color: t.text, display: "flex", alignItems: "center", gap: 6}}>
-                        <span>🤖 Modo de Funcionamento da Rodada</span>
+                        <span>Automático Modo de Funcionamento da Rodada</span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -10566,7 +10673,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           onMouseEnter={e => e.currentTarget.style.transform = "scale(1.15)"}
                           onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
                         >
-                          {peladaState?.modoRodizioFixo ? "🔒" : "🔓"}
+                          {peladaState?.modoRodizioFixo ? "<IconLock size={12} />" : "<IconLock size={12} style={{opacity: 0.5}} />"}
                         </button>
                       </div>
                       <div style={{fontSize: 10, color: t.textSec, marginTop: 2}}>
@@ -10577,8 +10684,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     <div style={{display: "flex", alignItems: "center", gap: 8}}>
                       <div style={{display: "flex", background: t.inputBg, padding: 3, borderRadius: 20, border: `1px solid ${t.inputBorder}`, width: isMobile ? "100%" : "auto"}}>
                         {[
-                          { key: "misto", label: "Automático", icon: "🤖", title: "Fila de times e rodízio de banco automáticos com empréstimo pontual de desfalques" },
-                          { key: "manual", label: "Manual", icon: "🎮", title: "Gestão livre: selecione quem joga e monte os times manualmente" }
+                          { key: "misto", label: "Automático", icon: "Automático", title: "Fila de times e rodízio de banco automáticos com empréstimo pontual de desfalques" },
+                          { key: "manual", label: "Manual", icon: "Manual", title: "Gestão livre: selecione quem joga e monte os times manualmente" }
                         ].map(opt => {
                           const isSelected = (peladaState?.modoRodizio || "misto") === opt.key;
                           return (
@@ -10625,7 +10732,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                   {/* 2. Seletor do Critério de Empate */}
                   <div style={{display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "stretch" : "center", gap: 12}}>
                     <div>
-                      <div style={{fontWeight: 700, fontSize: 12, color: t.text}}>⚖️ Critério de Empate</div>
+                      <div style={{fontWeight: 700, fontSize: 12, color: t.text}}>Critério de Empate</div>
                       <div style={{fontSize: 10, color: t.textSec, marginTop: 2}}>
                         Defina a regra para resolver empates ocorridos durante as partidas da rodada.
                       </div>
@@ -10750,7 +10857,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                         style={S.btnSm("#E24B4A22", "#E24B4A")}
                         title="Devolve todos os jogadores às escalações originais de sorteio e restaura o banco"
                       >
-                        🔄 Voltar jogadores originais
+                        Voltar jogadores originais
                       </button>
                     </div>
                   )}
@@ -10794,7 +10901,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
             {isRealizada && !drawnTeams && (
               <div style={{...S.card, marginBottom: 14, background: "#1D9E7512", border: "1px solid #1D9E7533", color: "#1D9E75", display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 8}}>
-                <span>🔒</span>
+                <span><IconLock size={12} /></span>
                 <span style={{fontSize: 13, fontWeight: 700}}>Esta rodada foi realizada e as formações de times estão congeladas (sem alterações).</span>
               </div>
             )}
@@ -10824,7 +10931,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     }}
                   >
                     <div style={{fontWeight: 700, fontSize: 13, color: t.text, display: "flex", alignItems: "center", gap: 6}}>
-                      <span>🎲 Painel de Sorteio</span>
+                      <span>Painel de Sorteio</span>
                       <span style={{fontSize: 10, background: "#1D9E7522", color: "#1D9E75", padding: "2px 6px", borderRadius: 4, fontWeight: 700}}>Sorteado</span>
                     </div>
                     <span style={{fontSize: 11, color: t.textSec, fontWeight: 700}}>{showSorteioConfig ? "▲ Recolher Ajustes" : "▼ Ajustes de Sorteio"}</span>
@@ -10834,8 +10941,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 {(!drawnTeams || showSorteioConfig) && (
                   <div style={drawnTeams ? {marginTop: 14, paddingTop: 14, borderTop: `1px solid ${t.cardBorder}`} : {}}>
                     <div style={{display:"flex",gap:10,marginBottom:14,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:14}}>
-                      <button onClick={()=>setModoSorteio("auto")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="auto"?"#7F77DD":"transparent",color:modoSorteio==="auto"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="auto"?"#7F77DD":t.cardBorder}`,cursor:"pointer"}}>🎲 Sorteio Automático</button>
-                      <button onClick={()=>setModoSorteio("manual")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="manual"?"#22b7d9":"transparent",color:modoSorteio==="manual"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="manual"?"#22b7d9":t.cardBorder}`,cursor:"pointer"}}>🖐️ Formação Manual</button>
+                      <button onClick={()=>setModoSorteio("auto")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="auto"?"#7F77DD":"transparent",color:modoSorteio==="auto"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="auto"?"#7F77DD":t.cardBorder}`,cursor:"pointer"}}>Sorteio Automático</button>
+                      <button onClick={()=>setModoSorteio("manual")} style={{flex:1,padding:"10px",borderRadius:8,fontWeight:600,fontSize:13,background:modoSorteio==="manual"?"#22b7d9":"transparent",color:modoSorteio==="manual"?"#fff":t.textSec,border:`1px solid ${modoSorteio==="manual"?"#22b7d9":t.cardBorder}`,cursor:"pointer"}}>Formação Manual</button>
                     </div>
                     
                     <div style={{marginBottom: 14, fontSize: 13, color: t.textSec}}>
@@ -10935,20 +11042,20 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             border: `1.5px solid ${metodoFormacao === "completo" ? "#7F77DD" : t.cardBorder}`
                           }}
                         >
-                          🧱 Completar Times (Empilhado)
+                          Completar Times (Empilhado)
                         </button>
                       </div>
                     </div>
 
                     {modoSorteio==="auto" && (
-                      <button onClick={doDraw} style={S.btn("#7F77DD")}>🎲 Sortear Times Automaticamente</button>
+                      <button onClick={doDraw} style={S.btn("#7F77DD")}>Sortear Times Automaticamente</button>
                     )}
                     
                     {modoSorteio==="manual" && (
                       <div>
                         <div style={{display:"flex",gap:10,marginBottom:20}}>
                           <button onClick={randomFillManual} style={{...S.btn(t.card,t.text),border:`1px solid ${t.cardBorder}`,flex:1,justifyContent:"center"}}>Preencher Aleatório</button>
-                          <button onClick={confirmManualFormation} style={{...S.btn("#22b7d9"),flex:1,justifyContent:"center"}}>✓ Iniciar Pelada</button>
+                          <button onClick={confirmManualFormation} style={{...S.btn("#22b7d9"),flex:1,justifyContent:"center"}}>Iniciar Pelada</button>
                         </div>
                         
                         <div style={{marginBottom:16}}>
@@ -11036,7 +11143,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                       }}
                     >
                       <div style={{fontWeight: 700, fontSize: 13, color: t.text, display: "flex", alignItems: "center", gap: 8}}>
-                        <span>👥 Equipes Formadas</span>
+                        <span>Equipes Formadas</span>
                       </div>
                       <span style={{fontSize: 11, color: "#7F77DD", fontWeight: 700}}>{showEquipesFormadas ? "▲ Recolher Lista" : "▼ Expandir Lista"}</span>
                     </div>
@@ -11049,7 +11156,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                               onClick={handleCriarNovaEquipe} 
                               style={S.btnSm("#22b7d922","#22b7d9")}
                             >
-                              ➕ Nova Equipe
+                              Nova Equipe
                             </button>
                             <button 
                               onClick={() => {
@@ -11067,7 +11174,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                               }} 
                               style={S.btnSm("#E24B4A22","#E24B4A")}
                             >
-                              🔄 Refazer Sorteio
+                              Refazer Sorteio
                             </button>
                           </div>
                         )}
@@ -11091,14 +11198,14 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                        style={{border:"none",background:"transparent",color:t.textSec,cursor:"pointer",padding:0,fontSize:11}}
                                        title="Editar nome do time"
                                      >
-                                       ✏️
+                                       <IconEdit size={12} />
                                      </button>
                                      <button 
                                        onClick={() => excluirEquipe(tm.name)}
                                        style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:11}}
                                        title="Excluir time"
                                      >
-                                       🗑️
+                                       <IconTrash size={12} />️
                                      </button>
                                    </div>
                                  )}
@@ -11111,7 +11218,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                   return(
                                     <div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,padding:"3px 0",borderBottom:`1px solid ${t.cardBorder}`,background: pIsRev ? "#7F77DD08" : "transparent",borderRadius: pIsRev ? 4 : 0,paddingLeft: pIsRev ? 4 : 0}}>
                                       <PlayerAvatar atleta={p} size={18}/>
-                                      <span>{(p.goleiro||p.isGoalkeeper)?"🧤":"⚽"}</span>
+                                      <span>{(p.goleiro||p.isGoalkeeper) ? <IconGoalkeeper size={14} /> : <IconSoccer size={14} />}</span>
                                       <span style={{flex:1,fontWeight:500,color: pIsRev ? "#7F77DD" : t.text}}>{getPlayerName(p)}{getLoanTagForEquipes(p)}</span>
                                       {pIsRev && <span style={{fontSize:9,color:"#7F77DD",opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
                                       {!isRealizada && pIsRev && (
@@ -11132,8 +11239,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                       )}
                                       {!isRealizada && (
                                         <>
-                                          <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:11,fontWeight:700}} title="Substituir / Mover">🔄</button>
-                                          <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:tm.name});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:11}} title="Sair do jogo">🚑</button>
+                                          <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:11,fontWeight:700}} title="Substituir / Mover"><IconRefresh size={12} /></button>
+                                          <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:tm.name});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:11}} title="Sair do jogo"><IconX size={10} color="#E24B4A" /></button>
                                           <button onClick={()=>removeFromRotation(p.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,fontSize:12,fontWeight:700}}>×</button>
                                         </>
                                       )}
@@ -11261,15 +11368,15 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                               <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, peladaState.currentMatch.teamA)}</span>
                               {isRealizada ? (
-                                sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517"}}>⚽({sumulaGols[p.id]})</span> : null
+                                sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517",display:"inline-flex",alignItems:"center",gap:2}}><IconSoccer size={10} />({sumulaGols[p.id]})</span> : null
                               ) : (
                                 <>
                                   {(p.isTemporary || p.isEmprestado) && (
                                     <button onClick={() => desfazerEmprestimoAtleta(p.id, peladaState.currentMatch.teamA)} style={{border:"none",background:"transparent",color:"#FF9800",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Desfazer Empréstimo">❌</button>
                                   )}
                                   <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'A')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",height:18}}/>
-                                  <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>
-                                  <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamA});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>
+                                  <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir"><IconRefresh size={12} /></button>
+                                  <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamA});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo"><IconX size={10} color="#E24B4A" /></button>
                                 </>
                               )}
                             </div>
@@ -11277,7 +11384,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                         </div>
                         <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end"}}>
                           <div style={{display: "flex", alignItems: "center", gap: 4}}>
-                            <span style={{fontSize: 10, color: t.textSec}}>🧤 Goleiro:</span>
+                            <span style={{fontSize: 10, color: t.textSec}}><IconGoalkeeper size={12} style={{marginRight: 4}} /> Goleiro:</span>
                             <select 
                               value={peladaState.currentMatch.goleiroA || ""} 
                               onChange={e => {
@@ -11347,10 +11454,10 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                               {!isRealizada && (p.isTemporary || p.isEmprestado) && (
                                 <button onClick={() => desfazerEmprestimoAtleta(p.id, peladaState.currentMatch.teamB)} style={{border:"none",background:"transparent",color:"#FF9800",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Desfazer Empréstimo">❌</button>
                               )}
-                              {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir">🔄</button>}
-                              {!isRealizada && <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamB});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo">🚑</button>}
+                              {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir"><IconRefresh size={12} /></button>}
+                              {!isRealizada && <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamB});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo"><IconX size={10} color="#E24B4A" /></button>}
                               {isRealizada ? (
-                                sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517"}}>⚽({sumulaGols[p.id]})</span> : null
+                                sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517",display:"inline-flex",alignItems:"center",gap:2}}><IconSoccer size={10} />({sumulaGols[p.id]})</span> : null
                               ) : (
                                 <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'B')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/>
                               )}
@@ -11360,7 +11467,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                         </div>
                         <div style={{marginTop: 8, borderTop: `1px solid ${t.cardBorder}`, paddingTop: 6, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start"}}>
                           <div style={{display: "flex", alignItems: "center", gap: 4}}>
-                            <span style={{fontSize: 10, color: t.textSec}}>🧤 Goleiro:</span>
+                            <span style={{fontSize: 10, color: t.textSec}}><IconGoalkeeper size={12} style={{marginRight: 4}} /> Goleiro:</span>
                             <select 
                               value={peladaState.currentMatch.goleiroB || ""} 
                               onChange={e => {
@@ -11413,7 +11520,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                         textAlign: "center"
                       }}>
                         <div style={{fontWeight: 700, fontSize: 12, color: t.text, marginBottom: 8}}>
-                          ⚖️ Escolha quem permanece na quadra (Empate)
+                          Escolha quem permanece na quadra (Empate)
                         </div>
                         <div style={{display: "flex", gap: 8, justifyContent: "center"}}>
                           <button
@@ -11430,7 +11537,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                               cursor: "pointer"
                             }}
                           >
-                            👉 {peladaState.currentMatch.teamA} (Campeão/Defensor)
+                            • {peladaState.currentMatch.teamA} (Campeão/Defensor)
                           </button>
                           <button
                             onClick={() => setEmpateVencedorManual("teamB")}
@@ -11446,7 +11553,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                               cursor: "pointer"
                             }}
                           >
-                            👉 {peladaState.currentMatch.teamB} (Desafiante)
+                            • {peladaState.currentMatch.teamB} (Desafiante)
                           </button>
                         </div>
                       </div>
@@ -11510,7 +11617,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <b style={{color:"#22b7d9",display:"block",marginBottom:8}}>{proxTimeA}</b>
                             <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
                               {peladaState.teams?.find(tm=>tm.name===proxTimeA)?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, proxTimeA)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, proxTimeA)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir"><IconRefresh size={12} /></button>}
                               </div>)}
                             </div>
                           </div>
@@ -11518,7 +11625,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <b style={{color:"#22b7d9",display:"block",marginBottom:8}}>{proxTimeB}</b>
                             <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
                               {peladaState.teams?.find(tm=>tm.name===proxTimeB)?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, proxTimeB)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, proxTimeB)} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir"><IconRefresh size={12} /></button>}
                               </div>)}
                             </div>
                           </div>
@@ -11533,7 +11640,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[0]}</b>
                             <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
                               {peladaState.teams?.find(tm=>tm.name===peladaState.queue[0])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, peladaState.queue[0])} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, peladaState.queue[0])} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir"><IconRefresh size={12} /></button>}
                               </div>)}
                             </div>
                           </div>
@@ -11541,7 +11648,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                             <b style={{color:"#7F77DD",display:"block",marginBottom:8}}>{peladaState.queue[1]}</b>
                             <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
                               {peladaState.teams?.find(tm=>tm.name===peladaState.queue[1])?.players.map((p,pi)=><div key={pi} style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:6}}>
-                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, peladaState.queue[1])} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir">🔄</button>}
+                                <PlayerAvatar atleta={p} size={20}/>{getPlayerName(p)}{getLoanTag(p, peladaState.queue[1])} {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 4px",fontSize:10}} title="Substituir"><IconRefresh size={12} /></button>}
                               </div>)}
                             </div>
                           </div>
@@ -11602,7 +11709,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           }}
                           title="Embaralhar a fila de espera aleatoriamente"
                         >
-                          🔀 Embaralhar Fila
+                          Embaralhar Fila
                         </button>
                       )}
                     </div>
@@ -11684,7 +11791,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                       }}
                                     >
                                       <PlayerAvatar atleta={p} size={16}/>
-                                      <span style={{fontWeight:600, color: "#1D9E75"}}>{getPlayerName(p)} 🤝 ({sigla})</span>
+                                      <span style={{fontWeight:600, color: "#1D9E75"}}>{getPlayerName(p)} <IconHandshake size={10} style={{marginLeft: 2}} /> ({sigla})</span>
                                     </div>
                                   );
                                 }
@@ -11747,8 +11854,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                     {pIsRev && <span style={{fontSize:9, color:"#7F77DD", opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
                                     {!isRealizada && (
                                       <>
-                                        <button onClick={()=>setSubModal(p.id)} style={{border:"none", background:"transparent", color:"#0095F6", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Mover / Substituir">🔄</button>
-                                        <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:teamName});}} style={{border:"none", background:"transparent", color:"#E24B4A", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Sair do jogo">🚑</button>
+                                        <button onClick={()=>setSubModal(p.id)} style={{border:"none", background:"transparent", color:"#0095F6", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Mover / Substituir"><IconRefresh size={12} /></button>
+                                        <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:teamName});}} style={{border:"none", background:"transparent", color:"#E24B4A", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Sair do jogo"><IconX size={10} color="#E24B4A" /></button>
                                         <button onClick={()=>removeFromRotation(p.id)} style={{border:"none", background:"transparent", color:"#E24B4A", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Remover do Rodízio">×</button>
                                       </>
                                     )}
@@ -11796,7 +11903,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                 }}
                               >
                                 <PlayerAvatar atleta={b} size={16}/>
-                                {b.goleiro?"🧤":"⚽"} {getPlayerName(b)}{isCandidatoEmprestimo && " 🤝"}
+                                b.goleiro ? <IconGoalkeeper size={14} /> : <IconSoccer size={14} /> {getPlayerName(b)}{isCandidatoEmprestimo && " 🤝"}
                                 {isRev && <span title={`Reveza com ${anfitriaoNome}`} style={{fontSize:9,opacity:0.85}}>🔄{anfitriaoNome}</span>}
                                 {!isRealizada && isRev && (
                                   <button
@@ -11817,7 +11924,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                 {!isRealizada && (
                                   <>
                                     <button onClick={()=>setSubModal(b.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:0,marginLeft:2,marginRight:2,fontSize:10,fontWeight:800}} title="Substituir / Mover">↔</button>
-                                    <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:b.id,playerName:getPlayerName(b),teamName:"bench"});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,marginLeft:2,marginRight:2,fontSize:10,fontWeight:800}} title="Sair do jogo">🚑</button>
+                                    <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:b.id,playerName:getPlayerName(b),teamName:"bench"});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,marginLeft:2,marginRight:2,fontSize:10,fontWeight:800}} title="Sair do jogo"><IconX size={10} color="#E24B4A" /></button>
                                     <button onClick={()=>removeFromRotation(b.id)} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:0,marginLeft:2,fontWeight:800}}>×</button>
                                   </>
                                 )}
@@ -11834,7 +11941,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 {jogadoresPausados.length > 0 && (
                   <div style={{...S.card, border: `1px solid ${t.cardBorder}`, marginBottom: 20}}>
                     <div style={{fontSize:12, fontWeight:700, color:t.text, marginBottom:10, display:"flex", alignItems:"center", gap:6}}>
-                      <span>🚑 Atletas que Saíram / Descansando ({jogadoresPausados.length})</span>
+                      <span><IconX size={10} color="#E24B4A" /> Atletas que Saíram / Descansando ({jogadoresPausados.length})</span>
                     </div>
                     <div style={{display:"flex", flexDirection:"column", gap:8}}>
                       {jogadoresPausados.map((p) => {
@@ -11886,7 +11993,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 {/* HISTÓRICO DA DATA */}
                 {(peladaState?.matchLog||[]).filter(m => String(m.dataRealizacaoId) === String(selDataSorteio)).length>0&&(
                   <div style={{marginTop:20}}>
-                    <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>📜 Histórico da Data</h3>
+                    <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}><IconClipboard size={14} style={{marginRight: 4}} /> Histórico da Data</h3>
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       {(peladaState?.matchLog||[]).map((m, originalIndex) => ({m, originalIndex})).filter(({m}) => String(m.dataRealizacaoId) === String(selDataSorteio)).reverse().map(({m, originalIndex})=>(
                         <div key={originalIndex} style={{...S.card,padding:"10px 12px",position:"relative"}}>
@@ -11915,7 +12022,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                               }}
                               title="Editar Partida e Súmula"
                             >
-                              ✏️
+                              <IconEdit size={12} />
                             </button>
                           <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:8}}>
                             <span style={{fontWeight:800,fontSize:15,color:"#22b7d9"}}>{m.scoreA} × {m.scoreB}</span>
@@ -12094,7 +12201,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
             <div style={{...S.card,width:"100%",maxWidth:360,maxHeight:"92vh",overflowY:"auto"}}>
               {/* Header */}
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:`1px solid ${t.cardBorder}`}}>
-                <span style={{fontSize:22}}>🚑</span>
+                <span style={{fontSize:22}}><IconX size={10} color="#E24B4A" /></span>
                 <div>
                   <div style={{fontWeight:800,fontSize:15,color:t.text}}>{sairModal.playerName}</div>
                   <div style={{fontSize:11,color:t.textSec}}>está saindo antes do fim do jogo</div>
@@ -12106,7 +12213,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 <div style={{fontSize:11,fontWeight:700,color:t.textSec,textTransform:"uppercase",letterSpacing:0.8,marginBottom:8}}>Motivo</div>
                 <div style={{display:"flex",gap:6}}>
                   {[
-                    {id:"cansaco", label:"⚡ Cansaço", color:"#BA7517"},
+                    {id:"cansaco", label:" Cansaço", color:"#BA7517"},
                     {id:"lesao",   label:"🤕 Lesão",   color:"#E24B4A"},
                     {id:"outro",   label:"📱 Outro",   color:"#6B7280"},
                   ].map(m=>(
@@ -12282,7 +12389,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           onChange={e => updateEditSumulaAndScore(p.id, e.target.value, 'A')}
                           style={{...S.input,width:40,padding:"3px 6px",fontSize:11,textAlign:"center"}}
                         />
-                        <span>⚽</span>
+                        <span><IconSoccer size={14} /></span>
                       </div>
                     </div>
                   ))}
@@ -12345,7 +12452,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           onChange={e => updateEditSumulaAndScore(p.id, e.target.value, 'B')}
                           style={{...S.input,width:40,padding:"3px 6px",fontSize:11,textAlign:"center"}}
                         />
-                        <span>⚽</span>
+                        <span><IconSoccer size={14} /></span>
                       </div>
                     </div>
                   ))}
@@ -12475,7 +12582,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 }} 
                 style={S.btn("#E24B4A")}
               >
-                🗑️ Descartar Alterações
+                <IconTrash size={12} />️ Descartar Alterações
               </button>
               <button 
                 onClick={() => setModalConfirmacaoNavegacao(null)} 
@@ -12676,7 +12783,7 @@ function AbaColaboradoresItem({ collaborators, onSaveCollaborators, auth, manage
                   style={{ ...S.btnSm("#E24B4A22", "#E24B4A"), padding: "6px 10px" }}
                   title="Remover Acesso"
                 >
-                  🗑️ Remover
+                  <IconTrash size={12} />️ Remover
                 </button>
               </div>
             ))}
@@ -12834,8 +12941,8 @@ function AbaMuralOrganizador({ c, onUpdate, t }) {
             <div>
               <label style={S.label}>Tipo de Publicação</label>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={()=>setType("noticia")} style={{ ...S.btnSm(type === "noticia" ? "#22b7d9" : "transparent", type === "noticia" ? "#fff" : t.textSec), border: `1px solid ${type === "noticia" ? "#22b7d9" : t.cardBorder}`, flex: 1 }}>📢 Notícia / Comunicado</button>
-                <button onClick={()=>setType("midia")} style={{ ...S.btnSm(type === "midia" ? "#1D9E75" : "transparent", type === "midia" ? "#fff" : t.textSec), border: `1px solid ${type === "midia" ? "#1D9E75" : t.cardBorder}`, flex: 1 }}>🎬 Foto / Vídeo / Youtube</button>
+                <button onClick={()=>setType("noticia")} style={{ ...S.btnSm(type === "noticia" ? "#22b7d9" : "transparent", type === "noticia" ? "#fff" : t.textSec), border: `1px solid ${type === "noticia" ? "#22b7d9" : t.cardBorder}`, flex: 1 }}>Notícia / Comunicado</button>
+                <button onClick={()=>setType("midia")} style={{ ...S.btnSm(type === "midia" ? "#1D9E75" : "transparent", type === "midia" ? "#fff" : t.textSec), border: `1px solid ${type === "midia" ? "#1D9E75" : t.cardBorder}`, flex: 1 }}>Foto / Vídeo / Youtube</button>
               </div>
             </div>
 
@@ -13438,7 +13545,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
               <div style={{ fontSize: "12px", marginTop: "2px", fontWeight: "bold" }}>SÚMULA OFICIAL DE PARTIDA</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "12px", fontWeight: "bold" }}>🏆 {c.name.toUpperCase()}</div>
+              <div style={{ fontSize: "12px", fontWeight: "bold" }}>{c.name.toUpperCase()}</div>
               <div style={{ fontSize: "11px", color: "#333", marginTop: "2px" }}>Futebol Manager</div>
             </div>
           </div>
@@ -13964,7 +14071,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
     return (
       <div style={{display:"flex",flexDirection:"column",gap:20}}>
         <div style={S.card}>
-          <h3 style={{fontSize:14,fontWeight:800,color:t.text,marginBottom:12}}>⚽ Artilharia</h3>
+          <h3 style={{fontSize:14,fontWeight:800,color:t.text,marginBottom:12}}>Artilharia</h3>
           {rankGols.length===0 && <div style={{fontSize:12,color:t.textSec}}>Nenhum gol registrado.</div>}
           {rankGols.map((x,i)=><div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${t.cardBorder}`}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontWeight:700,color:"#22b7d9",width:20}}>{i+1}º</span><PlayerAvatar atleta={x.atleta} size={24}/><div style={{display:"flex",flexDirection:"column"}}><span style={{fontSize:13,fontWeight:600,color:t.text}}>{getPlayerName(x.atleta)}</span><span style={{fontSize:11,color:t.textSec}}>{x.teamName}</span></div></div><div style={{fontWeight:800,color:"#22b7d9"}}>{x.gols}</div></div>)}
         </div>
@@ -14256,7 +14363,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                   onChange={e => setQuickPlayersText(e.target.value)}
                 />
                 <span style={{ fontSize: 10, color: t.textSec, marginTop: 4, display: "block" }}>
-                  💡 O sistema criará o time e cadastrará/escalará cada jogador da lista de forma 100% automática.
+                  <IconInfo size={14} /> O sistema criará o time e cadastrará/escalará cada jogador da lista de forma 100% automática.
                 </span>
               </div>
               <button 
@@ -14400,7 +14507,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                           onUpdate(tc);
                         }} style={S.btnSm("#22b7d922","#22b7d9")}>Pagar Taxa {c.fee ? `(${fmtCur(c.fee)})` : ""}</button>
                       )}
-                      <button onClick={()=>abrirEditarAtletaCamp(a)} style={{background:"none",border:"none",color:"#22b7d9",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Editar Cadastro do Atleta">✏️</button>
+                      <button onClick={()=>abrirEditarAtletaCamp(a)} style={{background:"none",border:"none",color:"#22b7d9",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Editar Cadastro do Atleta"><IconEdit size={12} /></button>
                       <button onClick={()=>{
                         if(window.confirm(`Remover ${getPlayerName(a)} do time?`)){
                           const tc = deepClone(c);
@@ -14419,7 +14526,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
             <div style={{fontWeight:700,fontSize:12,color:t.textSec,marginBottom:8}}>Adicionar ao time:</div>
             <div style={{display:"flex",gap:8,marginBottom:10,flexDirection:"column"}}>
               <div style={{display:"flex",gap:8}}>
-                <input style={{...S.input,flex:1,margin:0}} placeholder="🔍 Buscar atleta para escalar..." value={filtroElenco} onChange={e=>setFiltroElenco(e.target.value)}/>
+                <input style={{...S.input,flex:1,margin:0}} placeholder="Buscar atleta para escalar..." value={filtroElenco} onChange={e=>setFiltroElenco(e.target.value)}/>
                 {filtroElenco.trim() && (
                   <button onClick={abrirNovoAtletaCamp} style={S.btn("#22b7d9")}>+ Novo Atleta</button>
                 )}
@@ -14625,7 +14732,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
 
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                     <button onClick={() => handleAccept(sub)} style={S.btnSm("#1D9E75", "#fff")}>✓ Aprovar</button>
-                    <button onClick={() => handleReject(sub.id)} style={S.btnSm("#E24B4A22", "#E24B4A")}>🗑 Rejeitar</button>
+                    <button onClick={() => handleReject(sub.id)} style={S.btnSm("#E24B4A22", "#E24B4A")}><IconTrash size={12} /> Rejeitar</button>
                     
                     <div style={{ display: "flex", gap: 6, flex: 1, minWidth: 200, marginLeft: "auto" }}>
                       <input 
@@ -14926,9 +15033,9 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
       return (
         <div style={{display:"flex",flexDirection:"column",gap:6,background:t.inputBg,padding:10,border:`1px solid ${t.cardBorder}`,borderRadius:12}}>
           <div style={{fontSize:12,fontWeight:700,color:t.text,marginBottom:6}}>{teamName}</div>
-          {goals.length>0 ? goals.map((e,i)=><div key={i} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>⚽</span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum gol</div>}
-          {yellows.length>0 ? yellows.map((e,i)=><div key={i} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>🟨</span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum amarelo</div>}
-          {reds.length>0 ? reds.map((e,i)=><div key={i} style={{fontSize:12,color:t.text}}><span style={{marginRight:6}}>🟥</span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum vermelho</div>}
+          {goals.length>0 ? goals.map((e,i)=><div key={i} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><IconSoccer size={12} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum gol</div>}
+          {yellows.length>0 ? yellows.map((e,i)=><div key={i} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#BA7517",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum amarelo</div>}
+          {reds.length>0 ? reds.map((e,i)=><div key={i} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#E24B4A",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum vermelho</div>}
         </div>
       );
     };
@@ -14967,7 +15074,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                  />
                </label>
              )}
-               <button onClick={()=>setEditing({key:eKey})} style={{...S.btnSm(),padding:"6px 12px"}}>{m.played?"✏️":"▶"}</button>
+               <button onClick={()=>setEditing({key:eKey})} style={{...S.btnSm(),padding:"6px 12px"}}>{m.played?"<IconEdit size={12} />":"▶"}</button>
             </div>
           </div>
         </div>
@@ -15075,14 +15182,14 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,width:"100%"}}>
           <button onClick={onBack} style={{...S.btnSm(), padding:"6px 12px"}}>← Voltar à Home</button>
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            {champion&&<Tag label={"🏆 "+champion} color={t.accent}/>}
-            <button onClick={()=>onDelete(c.id)} style={S.btnSm("#E24B4A15","#E24B4A")} title="Excluir Campeonato">🗑 Excluir</button>
+            {champion&&<Tag label={<span style={{display:"inline-flex",alignItems:"center",gap:4}}><IconTrophy size={11} /> Vencedor: {champion}</span>} color={t.accent}/>}
+            <button onClick={()=>onDelete(c.id)} style={S.btnSm("#E24B4A15","#E24B4A")} title="Excluir Campeonato">Excluir</button>
           </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:12,marginTop:4}}>
           {(() => {
             const mDef = c.modalidade ? MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade) : null;
-            const mIcon = mDef ? mDef.icon : "🏆";
+            const mIcon = mDef ? mDef.icon : <IconTrophy size={20} />;
             const mColor = mDef ? mDef.color : (t.accent || "#20E278");
             return (
               <div style={{width:46,height:46,borderRadius:"50%",background:mColor + '15',color:mColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:"bold",flexShrink:0}}>
@@ -15340,7 +15447,7 @@ function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,
                            const at = atletas.find(x=>String(x.id)===String(e.atletaId));
                            return (
                              <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:t.text,background:t.inputBg,padding:"6px 10px",borderRadius:8}}>
-                               <span>{e.type==="gol"?"⚽":e.type==="amarelo"?"🟨":"🟥"}</span>
+                               <span>{e.type==="gol"? <IconSoccer size={14} /> : e.type==="amarelo"? <span style={{display:"inline-block",width:10,height:14,backgroundColor:"#BA7517",borderRadius:2}} /> : <span style={{display:"inline-block",width:10,height:14,backgroundColor:"#E24B4A",borderRadius:2}} />}</span>
                                <PlayerAvatar atleta={at} size={18}/>
                                <span style={{flex:1}}>{getPlayerName(at) || `Atleta #${e.atletaId}`}</span>
                                <button onClick={()=>{
@@ -16095,7 +16202,7 @@ function NovoCampeonato({quadras,onSave,onCancel,t}){
       </div>
 
       <div style={{display:"flex",gap:8}}>
-        <button onClick={criar} style={{...S.btn(),flex:1,justifyContent:"center"}}>Criar Campeonato 🏆</button>
+        <button onClick={criar} style={{...S.btn(),flex:1,justifyContent:"center"}}>Criar Campeonato</button>
         <button onClick={onCancel} style={S.btn(t.card,t.textSec)}>Cancelar</button>
       </div>
     </div>
@@ -16117,7 +16224,7 @@ export default function App(){
       if (ids.some(id => String(id) === athleteId)) {
         const matches = teamName.match(/\d+/);
         const sigla = matches ? `T${matches[0]}` : teamName.substring(0, 3).toUpperCase();
-        return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado do ${teamName}`}>🤝 ({sigla})</span>;
+        return <span style={{marginLeft: 4, color: "#FFA726", fontSize: 10, fontWeight: "bold"}} title={`Emprestado do ${teamName}`}><IconHandshake size={10} style={{marginLeft: 2}} /> ({sigla})</span>;
       }
     }
     return null;
@@ -16697,10 +16804,10 @@ export default function App(){
         {/* Rodapé da Sidebar */}
         <div style={{marginTop: "auto", borderTop: "1px solid " + t.cardBorder, padding: "10px 10px", display: "flex", flexDirection: "column", gap: 6}}>
           <button onClick={() => setModalPassword(true)} style={{...S.btnSm(t.inputBg, t.textSec), justifyContent: "center", fontSize: 11.5, width: "100%"}}>
-            🔐 Alterar Senha
+            Alterar Senha
           </button>
           <button onClick={handleLogout} style={{...S.btnSm("#E24B4A22", "#E24B4A"), justifyContent: "center", fontSize: 11.5, width: "100%", fontWeight: 800}}>
-            🚪 Sair
+            Sair
           </button>
         </div>
       </div>
@@ -16947,9 +17054,9 @@ export default function App(){
                 fontFamily: "'Outfit', sans-serif"
               }}
             >
-              <option value="all">🏆 Todos os Campeonatos</option>
+              <option value="all">Todos os Campeonatos</option>
               {visibleChamps.map(c => (
-                <option key={c.id} value={c.id}>🏆 {c.name}</option>
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
@@ -17012,9 +17119,9 @@ export default function App(){
                 fontFamily: "'Outfit', sans-serif"
               }}
             >
-              <option value="all">👟 Todas as Peladas</option>
+              <option value="all">Todas as Peladas</option>
               {visiblePeladas.map(p => (
-                <option key={p.id} value={p.id}>👟 {p.nome}</option>
+                <option key={p.id} value={p.id}>{p.nome}</option>
               ))}
             </select>
           </div>
@@ -19106,12 +19213,12 @@ export default function App(){
         }}
         title={title}
       >
-        🔎 {text}
+        {text}
       </button>
     );
   };
 
-  const DarkBtn=()=><button onClick={()=>setDark(d=>!d)} style={{...S.btnSm(t.card,t.text),padding:"8px 12px",fontSize:15,border:`1px solid ${t.cardBorder}`,borderRadius:12}}>{dark?"☀️":"🌙"}</button>;
+  const DarkBtn=()=><button onClick={()=>setDark(d=>!d)} style={{...S.btnSm(t.card,t.text),padding:"8px 12px",fontSize:15,border:`1px solid ${t.cardBorder}`,borderRadius:12}}>{dark ? <IconSun size={15} /> : <IconMoon size={15} />}</button>;
 
   if(screen==="selection"){
     return <SelectionScreen onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
@@ -19312,7 +19419,7 @@ export default function App(){
           return (
             <div style={S.card}>
               <div style={{fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 14, display: "flex", alignItems: "center", gap: 8}}>
-                <span>⚽</span>
+                <span><IconSoccer size={14} /></span>
                 Artilharia - Top 10 ({peladaObj?.nome || "Pelada"})
               </div>
               <div style={{display: "flex", flexDirection: "column", gap: 0}}>
@@ -19330,7 +19437,7 @@ export default function App(){
                         color: i === 0 ? "#FFD700" : i === 1 ? "#C0C0C0" : i === 2 ? "#CD7F32" : t.textSec,
                         width: 24, fontSize: 13
                       }}>
-                        {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}º`}
+                        {i === 0 ? <span style={{color:"#BA7517",fontWeight:800}}>1º</span> : i === 1 ? <span style={{color:"#8E929E",fontWeight:800}}>2º</span> : i === 2 ? <span style={{color:"#CD7F32",fontWeight:800}}>3º</span> : `${i + 1}º`}
                       </span>
                       <PlayerAvatar atleta={x.atleta} size={28} />
                       <span style={{fontSize: 13, fontWeight: 700, color: t.text}}>
@@ -19362,7 +19469,7 @@ export default function App(){
                 <div><b>Data de Criação:</b> {formatarData(peladaObj?.data_criacao)}</div>
                 <div style={{display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4}}>
                   <div style={{background: "#22b7d915", padding: "4px 10px", borderRadius: 8, color: "#22b7d9", fontWeight: 700}}>
-                    📅 {datasDessaPelada.length} Total
+                    {datasDessaPelada.length} Total
                   </div>
                   <div style={{background: "#1D9E7515", padding: "4px 10px", borderRadius: 8, color: "#1D9E75", fontWeight: 700}}>
                     ✅ {realizadas} Realizadas
@@ -19374,7 +19481,7 @@ export default function App(){
                 {proximaData && (
                   <div style={{marginTop: 6, padding: "8px 12px", background: t.inputBg, borderRadius: 8, border: `1px solid ${t.cardBorder}`}}>
                     <b>Próximo Encontro Agendado:</b><br/>
-                    📆 {formatarData(proximaData.data)} {proximaData.local ? `em 🏟️ ${proximaData.local}` : ""}
+                    {formatarData(proximaData.data)} {proximaData.local ? `em ${proximaData.local}` : ""}
                   </div>
                 )}
                 {Array.isArray(peladaObj?.collaborators) && peladaObj.collaborators.length > 0 && (
@@ -19383,7 +19490,7 @@ export default function App(){
                     <div style={{display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4}}>
                       {peladaObj.collaborators.map(c => (
                         <span key={c.id} style={{fontSize: 11, background: t.cardBorder + "55", padding: "2px 8px", borderRadius: 6, color: t.text}}>
-                          👤 {c.name}
+                          {c.name}
                         </span>
                       ))}
                     </div>
@@ -19394,7 +19501,7 @@ export default function App(){
                 onClick={() => { setCurrent(peladaObj); setScreen("gerenciarPelada"); }}
                 style={{...S.btn("#22b7d9"), width: "100%", fontWeight: 700}}
               >
-                Gerenciar Pelada ⚙️
+                Gerenciar Pelada
               </button>
             </div>
           );
@@ -19438,15 +19545,15 @@ export default function App(){
         return (
           <div style={S.card}>
             <div style={{fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 14, display: "flex", alignItems: "center", gap: 8}}>
-              <span>🏆</span>
+              <span><IconTrophy size={14} style={{display: "inline-flex", verticalAlign: "middle", alignSelf: "center"}} /></span>
               Informações do Campeonato: {campObj?.name}
             </div>
             <div style={{display: "flex", flexDirection: "column", gap: 10, fontSize: 13, color: t.textSec, lineHeight: 1.6, marginBottom: 16}}>
-              <div><b>Modalidade:</b> {mDef ? `${mDef.icon} ${mDef.name}` : "🏆 Futebol"}</div>
+              <div><b>Modalidade:</b> {mDef ? <span style={{display: "inline-flex", alignItems: "center", gap: 4}}>{mDef.icon} {mDef.label}</span> : <span style={{display: "inline-flex", alignItems: "center", gap: 4}}><IconSoccer size={14} /> Futebol</span>}</div>
               <div><b>Tipo de disputa:</b> {campObj?.type === "pontos" ? "Tabela Corrida" : campObj?.type === "mata" ? "Mata-mata" : campObj?.type === "liga" ? "Liga com Grupos" : "Misto"}</div>
               {principalArtilheiro && (
                 <div style={{padding: "8px 12px", background: "#FFD70010", borderRadius: 8, border: "1px solid #FFD70033", display: "flex", alignItems: "center", gap: 10}}>
-                  <span style={{fontSize: 20}}>👑</span>
+                  <span style={{fontSize: 20}}></span>
                   <div>
                     <div style={{fontWeight: 700, color: t.text}}>Artilheiro Principal:</div>
                     <div style={{fontSize: 12}}>{getPlayerName(principalArtilheiro)} ({artilheiros[0].gols} gols)</div>
@@ -19459,7 +19566,7 @@ export default function App(){
                   <div style={{display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4}}>
                     {campObj.collaborators.map(c => (
                       <span key={c.id} style={{fontSize: 11, background: t.cardBorder + "55", padding: "2px 8px", borderRadius: 6, color: t.text}}>
-                        👤 {c.name}
+                        {c.name}
                       </span>
                     ))}
                   </div>
@@ -19470,7 +19577,7 @@ export default function App(){
               onClick={() => { setCurrent(campObj); setScreen("gerenciarChamp"); }}
               style={{...S.btn(t.accent), width: "100%", fontWeight: 700}}
             >
-              Gerenciar Campeonato ⚙️
+              Gerenciar Campeonato
             </button>
           </div>
         );
@@ -19482,8 +19589,8 @@ export default function App(){
           <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>Ações Rápidas</div>
           <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12}}>
             {[
-              {icon: "🏆", label: "Novo Campeonato", sub: "Grupos, pontos ou chaves", action: () => setScreen("novoChamp"), color: t.accent, scope: "campeonato"},
-              {icon: "👟", label: "Nova Pelada", sub: "Sorteador de times rápidos", action: () => setScreen("novaPelada"), color: "#22b7d9", scope: "pelada"},
+              {icon: <IconTrophy size={28} />, label: "Novo Campeonato", sub: "Grupos, pontos ou chaves", action: () => setScreen("novoChamp"), color: t.accent, scope: "campeonato"},
+              {icon: <IconSoccer size={28} />, label: "Nova Pelada", sub: "Sorteador de times rápidos", action: () => setScreen("novaPelada"), color: "#22b7d9", scope: "pelada"},
             ].filter(b => auth.role === "adm" || auth.scope === "geral" || auth.scope === b.scope).map(b => (
               <button key={b.label} onClick={b.action}
                 style={{
@@ -19517,7 +19624,7 @@ export default function App(){
         {/* Banner de Sincronização */}
         <div style={{...S.card, background: isFirebaseConfigured ? "#20E27808" : "#22b7d908", borderColor: isFirebaseConfigured ? "#20E27830" : "#22b7d930", padding: "12px 16px"}}>
           <div style={{display: "flex", alignItems: "center", gap: 10}}>
-            <div style={{fontSize: 18}}>{isFirebaseConfigured ? "☁️" : "💾"}</div>
+            <div style={{fontSize: 18}}>{isFirebaseConfigured ? <IconCloud size={18} color="#20E278" /> : <IconDatabase size={18} color="#22b7d9" />}</div>
             <div style={{flex: 1}}>
               <div style={{fontSize: 13, fontWeight: 800, color: isFirebaseConfigured ? "#20E278" : "#22b7d9", marginBottom: 2}}>
                 {isFirebaseConfigured ? "Conectado ao Firebase Cloud Sync" : "Armazenamento Local Ativo"}
@@ -19551,7 +19658,7 @@ export default function App(){
               color: dashboardTab === "peladas" ? "#fff" : t.textSec
             }}
           >
-            👟 Peladas / Sorteadores
+            Peladas / Sorteadores
           </button>
         </div>
 
@@ -19590,7 +19697,7 @@ export default function App(){
                 >
                   <option value="todas">Todas as Datas</option>
                   {datasRealizacao.filter(d => d.pelada_id === Number(dashboardSelectedId)).map(d => (
-                    <option key={d.id} value={d.id}>📅 {formatarData(d.data)} {d.local ? `(${d.local})` : ""}</option>
+                    <option key={d.id} value={d.id}>{formatarData(d.data)} {d.local ? `(${d.local})` : ""}</option>
                   ))}
                 </select>
               )}
@@ -19636,7 +19743,7 @@ export default function App(){
               <>
                 {campeonatos.length > 0 && (
                   <div>
-                    <h3 style={{fontSize: 14, fontWeight: 700, margin: "8px 0 10px 0", color: t.text}}>🏆 Campeonatos</h3>
+                    <h3 style={{fontSize: 14, fontWeight: 700, margin: "8px 0 10px 0", color: t.text}}><IconTrophy size={14} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Campeonatos</h3>
                     <div style={{display: "flex", flexDirection: "column", gap: 8}}>
                       {campeonatos.map(c => (
                         <div key={c.id} style={{...S.card, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", cursor: "pointer"}} onClick={() => {setCurrent(c); setScreen("gerenciarChamp");}}>
@@ -19649,7 +19756,7 @@ export default function App(){
                 )}
                 {peladas.length > 0 && (
                   <div>
-                    <h3 style={{fontSize: 14, fontWeight: 700, margin: "8px 0 10px 0", color: t.text}}>👟 Peladas</h3>
+                    <h3 style={{fontSize: 14, fontWeight: 700, margin: "8px 0 10px 0", color: t.text}}><IconSoccer size={14} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Peladas</h3>
                     <div style={{display: "flex", flexDirection: "column", gap: 8}}>
                       {peladas.map(p => (
                         <div key={p.id} style={{...S.card, padding: "12px 14px", cursor: "pointer"}} onClick={() => {setCurrent(p); setScreen("gerenciarPelada");}}>
@@ -19667,7 +19774,7 @@ export default function App(){
           <div style={{display: "flex", flexDirection: "column", gap: 14}}>
             {/* Resumo Financeiro */}
             <div style={S.card}>
-              <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}>💰 Caixa da Liga</div>
+              <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.8}}><IconWallet size={12} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> Caixa da Liga</div>
               <div style={{display: "flex", flexDirection: "column", gap: 8}}>
                 <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                   <span style={{fontSize: 12, color: t.textSec}}>Arrecadado:</span>
@@ -19708,24 +19815,24 @@ export default function App(){
   if(screen==="backup")return renderComLayout(
     <div style={S.page}>
       <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
-        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>💾 Backup e Importação/Exportação</h2>
+        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}><IconDatabase size={18} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Backup e Importação/Exportação</h2>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
         {isFirebaseConfigured && (
           <div style={{...S.card, borderColor:"#22b7d955", background:"#22b7d908"}}>
-            <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#22b7d9"}}>☁️ Sincronização e Backup Online (Firebase)</h3>
+            <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#22b7d9"}}><IconCloud size={15} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Sincronização e Backup Online (Firebase)</h3>
             <p style={{fontSize:13,color:t.textSec,marginBottom:14}}>
               <b>Sincronização Ativa:</b> Suas alterações locais são salvas na nuvem automaticamente.
             </p>
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              <button onClick={salvarBackupNuvem} style={S.btn("#22b7d9")}>🚀 Salvar Banco na Nuvem</button>
-              <button onClick={restaurarBackupNuvem} style={S.btn("#1D9E75")}>📥 Restaurar da Nuvem</button>
+              <button onClick={salvarBackupNuvem} style={S.btn("#22b7d9")}><IconUpload size={14} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> Salvar Banco na Nuvem</button>
+              <button onClick={restaurarBackupNuvem} style={S.btn("#1D9E75")}><IconDownload size={14} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> Restaurar da Nuvem</button>
             </div>
           </div>
         )}
 
         <div style={{...S.card,borderColor:"#1D9E7555",background:"#1D9E7508"}}>
-          <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#1D9E75"}}>{isFirebaseConfigured ? "✅ Armazenamento Local" : "✅ Armazenamento Automático"}</h3>
+          <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#1D9E75"}}>{isFirebaseConfigured ? <span style={{display: "inline-flex", alignItems: "center", gap: 6}}><IconCheck size={15} /> Armazenamento Local</span> : <span style={{display: "inline-flex", alignItems: "center", gap: 6}}><IconCheck size={15} /> Armazenamento Automático</span>}</h3>
           <p style={{fontSize:13,color:t.textSec,marginBottom:8}}>Seus dados são salvos automaticamente no navegador.</p>
           <div style={{fontSize:12,color:t.textSec,background:t.inputBg,padding:"10px",borderRadius:8,marginBottom:10}}>
             <b>Tamanho dos dados salvos:</b> {(storageSize / 1024).toFixed(2)} KB
@@ -19733,18 +19840,18 @@ export default function App(){
         </div>
 
         <div style={S.card}>
-          <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:t.text}}>📥 Exportar Dados</h3>
+          <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:t.text}}><IconDownload size={15} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Exportar Dados</h3>
           <p style={{fontSize:13,color:t.textSec,marginBottom:14}}>Faça o download de todos os dados do sistema.</p>
           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-            <button onClick={exportJSON} style={S.btn("#1D9E75")}>📄 Exportar JSON</button>
-            <button onClick={exportTXT} style={S.btn("#22b7d9")}>📄 Exportar TXT</button>
+            <button onClick={exportJSON} style={S.btn("#1D9E75")}><IconFile size={14} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> Exportar JSON</button>
+            <button onClick={exportTXT} style={S.btn("#22b7d9")}><IconFile size={14} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> Exportar TXT</button>
           </div>
         </div>
         <div style={{...S.card,borderColor:"#E24B4A55"}}>
-          <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#E24B4A"}}>📤 Importar Dados (Restaurar)</h3>
+          <h3 style={{fontSize:15,fontWeight:700,margin:"0 0 10px 0",color:"#E24B4A"}}><IconUpload size={15} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Importar Dados (Restaurar)</h3>
           <p style={{fontSize:13,color:t.textSec,marginBottom:14}}>Restaure os dados a partir de um arquivo JSON.</p>
           <label style={{...S.btn("#E24B4A"),display:"inline-flex",cursor:"pointer"}}>
-            📂 Selecionar Arquivo JSON
+            <IconFile size={14} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> Selecionar Arquivo JSON
             <input type="file" accept=".json" style={{display:"none"}} onChange={importJSON} />
           </label>
         </div>
@@ -19756,7 +19863,7 @@ export default function App(){
   if(screen==="quadras")return renderComLayout(
     <div style={S.page}>
       <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
-        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>🏟️ Gerenciamento de Quadras / Campos</h2>
+        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}><IconGoalNet size={18} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Gerenciamento de Quadras / Campos</h2>
       </div>
       <CRUDQuadras 
         quadras={quadras} 
@@ -19775,7 +19882,7 @@ export default function App(){
   if(screen==="atletas")return renderComLayout(
     <div style={S.page}>
       <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
-        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>👤 Gerenciamento Geral de Atletas</h2>
+        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}><IconUsers size={18} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Gerenciamento Geral de Atletas</h2>
       </div>
       <CRUDAtletas 
         atletas={atletas} 
@@ -19803,7 +19910,7 @@ export default function App(){
   if(screen==="novoChamp")return renderComLayout(
     <div style={S.page}>
       <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
-        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>🏆 Criar Novo Campeonato / Liga</h2>
+        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}><IconTrophy size={18} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Criar Novo Campeonato / Liga</h2>
       </div>
       <NovoCampeonato quadras={quadras} onSave={(d, importedAtletas)=>{
         const newD = {...d, manager_id: auth.role === "manager" ? auth.manager_id : null};
@@ -19880,7 +19987,7 @@ export default function App(){
   if(screen==="novaPelada")return renderComLayout(
     <div style={S.page}>
       <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
-        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>👟 Criar Nova Pelada / Sorteador</h2>
+        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}><IconSoccer size={18} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Criar Nova Pelada / Sorteador</h2>
       </div>
       <CriarPelada onSave={d=>{adicionarPelada(d);setScreen("home");}} t={t}/>
     </div>
