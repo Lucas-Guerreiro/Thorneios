@@ -16815,7 +16815,6 @@ export default function App(){
   };
 
   const RightPanel = () => {
-    if (isMobile) return null;
     const isDark = dark;
     const ac = t.accent || "#22D9C8";
     
@@ -16893,25 +16892,27 @@ export default function App(){
 
     return (
       <div style={{
-        width: 270,
+        width: isMobile ? "100%" : 270,
         flexShrink: 0,
         display: "flex",
-        flexDirection: "column",
-        borderLeft: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)"}`,
+        flexDirection: isMobile ? "row" : "column",
+        flexWrap: isMobile ? "wrap" : "nowrap",
+        borderLeft: isMobile ? "none" : `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)"}`,
+        borderTop: isMobile ? `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)"}` : "none",
         background: isDark ? "#000000" : "#F8FAFC",
-        height: "100%",
-        overflowY: "auto",
+        height: isMobile ? "auto" : "100%",
+        overflowY: isMobile ? "visible" : "auto",
         fontFamily: "'Inter', sans-serif",
-        position: "sticky",
+        position: isMobile ? "static" : "sticky",
         top: 0,
         alignSelf: "flex-start",
-        maxHeight: "calc(100vh - 52px)",
-        padding: "14px 12px",
+        maxHeight: isMobile ? "none" : "calc(100vh - 52px)",
+        padding: isMobile ? "24px" : "14px 12px",
         boxSizing: "border-box",
-        gap: 12
+        gap: 16
       }}>
         {/* Bloco 1: Aparência */}
-        <div style={S.card}>
+        <div style={{...S.card, flex: isMobile ? "1 1 240px" : "none"}}>
           <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 16}}>
             Configurações Rápidas
           </div>
@@ -17008,7 +17009,7 @@ export default function App(){
         </div>
 
         {/* Bloco 2: Status do Servidor */}
-        <div style={S.card}>
+        <div style={{...S.card, flex: isMobile ? "1 1 240px" : "none"}}>
           <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 16}}>
             Status da Conexão
           </div>
@@ -17033,7 +17034,7 @@ export default function App(){
         </div>
 
         {/* Bloco 3: Resumo Financeiro - Campeonatos */}
-        <div style={S.card}>
+        <div style={{...S.card, flex: isMobile ? "1 1 240px" : "none"}}>
           <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 16}}>
             Caixa - Campeonatos
           </div>
@@ -17098,7 +17099,7 @@ export default function App(){
         </div>
 
         {/* Bloco 4: Resumo Financeiro - Peladas */}
-        <div style={S.card}>
+        <div style={{...S.card, flex: isMobile ? "1 1 240px" : "none"}}>
           <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 16}}>
             Caixa - Peladas
           </div>
@@ -17173,6 +17174,7 @@ export default function App(){
         <div style={{flex: 1, padding: "24px", boxSizing: "border-box"}}>
           {conteudo}
         </div>
+        <RightPanel />
       </div>
     ) : (
       <div style={{display: "flex", flexDirection: "column", minHeight: "100vh", backgroundColor: t.bg}}>
