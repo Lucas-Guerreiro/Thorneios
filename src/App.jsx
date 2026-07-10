@@ -2011,9 +2011,39 @@ function higienizarJogadoresDuplicados(ps) {
   return ps;
 }
 
+function higienizarFilaTimes(ps) {
+  if (!ps) return ps;
+  if (!ps.teams) ps.teams = [];
+  if (!ps.queue) ps.queue = [];
+  
+  // 1. Garantir que ps.queue contenha apenas nomes de times que existem em ps.teams
+  const existingTeamNames = new Set(ps.teams.map(t => t.name));
+  let cleanQueue = ps.queue.filter(name => existingTeamNames.has(name));
+  
+  // 2. Remover duplicatas da fila mantendo apenas a primeira ocorrência
+  const seenInQueue = new Set();
+  cleanQueue = cleanQueue.filter(name => {
+    if (seenInQueue.has(name)) return false;
+    seenInQueue.add(name);
+    return true;
+  });
+  
+  // 3. Garantir que todos os times em ps.teams estejam na fila
+  ps.teams.forEach(t => {
+    if (!seenInQueue.has(t.name)) {
+      cleanQueue.push(t.name);
+      seenInQueue.add(t.name);
+    }
+  });
+  
+  ps.queue = cleanQueue;
+  return ps;
+}
+
 function sincronizarBasesDosTimes(ps) {
   if (!ps || !ps.teams) return ps;
   ps = higienizarJogadoresDuplicados(ps);
+  ps = higienizarFilaTimes(ps);
   if (!ps.teamBases) ps.teamBases = {};
   
   const jogadoresAtrasadosIds = (ps.currentMatch?.jogadoresAtrasados || []).map(id => String(id));
