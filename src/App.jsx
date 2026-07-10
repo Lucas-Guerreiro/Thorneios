@@ -16,6 +16,8 @@ import {
   browserLocalPersistence
 } from "firebase/auth";
 
+const COLLECTION_CAMPEONATOS = "campeonatos";
+
 
 /* ─────────────────────────── ÍCONES SVG OUTLINE ─────────────────────────── */
 const IconClipboard = ({size=18,color="currentColor"}) => (
@@ -2657,7 +2659,7 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
             margin: "8px 0 0",
             fontWeight: 500
           }}>
-            O gerenciador definitivo para seus campeonatos e peladas
+            O gerenciador definitivo para suas peladas
           </p>
         </div>
 
@@ -2919,7 +2921,7 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
           }}
         >
           <span>←</span>
-          <span>Acompanhar Campeonatos (Voltar)</span>
+          <span>Acompanhar Peladas (Voltar)</span>
         </button>
       </div>
 
@@ -3035,7 +3037,7 @@ function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
 
   useEffect(() => {
     if (!isFirebaseConfigured || !peladaData?.docKey) return;
-    const docRef = doc(db, "campeonatos", "pelada_" + peladaData.docKey);
+    const docRef = doc(db, COLLECTION_CAMPEONATOS, "pelada_" + peladaData.docKey);
 
     // includeMetadataChanges: true permite detectar hasPendingWrites
     // (escrita pendente de confirmação pelo servidor)
@@ -5177,7 +5179,7 @@ function CRUDAtletas({
   const S=makeStyles(t);
   const [modal, setModal] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [filtroVinculo, setFiltroVinculo] = useState("todos"); // "todos", "campeonato_ID", "pelada_ID"
+  const [filtroVinculo, setFiltroVinculo] = useState("todos"); // "todos", "pelada_ID"
   
   const defaultForm = {
     nome: "",
@@ -5203,7 +5205,7 @@ function CRUDAtletas({
     nomeMae: "",
     docFoto: "",
     modalidades: [],
-    vinculos: [], // Array de strings formatadas: "campeonato_${id}" ou "pelada_${id}"
+    vinculos: [], // Array de strings formatadas: "pelada_${id}"
     customFields: {}
   };
 
@@ -5791,7 +5793,7 @@ function CRUDQuadras({
               <div>
                 <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer",color:t.text,marginTop:6}}>
                   <input type="checkbox" checked={form.ativa} onChange={e=>setForm(v=>({...v,ativa:e.target.checked}))}/>
-                  Quadra Ativa (disponível para campeonatos)
+                  Quadra Ativa
                 </label>
               </div>
             </div>
@@ -12294,7 +12296,7 @@ export default function App(){
     if (!publicPeladaData) return;
     try {
       if (!isFirebaseConfigured) return;
-      const docRef = doc(db, "campeonatos", "pelada_" + publicPeladaData.docKey);
+      const docRef = doc(db, COLLECTION_CAMPEONATOS, "pelada_" + publicPeladaData.docKey);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const publicData = docSnap.data();
@@ -12313,7 +12315,7 @@ export default function App(){
   useEffect(() => {
     if (!isFirebaseConfigured || screen !== "publicPelada" || !publicPeladaData?.docKey) return;
 
-    const docRef = doc(db, "campeonatos", "pelada_" + publicPeladaData.docKey);
+    const docRef = doc(db, COLLECTION_CAMPEONATOS, "pelada_" + publicPeladaData.docKey);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const publicData = docSnap.data();
@@ -12386,7 +12388,7 @@ export default function App(){
           }
 
           if (manager) {
-            setAuth({ role: "manager", name: manager.name || "Manager", manager_id: manager.id, scope: manager.scope || "campeonato", email: trimmedEmail });
+            setAuth({ role: "manager", name: manager.name || "Manager", manager_id: manager.id, scope: manager.scope || "pelada", email: trimmedEmail });
             setScreen(prev => (prev === "login" || prev === "selection") ? "home" : prev);
             if (isNewLogin) {
               console.log("[DEBUG AUTH] Novo login manager detectado! Chamando autoRestaurarDaNuvem");
@@ -12432,7 +12434,7 @@ export default function App(){
 
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const code = params.get("c") || params.get("campeonato");
+      const code = params.get("c") || params.get("pelada");
       const pCode = params.get("p");
       const urlDataId = params.get("data");
 
@@ -12444,14 +12446,14 @@ export default function App(){
               throw new Error("O Firebase Firestore não está configurado.");
             }
             
-            const docRef = doc(db, "campeonatos", code);
+            const docRef = doc(db, COLLECTION_CAMPEONATOS, code);
             const docSnap = await getDoc(docRef);
             
             if (docSnap.exists()) {
               setPublicCloudChamp(docSnap.data());
               setScreen("publicCloud");
             } else {
-              const q = query(collection(db, "campeonatos"), where("customSlug", "==", code.toLowerCase()));
+              const q = query(collection(db, COLLECTION_CAMPEONATOS), where("customSlug", "==", code.toLowerCase()));
               const querySnapshot = await getDocs(q);
               
               if (!querySnapshot.empty) {
@@ -12459,7 +12461,7 @@ export default function App(){
                 setPublicCloudChamp(champData);
                 setScreen("publicCloud");
               } else {
-                throw new Error("Campeonato não encontrado.");
+                throw new Error("Pelada não encontrada.");
               }
             }
           } catch (err) {
@@ -12479,7 +12481,7 @@ export default function App(){
               throw new Error("O Firebase Firestore não está configurado.");
             }
             
-            const docRef = doc(db, "campeonatos", "pelada_" + pCode);
+            const docRef = doc(db, COLLECTION_CAMPEONATOS, "pelada_" + pCode);
             const docSnap = await getDoc(docRef);
             
             if (docSnap.exists()) {
@@ -12660,7 +12662,7 @@ export default function App(){
               };
 
               const cleanPublicPayload = JSON.parse(JSON.stringify(publicPayload));
-              await setDoc(doc(db, "campeonatos", "pelada_" + String(pel.id)), cleanPublicPayload);
+              await setDoc(doc(db, COLLECTION_CAMPEONATOS, "pelada_" + String(pel.id)), cleanPublicPayload);
               console.log(`Pelada pública ${pel.name} sincronizada com sucesso!`);
             } catch (errPublic) {
               console.error(`Erro ao publicar pelada ${pel.name} na nuvem:`, errPublic);
@@ -13269,7 +13271,7 @@ export default function App(){
   const financeiroFiltered = auth.role === "adm" ? financeiro : (auth.role === "manager" ? {
     entries: (financeiro.entries || []).filter(e => {
       if (String(e.manager_id) !== String(auth.manager_id)) return false;
-      if (auth.scope === "campeonato") return !e.pelada_id;
+      if (auth.scope === "pelada") return e.pelada_id;
       if (auth.scope === "pelada") return !e.champ_id;
       return true;
     })
@@ -13359,7 +13361,7 @@ export default function App(){
       };
 
       const cleanPublicPayload = JSON.parse(JSON.stringify(publicPayload));
-      await setDoc(doc(db, "campeonatos", "pelada_" + String(pel.id)), cleanPublicPayload);
+      await setDoc(doc(db, COLLECTION_CAMPEONATOS, "pelada_" + String(pel.id)), cleanPublicPayload);
       console.log(`[REALTIME] Pelada ${pel.name} sincronizada publicamente em tempo real no Firestore!`);
     } catch (e) {
       console.error("Erro na sincronização instantânea pública da pelada:", e);
@@ -13386,7 +13388,7 @@ export default function App(){
   const adicionarManager = d => setManagers(p => [...p, { ...d, id: Date.now() }]);
   const atualizarManager = (id, d) => setManagers(p => p.map(m => m.id === id ? { ...m, ...d } : m));
   const removerManager = id => setManagers(p => p.filter(m => m.id !== id));
-  const assegurarManagerColaborador = (name, email, password, targetScope = "campeonato") => {
+  const assegurarManagerColaborador = (name, email, password, targetScope = "pelada") => {
     const trimmedEmail = String(email || "").toLowerCase().trim();
     const list = Array.isArray(appState?.managers) ? appState.managers : [];
     const index = list.findIndex(m => String(m.email || "").toLowerCase().trim() === trimmedEmail);
@@ -13399,7 +13401,7 @@ export default function App(){
       });
     } else {
       const existingManager = list[index];
-      const currentScope = existingManager.scope || "campeonato";
+      const currentScope = existingManager.scope || "pelada";
       let newScope = currentScope;
       if (currentScope !== "geral" && currentScope !== targetScope) {
         newScope = "geral";
@@ -13799,26 +13801,13 @@ export default function App(){
     let entries = [];
     if (dashboardSelectedId !== "") {
       const selectedIdNum = Number(dashboardSelectedId);
-      if (dashboardTab === "campeonatos") {
-        entries = (financeiroFiltered?.entries || []).filter(e => String(e.champ_id) === String(selectedIdNum));
-      } else {
-        entries = (financeiroFiltered?.entries || []).filter(e => String(e.pelada_id) === String(selectedIdNum));
-      }
+      entries = (financeiroFiltered?.entries || []).filter(e => String(e.pelada_id) === String(selectedIdNum));
     }
     const totalReceita = entries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const totalDespesa = entries.filter(e => e.type === "despesa").reduce((sum, e) => sum + Number(e.amount || 0), 0);
     const saldoFinal = totalReceita - totalDespesa;
 
-    // Comunicados recentes (últimos posts do mural de todos campeonatos)
-    const comunicados = [];
-    campeonatos.forEach(c => {
-      if (c.mural && c.mural.length > 0) {
-        const posts = c.mural.filter(p => p.type === "comunicado" || p.type === "noticia" || p.type === "texto").slice(-2);
-        posts.forEach(p => comunicados.push({ ...p, champName: c.name, champId: c.id, champ: c }));
-      }
-    });
-    comunicados.sort((a, b) => (b.date || 0) > (a.date || 0) ? 1 : -1);
-    const comunicadosRecentes = comunicados.slice(0, 3);
+    const comunicadosRecentes = [];
 
     // 1. Cálculo de atletas e presença para o Card 1
     let card1Label = "Atletas / Presença";
@@ -14287,7 +14276,7 @@ export default function App(){
         onImport={importAtletas} 
         onDownloadTemplate={downloadAtletasTemplate} 
          
-        campeonatos={[]}
+        
         peladas={peladas}
         t={t}
       />
