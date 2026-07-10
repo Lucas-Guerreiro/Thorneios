@@ -16,6 +16,11 @@ import {
   browserLocalPersistence
 } from "firebase/auth";
 
+import { Button } from "./components/ui/Button";
+import { Input } from "./components/ui/Input";
+import { Card } from "./components/ui/Card";
+import { Modal } from "./components/ui/Modal";
+
 const COLLECTION_CAMPEONATOS = "campeonatos";
 
 
@@ -2664,17 +2669,15 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
         </div>
 
         {/* Card de Autenticação Premium (Glassmorphism) */}
-        <div style={{
+        <Card t={t} style={{
           background: isDark ? "rgba(18, 18, 18, 0.75)" : "rgba(255, 255, 255, 0.8)",
           backdropFilter: "blur(18px)",
           WebkitBackdropFilter: "blur(18px)",
-          borderRadius: 12,
           padding: "32px 28px",
           border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)"}`,
           boxShadow: isDark 
             ? "0 20px 40px rgba(0, 0, 0, 0.6), 0 0 50px rgba(0, 149, 246, 0.05)" 
-            : "0 20px 40px rgba(0, 0, 0, 0.05)",
-          transition: "transform 0.3s ease, box-shadow 0.3s ease"
+            : "0 20px 40px rgba(0, 0, 0, 0.05)"
         }}>
           {/* Abas */}
           <div style={{
@@ -2746,8 +2749,9 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
                 <label style={S.label}>Nome Completo</label>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>👤</span>
-                  <input 
-                    style={{ ...S.input, paddingLeft: 38 }}
+                  <Input 
+                    t={t}
+                    style={{ paddingLeft: 38 }}
                     value={name} 
                     onChange={e => setName(e.target.value)} 
                     placeholder="Seu nome" 
@@ -2762,9 +2766,10 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
               <label style={S.label}>E-mail</label>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}>✉️</span>
-                <input 
+                <Input 
+                  t={t}
                   type="email"
-                  style={{ ...S.input, paddingLeft: 38 }}
+                  style={{ paddingLeft: 38 }}
                   value={email} 
                   onChange={e => setEmail(e.target.value)} 
                   placeholder="seu@email.com" 
@@ -2779,8 +2784,9 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
                 <label style={S.label}>Senha</label>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16 }}><IconLock size={12} /></span>
-                  <input 
-                    style={{ ...S.input, paddingLeft: 38, paddingRight: 42 }} 
+                  <Input 
+                    t={t}
+                    style={{ paddingLeft: 38, paddingRight: 42 }} 
                     type={showPassword ? "text" : "password"} 
                     value={password} 
                     onChange={e => setPassword(e.target.value)} 
@@ -2860,11 +2866,12 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
             )}
 
             {/* Botão de Ação */}
-            <button 
+            <Button 
+              t={t}
               type="submit" 
               disabled={loading}
+              bg={loading ? "#0095F6aa" : "#0095F6"}
               style={{
-                ...S.btn(loading ? "#0095F6aa" : "#0095F6"),
                 padding: "14px 20px",
                 fontSize: 14,
                 width: "100%",
@@ -2889,12 +2896,14 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
                   <span>Processando...</span>
                 </div>
               ) : activeTab === "login" ? "Entrar na Minha Conta" : activeTab === "register" ? "Cadastrar Minha Conta" : "Enviar E-mail de Recuperação"}
-            </button>
+            </Button>
           </form>
-        </div>
+        </Card>
 
         {/* Botão de Voltar para Seleção */}
-        <button 
+        <Button 
+          t={t}
+          variant="secondary"
           onClick={onBack}
           style={{
             alignSelf: "center",
@@ -2903,12 +2912,8 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
             border: `1.5px solid ${t.cardBorder}`,
             color: t.text,
             borderRadius: 14,
-            cursor: "pointer",
             fontWeight: 700,
             fontSize: 13,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
             transition: "all 0.2s ease"
           }}
           onMouseEnter={e => {
@@ -2922,7 +2927,7 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
         >
           <span>←</span>
           <span>Acompanhar Peladas (Voltar)</span>
-        </button>
+        </Button>
       </div>
 
       {/* Estilos e animações globais inseridos dinamicamente */}
