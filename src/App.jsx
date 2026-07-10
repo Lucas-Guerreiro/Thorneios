@@ -7247,7 +7247,11 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const[peladaState,setPeladaStateLocalReal]=useState(pelada.peladaState||null);
   const [historicoEstados, setHistoricoEstados] = useState([]);
   const setPeladaStateLocal = (newPs) => {
-    if (peladaState && newPs && newPs !== peladaState) {
+    let cleanPs = newPs;
+    if (cleanPs) {
+      cleanPs = higienizarFilaTimes(cleanPs);
+    }
+    if (peladaState && cleanPs && cleanPs !== peladaState) {
       setHistoricoEstados(prev => {
         if (prev.length > 0 && JSON.stringify(prev[prev.length - 1]) === JSON.stringify(peladaState)) {
           return prev;
@@ -7255,7 +7259,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         return [...prev, deepClone(peladaState)];
       });
     }
-    setPeladaStateLocalReal(newPs);
+    setPeladaStateLocalReal(cleanPs);
   };
   const salvarPeladaStateComHistorico = (ps) => {
     setPeladaStateLocal(ps);
@@ -7827,6 +7831,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
     if (ps) {
       ps = higienizarJogadoresDuplicados(ps);
+      ps = higienizarFilaTimes(ps);
     }
     return ps;
   };
@@ -7850,6 +7855,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       }
       ps = { ...ps, teamBases };
       ps = higienizarJogadoresDuplicados(ps);
+      ps = higienizarFilaTimes(ps);
       finalUpdates.peladaState = ps;
       
       setPeladaStateLocalReal(ps);
