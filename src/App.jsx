@@ -700,51 +700,6 @@ async function otimizarTodoEstado(state) {
     }));
   }
 
-  // 2. Otimizar atletas do campeonato
-  if (Array.isArray(newState.atletasCampeonato)) {
-    newState.atletasCampeonato = await Promise.all(newState.atletasCampeonato.map(async (atleta) => {
-      let foto = atleta.foto;
-      let docFoto = atleta.docFoto;
-      if (foto) foto = await compressBase64(foto, 120, 0.6);
-      if (docFoto) docFoto = await compressBase64(docFoto, 400, 0.6);
-      return { ...atleta, foto, docFoto };
-    }));
-  }
-
-  // 3. Otimizar campeonatos (escudos e fotos de partidas)
-  if (Array.isArray(newState.campeonatos)) {
-    newState.campeonatos = await Promise.all(newState.campeonatos.map(async (camp) => {
-      const newCamp = { ...camp };
-      
-      // Escudos dos times
-      if (newCamp.emblems && typeof newCamp.emblems === "object") {
-        const newEmblems = {};
-        for (const [team, b64] of Object.entries(newCamp.emblems)) {
-          newEmblems[team] = await compressBase64(b64, 200, 0.6);
-        }
-        newCamp.emblems = newEmblems;
-      }
-
-      // Fotos das partidas
-      if (Array.isArray(newCamp.rounds)) {
-        newCamp.rounds = await Promise.all(newCamp.rounds.map(async (round) => {
-          if (!Array.isArray(round.matches)) return round;
-          const newMatches = await Promise.all(round.matches.map(async (match) => {
-            if (!Array.isArray(match.photos)) return match;
-            const newPhotos = await Promise.all(match.photos.map(async (photo) => {
-              const newData = await compressBase64(photo.data, 400, 0.6);
-              return { ...photo, data: newData };
-            }));
-            return { ...match, photos: newPhotos };
-          }));
-          return { ...round, matches: newMatches };
-        }));
-      }
-
-      return newCamp;
-    }));
-  }
-
   return newState;
 }
 
@@ -2980,345 +2935,6 @@ function LoginScreen({ onLogin, onRegister, onForgotPassword, onBack, t }) {
           75% { transform: translateX(6px); }
         }
       `}</style>
-    </div>
-  );
-}
-
-function SelectionScreen({onLoginScreen,onAccessCloud,t}){
-  const S=makeStyles(t);
-  const [code, setCode] = useState("");
-  return(
-    <div style={S.page}>
-      <div style={{maxWidth:560,margin:"0 auto",display:"flex",flexDirection:"column",gap:24}}>
-        <div style={{textAlign:"center"}}>
-          <div style={{display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, fontSize:32,fontWeight:800,color:t.text}}>
-            <IconSoccer size={28} color={t.accent} /> Thorneios
-          </div>
-          <div style={{fontSize:14,color:t.textSec,marginTop:8}}>Faça login para acessar o painel de gerenciamento ou acompanhe um campeonato compartilhado abaixo.</div>
-        </div>
-        
-        <button onClick={onLoginScreen} style={{...S.card,background:t.card,border:`1px solid ${t.cardBorder}`,padding:24,display:"flex",flexDirection:"column",gap:12,alignItems:"flex-start",cursor:"pointer",width:"100%",textAlign:"left"}}>
-          <div style={{display: "inline-flex", alignItems: "center", gap: 8, fontSize:22,color:t.text}}>
-            <span style={{color: t.accent, display: "flex"}}><IconSettings size={22} /></span> Acesso Organizador (Login)
-          </div>
-          <div style={{color:t.textSec,fontSize:13}}>Acesse como Administrador ou Manager para gerenciar peladas, campeonatos, súmulas e moderações.</div>
-          <div style={{color:"#22b7d9",fontWeight:800,fontSize:14,marginTop:4}}>Ir para o Login →</div>
-        </button>
-
-        <div style={S.card}>
-          <div style={{display: "inline-flex", alignItems: "center", gap: 6, fontWeight:700,fontSize:14,color:t.text,marginBottom:16}}>
-            <span style={{color: t.accent, display: "flex"}}><IconGlobe size={16} /></span> Acompanhar Campeonato da Nuvem
-          </div>
-          <div style={{fontSize:12,color:t.textSec,marginBottom:16}}>Digite o código de 10 dígitos do campeonato fornecido pelo organizador para ver a tabela e placares.</div>
-          <div style={{display:"flex",gap:8}}>
-            <input 
-              style={{...S.input, flex:1}} 
-              value={code} 
-              onChange={e=>setCode(e.target.value)} 
-              placeholder="Ex: 5123abcdab" 
-            />
-            <button 
-              onClick={() => {
-                if (code.trim()) {
-                  onAccessCloud(code.trim());
-                } else {
-                  alert("Por favor, insira um código de campeonato.");
-                }
-              }} 
-              style={S.btn("#1D9E75")}
-            >
-              Acessar
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ManagerRegistry({managers,onAdd,onUpdate,onRemove,onBack,t}){
-  const S=makeStyles(t);
-  const [form,setForm]=useState({name:"",email:"",password:"",scope:"campeonato"});
-  const [error,setError]=useState("");
-  const [editId,setEditId]=useState(null);
-
-  const handleSave=()=>{
-    if(!form.name.trim()||!form.email.trim()||!form.password.trim()){
-      setError("Preencha nome, e-mail e senha do manager.");
-      return;
-    }
-    if(managers.some(m=>m.id!==editId && String(m.email||"").toLowerCase()===String(form.email||"").trim().toLowerCase())){
-      setError("Já existe um manager com esse e-mail.");
-      return;
-    }
-    if(editId){
-      onUpdate(editId, {
-        name:form.name.trim(),
-        email:form.email.trim().toLowerCase(),
-        password:form.password,
-        scope:form.scope,
-      });
-      setEditId(null);
-    } else {
-      onAdd({
-        name:form.name.trim(),
-        email:form.email.trim().toLowerCase(),
-        password:form.password,
-        scope:form.scope,
-      });
-    }
-    setForm({name:"",email:"",password:"",scope:"campeonato"});
-    setError("");
-  };
-
-  const iniciarEdicao=(m)=>{
-    setEditId(m.id);
-    setForm({name:m.name, email:m.email, password:m.password, scope:m.scope||"campeonato"});
-    setError("");
-  };
-
-  const cancelarEdicao=()=>{
-    setEditId(null);
-    setForm({name:"",email:"",password:"",scope:"campeonato"});
-    setError("");
-  };
-
-  return(
-    <div style={S.page}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={onBack} style={S.btnSm()}>← Voltar</button><div><h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}>Cadastro de Managers</h2><div style={{fontSize:12,color:t.textSec}}>Adicione e gerencie gestores com nome, e-mail, senha e tipo de acesso.</div></div></div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-        <div style={S.card}>
-          <div style={{fontWeight:700,fontSize:14,color:t.text,marginBottom:16}}>{editId ? "Editar manager" : "Novo manager"}</div>
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            <div>
-              <label style={S.label}>Nome</label>
-              <input style={S.input} value={form.name} onChange={e=>setForm(v=>({...v,name:e.target.value}))} placeholder="Nome do manager" />
-            </div>
-            <div>
-              <label style={S.label}>E-mail</label>
-              <input style={S.input} value={form.email} onChange={e=>setForm(v=>({...v,email:e.target.value}))} placeholder="email@exemplo.com" />
-            </div>
-            <div>
-              <label style={S.label}>Senha</label>
-              <input style={S.input} type="password" value={form.password} onChange={e=>setForm(v=>({...v,password:e.target.value}))} placeholder="Senha" />
-            </div>
-            <div>
-              <label style={S.label}>Tipo de acesso</label>
-              <select style={S.select} value={form.scope} onChange={e=>setForm(v=>({...v,scope:e.target.value}))}>
-                <option value="campeonato">Campeonato</option>
-                <option value="pelada">Pelada</option>
-                <option value="geral">Geral</option>
-              </select>
-            </div>
-            {error && <div style={{color:"#E24B4A",fontSize:12,fontWeight:700}}>{error}</div>}
-            <div style={{display:"flex",gap:8}}>
-              <button onClick={handleSave} style={{...S.btn(),flex:1}}>{editId ? "Atualizar" : "Salvar Manager"}</button>
-              {editId && <button onClick={cancelarEdicao} style={{...S.btn(t.card, t.textSec),border:`1px solid ${t.cardBorder}`}}>Cancelar</button>}
-            </div>
-          </div>
-        </div>
-        <div style={{...S.card,display:"flex",flexDirection:"column",gap:10}}>
-          <div style={{fontWeight:700,fontSize:14,color:t.text,marginBottom:16}}>Managers registrados</div>
-          {managers.length===0 ? <div style={{color:t.textSec,fontSize:12}}>Nenhum manager cadastrado.</div> : managers.map(m=>(
-            <div key={m.id} style={{padding:"10px 0",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
-              <div>
-                <div style={{fontWeight:700,color:t.text}}>{m.name}</div>
-                <div style={{fontSize:12,color:t.textSec,marginBottom:4}}>{m.email}</div>
-                <div style={{fontSize:12,color:t.textSec}}>{m.scope==="campeonato"?"Campeonato":m.scope==="pelada"?"Pelada":"Geral"}</div>
-              </div>
-              <div style={{display:"flex",gap:6,flexShrink:0}}>
-                <button onClick={()=>iniciarEdicao(m)} style={S.btnSm("#22b7d922","#22b7d9")}><IconEdit size={12} /></button>
-                <button onClick={()=>{if(window.confirm(`Excluir gestor ${m.name}?`))onRemove(m.id);}} style={S.btnSm("#E24B4A22","#E24B4A")}><IconTrash size={12} /></button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PublicScreen({campeonatos,atletas,current,setCurrent,onBack,t}){
-  const S=makeStyles(t);
-  const [tab,setTab]=useState("tabela");
-
-  const colorOf = useCallback((n,teams)=>COLORS[(teams||[]).indexOf(n)%COLORS.length],[]);
-
-  const publicChamp = campeonatos.find(c=>current?.id===c.id) || current;
-  const getPlayerNameById = id => getPlayerName(atletas.find(x=>String(x.id)===String(id)));
-
-  const allEvents = [];
-  if(publicChamp?.rounds) publicChamp.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>allEvents.push(e))));
-  if(publicChamp?.groups) publicChamp.groups.forEach(g=>g.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>allEvents.push(e)))));
-  if(publicChamp?.knockout) publicChamp.knockout.forEach(p=>p.matches.forEach(m=>m.events?.forEach(e=>allEvents.push(e))));
-
-  const stats = {};
-  allEvents.forEach(e => {
-    const key = String(e.atletaId);
-    if(!stats[key]) stats[key] = { atletaId:key, gols:0, am:0, vm:0, teamName:e.teamName };
-    if(e.type==="gol") stats[key].gols++;
-    if(e.type==="amarelo") stats[key].am++;
-    if(e.type==="vermelho") stats[key].vm++;
-  });
-
-  const statsArr = Object.values(stats).map(s => ({
-    ...s,
-    atleta: atletas.find(x=>String(x.id)===String(s.atletaId))
-  })).filter(x=>x.atleta);
-
-  const topGols = [...statsArr].filter(x=>x.gols>0).sort((a,b)=>b.gols-a.gols);
-  const topAm = [...statsArr].filter(x=>x.am>0).sort((a,b)=>b.am-a.am);
-  const topVm = [...statsArr].filter(x=>x.vm>0).sort((a,b)=>b.vm-a.vm);
-
-  if(current && !publicChamp){
-    return (
-      <div style={S.page}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setCurrent(null)} style={S.btnSm()}>← Voltar</button><h2 style={{fontSize:18,fontWeight:800,color:t.text}}>Campeonato não encontrado</h2></div>
-      </div>
-    );
-  }
-
-  const renderMatch = (m) => {
-    const matchEvents = m.events || [];
-    const goals = matchEvents.filter(e=>e.type==="gol");
-    const yellows = matchEvents.filter(e=>e.type==="amarelo");
-    const reds = matchEvents.filter(e=>e.type==="vermelho");
-    const leftEvents = matchEvents.filter(e=>e.teamName===m.home);
-    const rightEvents = matchEvents.filter(e=>e.teamName===m.away);
-    const renderSide = (events, sideName) => {
-      const goalsSide = events.filter(e=>e.type==="gol");
-      const yellowSide = events.filter(e=>e.type==="amarelo");
-      const redSide = events.filter(e=>e.type==="vermelho");
-      return (
-        <div style={{display:"flex",flexDirection:"column",gap:6,padding:10,border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.inputBg}}>
-          <div style={{fontSize:12,fontWeight:700,color:t.text}}>{sideName}</div>
-          {goalsSide.length>0 ? goalsSide.map((e,i)=><div key={`g-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><IconSoccer size={12} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum gol</div>}
-          {yellowSide.length>0 ? yellowSide.map((e,i)=><div key={`y-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#BA7517",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum amarelo</div>}
-          {redSide.length>0 ? redSide.map((e,i)=><div key={`r-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#E24B4A",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum vermelho</div>}
-        </div>
-      );
-    };
-    return (
-      <div key={`${m.home}-${m.away}-${m.date||Math.random()}`} style={{padding:12,border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,display:"flex",flexDirection:"column",gap:10}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0,justifyContent:"flex-start"}}><Avatar name={m.home} size={36} color={colorOf(m.home,publicChamp.teams)} src={publicChamp.emblems?.[m.home]}/><span style={{fontWeight:800,fontSize:15,color:t.text}}>{m.home}</span></div>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:100,flexShrink:0}}><div style={{fontSize:20,fontWeight:900,color:t.text}}>{m.played?`${m.homeScore}×${m.awayScore}`:"—×—"}</div><div style={{fontSize:11,color:t.textSec,marginTop:4}}>{m.date?formatarData(m.date):"Data não informada"}</div></div>
-          <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0,justifyContent:"flex-end"}}><span style={{fontWeight:800,fontSize:15,color:t.text}}>{m.away}</span><Avatar name={m.away} size={36} color={colorOf(m.away,publicChamp.teams)} src={publicChamp.emblems?.[m.away]}/></div>
-        </div>
-        {matchEvents.length ? (
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            {renderSide(leftEvents, m.home)}
-            {renderSide(rightEvents, m.away)}
-          </div>
-        ) : null}
-      </div>
-    );
-  };
-
-  const renderStats = () => (
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:18}}>
-      <div style={S.card}>
-        <div style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:16}}>⚽ Top 10 Artilharia</div>
-        {topGols.length===0 ? <div style={{fontSize:12,color:t.textSec}}>Nenhum gol registrado ainda.</div> : topGols.slice(0,10).map((x,i)=><div key={x.atletaId} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i!==Math.min(topGols.length,10)-1?`1px solid ${t.cardBorder}`:"none"}}><span style={{fontSize:12,color:t.text}}>{getPlayerNameById(x.atletaId)}</span><span style={{fontSize:12,fontWeight:700,color:t.text}}>{x.gols}</span></div>)}
-      </div>
-      <div style={S.card}>
-        <div style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:16}}>🟨 Amarelos</div>
-        {topAm.length===0 ? <div style={{fontSize:12,color:t.textSec}}>Nenhum cartão amarelo.</div> : topAm.map((x,i)=><div key={x.atletaId} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i!==topAm.length-1?`1px solid ${t.cardBorder}`:"none"}}><span style={{fontSize:12,color:t.text}}>{getPlayerNameById(x.atletaId)}</span><span style={{fontSize:12,fontWeight:700,color:t.text}}>{x.am}</span></div>)}
-      </div>
-      <div style={S.card}>
-        <div style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:16}}>🟥 Vermelhos</div>
-        {topVm.length===0 ? <div style={{fontSize:12,color:t.textSec}}>Nenhum cartão vermelho.</div> : topVm.map((x,i)=><div key={x.atletaId} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i!==topVm.length-1?`1px solid ${t.cardBorder}`:"none"}}><span style={{fontSize:12,color:t.text}}>{getPlayerNameById(x.atletaId)}</span><span style={{fontSize:12,fontWeight:700,color:t.text}}>{x.vm}</span></div>)}
-      </div>
-    </div>
-  );
-
-  const renderTable = () => {
-    if(publicChamp.type==="pontos") return (
-      <>
-        <StandingsTable standings={publicChamp.standings} teams={publicChamp.teams} colorOf={colorOf} t={t} emblems={publicChamp.emblems}/>
-        {renderStats()}
-      </>
-    );
-    if(publicChamp.type==="misto" || publicChamp.type==="liga") return (
-      <>
-        {publicChamp.groups.map((g,gi)=>(
-          <div key={gi} style={{marginBottom:18}}>
-            <h3 style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:16}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3>
-            <StandingsTable standings={g.standings} teams={publicChamp.teams} colorOf={colorOf} t={t} emblems={publicChamp.emblems}/>
-          </div>
-        ))}
-        {renderStats()}
-      </>
-    );
-    return (
-      <>
-        <div style={{...S.card,color:t.textSec,fontSize:13}}>Este campeonato não tem tabela de pontos. Confira os jogos.</div>
-        {renderStats()}
-      </>
-    );
-  };
-
-  const renderGames = () => {
-    if(publicChamp.type==="pontos") return publicChamp.rounds.flatMap(r=>[
-      <div key={`title-${r.round}`} style={{fontSize:13,fontWeight:700,color:t.textSec,marginBottom:6}}>Rodada {r.round}</div>,
-      ...r.matches.map(renderMatch)
-    ]);
-    if(publicChamp.type==="misto" || publicChamp.type==="liga") return publicChamp.groups.flatMap((g,gi)=>[
-      <div key={`group-${gi}`} style={{marginTop:gi===0?0:24}}><h3 style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:16}}>{g.name}</h3></div>,
-      ...g.rounds.flatMap(r=>[
-        <div key={`grp-title-${gi}-${r.round}`} style={{fontSize:13,fontWeight:700,color:t.textSec,marginBottom:6}}>Rodada {r.round}</div>,
-        ...r.matches.map(renderMatch)
-      ])
-    ]);
-    if(publicChamp.type==="mata") return publicChamp.knockout.flatMap((phase,pi)=>[
-      <div key={`phase-${pi}`} style={{marginTop:pi===0?0:24}}><h3 style={{fontSize:14,fontWeight:700,color:t.text,marginBottom:16}}>{phase.name}</h3></div>,
-      ...phase.matches.map(renderMatch)
-    ]);
-    return null;
-  };
-
-  if(current){
-    return(
-      <div style={S.page}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}><button onClick={()=>setCurrent(null)} style={S.btnSm()}>← Voltar</button><div><h2 style={{fontSize:18,fontWeight:800,color:t.text,margin:0}}>{publicChamp.name}</h2><div style={{fontSize:12,color:t.textSec}}>{publicChamp.type==="pontos"?"Pontos Corridos":publicChamp.type==="mata"?"Mata-Mata":"Misto"}</div></div></div>
-          <button onClick={onBack} style={S.btnSm()}>Voltar ao público</button>
-        </div>
-        <div style={{display:"flex",gap:0,marginBottom:18,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto"}}>
-          {[["tabela","Tabela"],["jogos","Jogos"]].map(([key,label])=>(
-            <button key={key} onClick={()=>setTab(key)} style={S.tab(tab===key)}>{label}</button>
-          ))}
-        </div>
-        {tab==="tabela" && renderTable()}
-        {tab==="jogos" && <div style={{display:"grid",gap:12}}>{renderGames()}</div>}
-      </div>
-    );
-  }
-
-  return(
-    <div style={S.page}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
-        <div>
-          <h2 style={{fontSize:20,fontWeight:800,color:t.text,margin:0}}>👀 Acesso Público</h2>
-          <div style={{fontSize:13,color:t.textSec,marginTop:6}}>Selecione um campeonato para ver resultados e classificação.</div>
-        </div>
-        <button onClick={onBack} style={S.btnSm()}>← Voltar</button>
-      </div>
-      {campeonatos.length===0 ? (
-        <div style={{...S.card,textAlign:"center"}}><div style={{fontSize:14,fontWeight:700,color:t.text}}>Nenhum campeonato disponível.</div><div style={{fontSize:12,color:t.textSec,marginTop:6}}>Cadastre um campeonato para o público acompanhar.</div></div>
-      ) : (
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14}}>
-          {campeonatos.map(c=>(
-            <button key={c.id} onClick={()=>setCurrent(c)} style={{...S.card,textAlign:"left",padding:24,background:t.card,border:`1px solid ${t.cardBorder}`,cursor:"pointer"}}>
-              <div style={{fontSize:16,fontWeight:700,color:t.text}}>{c.name}</div>
-              <div style={{fontSize:12,color:t.textSec,marginTop:8}}>{c.teams.length} times · {c.type==="pontos"?"Pontos Corridos":c.type==="mata"?"Mata-Mata":"Misto"}</div>
-              <div style={{fontSize:12,color:t.textSec,marginTop:12}}>Entrar para acompanhar resultados e tabela.</div>
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -11816,26 +11432,7 @@ export default function App(){
       if (auth.role === "adm") {
         links.push({ label: "Gestores", active: screen === "managerRegistry", onClick: () => setScreen("managerRegistry") });
       }
-    } else if (screen === "gerenciarChamp" && current) {
-      const c = campeonatos.find(x => x.id === current.id) || current;
-      subBarTitle = c.name;
-      const champTabs = [
-        "elencos",
-        ...(c.type === "pontos" ? ["tabela", "jogos"] : c.type === "mata" ? ["chave", "jogos"] : ["tabela", "chave", "jogos"]),
-        "estatísticas"
-      ];
-      if (c.allowOnlineReg) {
-        champTabs.push("solicitações");
-      }
-      champTabs.push("mural", "galeria", "configurações", "nuvem");
-      links = [
-        { label: "← Voltar", active: false, onClick: () => setScreen("home"), style: { color: "#E24B4A", fontWeight: "900" } },
-        ...champTabs.map(tb => ({
-          label: tb === "nuvem" ? "🌐 Nuvem" : tb.charAt(0).toUpperCase() + tb.slice(1),
-          active: activeChampTab === tb,
-          onClick: () => setActiveChampTab(tb)
-        }))
-      ];
+
     } else if (screen === "gerenciarPelada" && current) {
       const p = peladas.find(x => x.id === current.id) || current;
       subBarTitle = p.nome;
@@ -12019,44 +11616,7 @@ export default function App(){
                 ))}
               </div>
             </div>
-            <div>
-              
-              <div style={{display: "flex", flexDirection: "column", maxHeight: 180, overflowY: "auto"}}>
-                {campeonatos.map(c => {
-                  const mDef = MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade);
-                  const mIcon = mDef ? mDef.icon : <IconTrophy size={13} />;
-                  const isCur = screen === "gerenciarChamp" && current?.id === c.id;
-                  return (
-                    <button
-                      key={c.id}
-                      onClick={() => { setCurrent(c); setScreen("gerenciarChamp"); setMenuOpen(false); }}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "8px 20px",
-                        width: "100%",
-                        textAlign: "left",
-                        background: isCur ? `${t.accent}12` : "transparent",
-                        border: "none",
-                        borderLeft: `4px solid ${isCur ? t.accent : "transparent"}`,
-                        color: isCur ? t.accent : t.text,
-                        fontWeight: isCur ? "800" : "550",
-                        fontSize: 12.5,
-                        cursor: "pointer",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap"
-                      }}
-                    >
-                      <span style={{display: "flex", alignItems: "center", justifyContent: "center", color: isCur ? t.accent : t.textSec}}>{mIcon}</span>
-                      <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>{c.name}</span>
-                    </button>
-                  );
-                })}
-                {campeonatos.length === 0 && <div style={{fontSize: 11, color: t.textSec, fontStyle: "italic", padding: "4px 20px"}}>Nenhum campeonato.</div>}
-              </div>
-            </div>
+
             <div>
               <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, padding: "0 20px 8px 20px", textTransform: "uppercase", letterSpacing: "1px", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                 <span>Minhas Peladas ({peladas.length})</span>
@@ -12286,27 +11846,9 @@ export default function App(){
     const ac = t.accent || "#22D9C8";
     
     // -------------------------------------------------------------
-    // CALCULO DO CAIXA DE CAMPEONATOS
-    // -------------------------------------------------------------
-    const allEntries = financeiroFiltered?.entries || [];
-    
-    const visibleChamps = campeonatos; 
-    
-    const champEntries = allEntries.filter(e => {
-      if (sidebarChampId === "all") {
-        return e.champ_id && String(e.champ_id) !== "null" && String(e.champ_id) !== "";
-      } else {
-        return String(e.champ_id) === String(sidebarChampId) || String(e.champ_id) === "champ:" + sidebarChampId;
-      }
-    });
-    
-    const champDespesas = champEntries.filter(e => e.type === "despesa").reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const champReceitas = champEntries.filter(e => e.type === "receita").reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const champSaldo = champReceitas - champDespesas;
-
-    // -------------------------------------------------------------
     // CALCULO DO CAIXA DE PELADAS
     // -------------------------------------------------------------
+    const allEntries = financeiroFiltered?.entries || [];
     const visiblePeladas = peladas;
     const visiblePeladaIds = peladas.map(p => String(p.id));
     const activeDatasIds = datasRealizacao.map(d => String(d.id));
@@ -12654,11 +12196,9 @@ export default function App(){
 
   // ── Estado Global (Salvo em localStorage) ─────────────────────
   const initialAppState = {
-    campeonatos: [],
     peladas: [],
     datasRealizacao: [],
     atletas: [],
-    atletasCampeonato: [],
     quadras: [],
     participacoes: [],
     financeiro: { entries: [] },
@@ -12670,7 +12210,6 @@ export default function App(){
   const isRestoringNuvemRef = useRef(false);
 
   // Getters com Fallback (Segurança extra contra tela branca)
-  const allCampeonatos = Array.isArray(appState?.campeonatos) ? appState.campeonatos : [];
   const allPeladas = Array.isArray(appState?.peladas) ? appState.peladas : [];
   const datasRealizacao = Array.isArray(appState?.datasRealizacao) ? appState.datasRealizacao : [];
   const allAtletas = Array.isArray(appState?.atletas) ? appState.atletas : [];
@@ -12678,11 +12217,6 @@ export default function App(){
   useEffect(() => {
     allAtletasRef.current = allAtletas;
   }, [allAtletas]);
-  const allAtletasCampeonato = Array.isArray(appState?.atletasCampeonato) ? appState.atletasCampeonato : [];
-  const allAtletasCampeonatoRef = useRef(allAtletasCampeonato);
-  useEffect(() => {
-    allAtletasCampeonatoRef.current = allAtletasCampeonato;
-  }, [allAtletasCampeonato]);
   const allQuadras = Array.isArray(appState?.quadras) ? appState.quadras : [];
   const allQuadrasRef = useRef(allQuadras);
   useEffect(() => {
@@ -12715,111 +12249,25 @@ export default function App(){
     }
   }, [loading, appState?.participacoes, appState?.atletas, setAppState]);
 
-  // Efeito de migração automática dos dados históricos de atletas e vínculos (Grupo -> Liga/Pelada N:N)
-  useEffect(() => {
-    if (loading) return; // Aguarda o carregamento do LocalStorage
 
-    const legacyAtletasCamp = appState?.atletasCampeonato || [];
-    const legacyAtletasPel = appState?.atletas || [];
-    
-    const precisaMigrarAtletasCamp = legacyAtletasCamp.length > 0;
-    const precisaMigrarVinculos = legacyAtletasPel.some(a => !Array.isArray(a.vinculos));
-
-    if (precisaMigrarAtletasCamp || precisaMigrarVinculos) {
-      console.log("[MIGRAÇÃO] Iniciando migração de dados de Atletas e Vínculos...");
-
-      const camps = Array.isArray(appState?.campeonatos) ? appState.campeonatos : [];
-      const parts = Array.isArray(appState?.participacoes) ? appState.participacoes : [];
-
-      const mapAtletaVinculos = (atletaId, isFromCamp) => {
-        const vinculos = [];
-        
-        // 1. Mapeia campeonatos com base nos rosters
-        camps.forEach(c => {
-          if (c.rosters) {
-            const pertenceAoCamp = Object.values(c.rosters).some(rosterArray => 
-              Array.isArray(rosterArray) && rosterArray.map(String).includes(String(atletaId))
-            );
-            if (pertenceAoCamp) {
-              vinculos.push("campeonato_" + c.id);
-            }
-          }
-        });
-
-        // 2. Mapeia peladas com base em participações
-        parts.forEach(p => {
-          if (String(p.atleta_id) === String(atletaId) && p.pelada_id) {
-            const vinculoId = "pelada_" + p.pelada_id;
-            if (!vinculos.includes(vinculoId)) {
-              vinculos.push(vinculoId);
-            }
-          }
-        });
-
-        // 3. Fallback para peladas se for atleta de pelada e não possuir participações
-        if (!isFromCamp && vinculos.length === 0 && appState?.peladas?.length > 0) {
-          vinculos.push("pelada_" + appState.peladas[0].id);
-        }
-
-        return vinculos;
-      };
-
-      const novosAtletas = [];
-
-      // Migrar atletas de pelada
-      legacyAtletasPel.forEach(a => {
-        const vinculos = Array.isArray(a.vinculos) ? a.vinculos : mapAtletaVinculos(a.id, false);
-        const atletaMigrado = {
-          ...a,
-          vinculos
-        };
-        delete atletaMigrado.grupo;
-        novosAtletas.push(atletaMigrado);
-      });
-
-      // Migrar atletas de campeonato
-      legacyAtletasCamp.forEach(a => {
-        if (novosAtletas.some(x => String(x.id) === String(a.id))) return;
-        const vinculos = mapAtletaVinculos(a.id, true);
-        const atletaMigrado = {
-          ...a,
-          vinculos
-        };
-        delete atletaMigrado.grupo;
-        novosAtletas.push(atletaMigrado);
-      });
-
-      setAppState(prev => ({
-        ...prev,
-        atletas: novosAtletas,
-        atletasCampeonato: []
-      }));
-      
-      console.log("[MIGRAÇÃO] Migração concluída! Atletas unificados:", novosAtletas.length);
-    }
-  }, [loading, appState, setAppState]);
 
   const [auth, setAuth] = useState({ role:"", name:"", manager_id: null, scope: "geral", email: "" });
   const [authLoading, setAuthLoading] = useState(true);
 
-  const [dashboardTab, setDashboardTab] = useState("peladas");
   const [dashboardSelectedId, setDashboardSelectedId] = useState("");
   const [dashboardSelectedDataId, setDashboardSelectedDataId] = useState("");
   const [sidebarPeladaId, setSidebarPeladaId] = useState("all");
-  const [sidebarChampId, setSidebarChampId] = useState("all");
 
   // Sincroniza dinamicamente o escopo do manager com base nos seus vínculos reais de colaboração
   useEffect(() => {
     if (auth.role !== "manager" || !auth.email) return;
 
     const emailLogado = String(auth.email || "").toLowerCase().trim();
-    const camps = Array.isArray(appState?.campeonatos) ? appState.campeonatos : [];
     const pels = Array.isArray(appState?.peladas) ? appState.peladas : [];
 
-    const isColabCamp = camps.some(c => Array.isArray(c.collaborators) && c.collaborators.some(col => String(col.email || "").toLowerCase().trim() === emailLogado));
     const isColabPel = pels.some(p => Array.isArray(p.collaborators) && p.collaborators.some(col => String(col.email || "").toLowerCase().trim() === emailLogado));
 
-    let computedScope = "campeonato";
+    let computedScope = "pelada";
     
     // Busca se existe no managers global para ver se há escopo pré-definido
     const managerDef = (appState?.managers || []).find(m => String(m.email || "").toLowerCase().trim() === emailLogado);
@@ -12827,23 +12275,14 @@ export default function App(){
       computedScope = managerDef.scope;
     }
 
-    if (isColabCamp && isColabPel) {
-      computedScope = "geral";
-    } else if (isColabPel) {
+    if (isColabPel) {
       computedScope = "pelada";
-    } else if (isColabCamp) {
-      computedScope = "campeonato";
     }
 
     if (auth.scope !== computedScope) {
       setAuth(prev => ({ ...prev, scope: computedScope }));
-      if (computedScope === "pelada") {
-        setDashboardTab("peladas");
-      } else if (computedScope === "campeonato") {
-        setDashboardTab("campeonatos");
-      }
     }
-  }, [appState?.campeonatos, appState?.peladas, appState?.managers, auth.email, auth.role, auth.scope]);
+  }, [appState?.peladas, appState?.managers, auth.email, auth.role, auth.scope]);
   const lastAuthUserEmail = useRef("");
   const [screen, setScreen] = useState("selection");
   const [cloudConflict, setCloudConflict] = useState(null);
@@ -13131,10 +12570,8 @@ export default function App(){
           if (stateNuvem) {
             const atletasNuvem = Array.isArray(stateNuvem.atletas) ? stateNuvem.atletas.length : 0;
             const atletasLocal = Array.isArray(appState?.atletas) ? appState.atletas.length : 0;
-            const campeonatosNuvem = Array.isArray(stateNuvem.campeonatos) ? stateNuvem.campeonatos.length : 0;
-            const campeonatosLocal = Array.isArray(appState?.campeonatos) ? appState.campeonatos.length : 0;
             
-            if ((atletasNuvem > 0 && atletasLocal === 0) || (campeonatosNuvem > 0 && campeonatosLocal === 0)) {
+            if (atletasNuvem > 0 && atletasLocal === 0) {
               console.warn("[GUARD] Abortando auto-salvamento: Estado local está vazio ou incompleto em relação à nuvem.");
               return;
             }
@@ -13582,12 +13019,7 @@ export default function App(){
     }
     return [];
   };
-  const campeonatos = filterByManager(allCampeonatos).filter(c => {
-    const isCollaborator = Array.isArray(c.collaborators) && c.collaborators.some(
-      colab => String(colab.email || "").toLowerCase().trim() === String(auth.email || "").toLowerCase().trim()
-    );
-    return auth.role === "adm" || auth.scope === "geral" || auth.scope === "campeonato" || isCollaborator;
-  });
+
   const peladas = filterByManager(allPeladas).filter(p => {
     const isCollaborator = Array.isArray(p.collaborators) && p.collaborators.some(
       colab => String(colab.email || "").toLowerCase().trim() === String(auth.email || "").toLowerCase().trim()
@@ -13599,18 +13031,13 @@ export default function App(){
     if (auth.role === "manager") {
       const emailLogado = String(auth.email || "").toLowerCase().trim();
       
-      // Obtém as peladas e campeonatos permitidos
+      // Obtém as peladas permitidas
       const peladasPermitidasIds = allPeladas.filter(p => 
         p.manager_id === auth.manager_id || 
         (Array.isArray(p.collaborators) && p.collaborators.some(col => String(col.email || "").toLowerCase().trim() === emailLogado))
       ).map(p => "pelada_" + p.id);
 
-      const campeonatosPermitidosIds = allCampeonatos.filter(c => 
-        c.manager_id === auth.manager_id || 
-        (Array.isArray(c.collaborators) && c.collaborators.some(col => String(col.email || "").toLowerCase().trim() === emailLogado))
-      ).map(c => "campeonato_" + c.id);
-
-      const vinculosPermitidos = [...peladasPermitidasIds, ...campeonatosPermitidosIds];
+      const vinculosPermitidos = [...peladasPermitidasIds];
 
       return allAtletas.filter(atleta => {
         const isOwner = atleta.manager_id === auth.manager_id;
@@ -13624,7 +13051,7 @@ export default function App(){
     return [];
   })();
 
-  const atletasCampeonato = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.some(v => v.startsWith("campeonato_")));
+
   
   const quadras = (() => {
     if (auth.role === "adm") return allQuadras;
@@ -13768,160 +13195,7 @@ export default function App(){
     }
   };
 
-  const downloadAtletasCampeonatoTemplate = () => {
-    const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","time","celular1","celular2","foneResidencial","email","tipoAtleta","igrejaMembro","logradouro","nomeVia","cep","complemento","bairro","nomeMae","docFoto","customFields"];
-    const sample = {
-      id: "",
-      nome: "João Silva",
-      apelido: "João",
-      foto: "",
-      habilidade: "3",
-      goleiro: "false",
-      ativo: "true",
-      documento: "1234567",
-      dataNascimento: "1990-01-01",
-      numeroCamisa: "10",
-      time: "Time A",
-      celular1: "11999999999",
-      celular2: "",
-      foneResidencial: "",
-      email: "joao@email.com",
-      tipoAtleta: "Adventista",
-      igrejaMembro: "Igreja Central",
-      logradouro: "Rua",
-      nomeVia: "Das Flores",
-      cep: "01001-000",
-      complemento: "Apto 12",
-      bairro: "Centro",
-      nomeMae: "Maria Silva",
-      docFoto: "",
-      customFields: "{}"
-    };
-    const _csvLines = [headers.map(h => { const s = String(sample[h] ?? ''); return (s.includes(',') || s.includes('"')) ? '"' + s.replace(/"/g,'""') + '"' : s; }).join(',')];
-    const csv = '\uFEFF' + [headers.map(h => h).join(','), ..._csvLines].join('\r\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const href = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = href;
-    link.download = `modelo-atletas-campeonato.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
-  };
-
-  const exportAtletasCampeonato = () => {
-    const headers = ["id","nome","apelido","foto","habilidade","goleiro","ativo","documento","dataNascimento","numeroCamisa","time","celular1","celular2","foneResidencial","email","tipoAtleta","igrejaMembro","logradouro","nomeVia","cep","complemento","bairro","nomeMae","docFoto","customFields"];
-    const esc = (v) => { const s = String(v == null ? '' : v); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g,'""') + '"' : s; };
-    const rows = atletasCampeonato.map(a => headers.map(h => esc(h === "customFields" ? JSON.stringify(a.customFields || {}) : (h === "time" ? a.grupo : a[h]))).join(','));
-    const csv = '\uFEFF' + [headers.map(esc).join(','), ...rows].join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const href = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = href;
-    link.download = `atletas-campeonato-${todayStr()}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
-  };
-
-  const importAtletasCampeonato = async (event) => {
-    const file = event.target?.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      // Suporta CSV (novo formato) e HTML-XLS (formato legado)
-      let rows;
-      if (file.name.endsWith('.csv') || text.trimStart().startsWith('id,') || text.trimStart().startsWith('\uFEFFid,')) {
-        // Parsing CSV
-        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
-        rows = lines.map(line => line.split(',').map(cell => cell.startsWith('"') && cell.endsWith('"') ? cell.slice(1,-1).replace(/""/g,'"') : cell));
-      } else {
-        // Parsing HTML-XLS legado
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(text, "text/html");
-        const table = doc.querySelector("table");
-        if (!table) throw new Error("O arquivo não contém uma tabela válida. Use o modelo CSV.");
-        rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
-      }
-      if (rows.length < 2) throw new Error("A tabela de atletas de campeonato não contém dados.");
-      const headers = rows[0].map(h => String(h).trim());
-      const dataRows = rows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
-      const normalized = dataRows.map(cells => {
-        const item = {};
-        cells.forEach((value, index) => {
-          const key = headers[index];
-          if (!key) return;
-          if (key === "customFields") {
-            try {
-              item.customFields = JSON.parse(value || "{}");
-            } catch {
-              item.customFields = {};
-            }
-            return;
-          }
-          if (key === "habilidade") {
-            item.habilidade = Number(value) || 3;
-            return;
-          }
-          if (key === "goleiro" || key === "ativo") {
-            item[key] = String(value).trim().toLowerCase() === "true";
-            return;
-          }
-          if (key === "id") {
-            item.id = value ? Number(value) : undefined;
-            return;
-          }
-          if (key === "time" || key === "grupo") {
-            item.grupo = value;
-            return;
-          }
-          item[key] = value;
-        });
-        return {
-          ...item,
-          id: item.id || Date.now() + Math.floor(Math.random() * 100000),
-          habilidade: Number(item.habilidade) || 3,
-          ativo: item.ativo !== false,
-          goleiro: item.goleiro === true,
-          manager_id: auth.role === "manager" ? auth.manager_id : item.manager_id,
-          customFields: item.customFields && typeof item.customFields === "object" ? item.customFields : {},
-        };
-      });
-            if (!window.confirm("Importar atletas substituirá a lista atual de atletas de campeonatos. Deseja continuar?")) return;
-      setAtletasCampeonato(normalized);
-      alert(`Importação concluída com ${normalized.length} atletas de campeonato.`);
-    } catch (error) {
-      console.error("Importar atletas de campeonato falhou:", error);
-      alert("Erro ao importar atletas de campeonato: " + (error.message || error));
-    } finally {
-      if (event.target) event.target.value = "";
-    }
-  };
-
-  const downloadQuadrasTemplate = () => {
-    const headers = ["id", "nome", "endereco", "ativa"];
-    const sample = {
-      id: "",
-      nome: "Quadra Central Coberta",
-      endereco: "Av. Principal, 500",
-      ativa: "true"
-    };
-    const _csvLines = [headers.map(h => { const s = String(sample[h] ?? ''); return (s.includes(',') || s.includes('"')) ? '"' + s.replace(/"/g,'""') + '"' : s; }).join(',')];
-    const csv = '\uFEFF' + [headers.map(h => h).join(','), ..._csvLines].join('\r\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const href = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = href;
-    link.download = `modelo-quadras.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
-  };
-
-  const exportQuadras = () => {
+    const exportQuadras = () => {
     const headers = ["id", "nome", "endereco", "ativa"];
     const esc = (v) => { const s = String(v == null ? '' : v); return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g,'""') + '"' : s; };
     const rows = quadras.map(q => headers.map(h => esc(q[h])).join(','));
@@ -14093,19 +13367,17 @@ export default function App(){
   };
 
   // Setters que atualizam o appState
-  const setCampeonatos = d => setAppState(s => ({ ...s, campeonatos: typeof d === 'function' ? d(Array.isArray(s.campeonatos) ? s.campeonatos : []) : d }));
   const setPeladas = d => setAppState(s => ({ ...s, peladas: typeof d === 'function' ? d(Array.isArray(s.peladas) ? s.peladas : []) : d }));
   const setDatasRealizacao = d => setAppState(s => {
     const nextDatas = typeof d === 'function' ? d(Array.isArray(s.datasRealizacao) ? s.datasRealizacao : []) : d;
     const newState = { ...s, datasRealizacao: nextDatas };
-    const activePeladaId = current?.id || (dashboardTab === "peladas" ? dashboardSelectedId : null);
+    const activePeladaId = current?.id || dashboardSelectedId || null;
     if (activePeladaId) {
       sincronizarPeladaImediatamente(activePeladaId, newState);
     }
     return newState;
   });
     const setAtletas = d => setAppState(s => ({ ...s, atletas: typeof d === 'function' ? d(Array.isArray(s.atletas) ? s.atletas : []) : d }));
-  const setAtletasCampeonato = d => setAppState(s => ({ ...s, atletasCampeonato: typeof d === 'function' ? d(Array.isArray(s.atletasCampeonato) ? s.atletasCampeonato : []) : d }));
   const setQuadras = d => setAppState(s => ({ ...s, quadras: typeof d === 'function' ? d(Array.isArray(s.quadras) ? s.quadras : []) : d }));
   const setParticipacoes = d => setAppState(s => ({ ...s, participacoes: typeof d === 'function' ? d(Array.isArray(s.participacoes) ? s.participacoes : []) : d }));
   const setFinanceiro = d => setAppState(s => ({ ...s, financeiro: typeof d === 'function' ? d(s.financeiro && typeof s.financeiro === 'object' ? s.financeiro : { entries: [] }) : d }));
@@ -14138,50 +13410,19 @@ export default function App(){
       });
     }
   };
-  const acessarCampeonatoNuvem = (code) => {
-    setCloudLoading(true);
-    
-    if (!isFirebaseConfigured) {
-      alert("O Firebase Firestore não está configurado. Por favor, adicione suas credenciais no arquivo 'src/firebase.js' para poder baixar campeonatos da nuvem.");
-      setCloudLoading(false);
-      return;
-    }
 
-    const docRef = doc(db, "campeonatos", code);
-    getDoc(docRef)
-      .then(docSnap => {
-        if (!docSnap.exists()) {
-          throw new Error("Campeonato não encontrado ou código inválido.");
-        }
-        const data = docSnap.data();
-        setPublicCloudChamp(data);
-        setScreen("publicCloud");
-      })
-      .catch(err => {
-        alert("Erro ao baixar campeonato: " + err.message);
-      })
-      .finally(() => {
-        setCloudLoading(false);
-      });
-  };
 
   const[current,setCurrent]=useState(null);
 
   useEffect(() => {
     if (screen === "gerenciarPelada" && current?.id) {
       setSidebarPeladaId(String(current.id));
-    } else if (screen === "gerenciarChamp" && current?.id) {
-      setSidebarChampId(String(current.id));
     } else if (screen === "home") {
       if (dashboardSelectedId !== "") {
-        if (dashboardTab === "campeonatos") {
-          setSidebarChampId(String(dashboardSelectedId));
-        } else {
-          setSidebarPeladaId(String(dashboardSelectedId));
-        }
+        setSidebarPeladaId(String(dashboardSelectedId));
       }
     }
-  }, [screen, current, dashboardSelectedId, dashboardTab]);
+  }, [screen, current, dashboardSelectedId]);
 
   const [storageSize, setStorageSize] = useState(0);
 
@@ -14198,12 +13439,7 @@ export default function App(){
     setAtletas(p=>p.filter(a=>a.id!==id));
     setParticipacoes(prev=>prev.filter(part=>part.atleta_id!==id));
   };
-  const adicionarAtletaCampeonato  =d=>setAtletas(p=>[...p,{...d,id:d.id || Date.now() + Math.floor(Math.random() * 100000), manager_id: auth.role === "manager" ? auth.manager_id : null}]);
-  const atualizarAtletaCampeonato  =(id,d)=>setAtletas(p=>p.map(a=>a.id===id?{...a,...d}:a));
-  const removerAtletaCampeonato    =id=>{
-    setAtletas(p=>p.filter(a=>a.id!==id));
-    setParticipacoes(prev=>prev.filter(part=>part.atleta_id!==id));
-  };
+
 
   // ── CRUD Quadras ───────────────────────────────────────────────
   const adicionarQuadra = d => setQuadras(p => [...p, { ...d, id: d.id || Date.now(), manager_id: auth.role === "manager" ? auth.manager_id : null }]);
@@ -14319,94 +13555,11 @@ export default function App(){
   const adicionarPelada=d=>setPeladas(p=>[...p,{id:Date.now(),nome:d.nome,data_criacao:d.data_criacao||todayStr(),ativo:d.ativo!==false, manager_id: auth.role === "manager" ? auth.manager_id : null}]);
   const atualizarPelada=(id,d)=>setPeladas(p=>p.map(x=>x.id===id?{...x,...d}:x));
   const removerPelada  =id=>{setPeladas(p=>p.filter(x=>x.id!==id));setDatasRealizacao(p=>p.filter(x=>x.pelada_id!==id));setParticipacoes(p=>p.filter(x=>x.pelada_id!==id));};
-  const atualizarChamp = (u) => {
-    setCampeonatos(p => p.map(c => c.id === u.id ? u : c));
-    if (u.npointId) {
-      setTimeout(async () => {
-        try {
-          if (!isFirebaseConfigured) return;
-          const payload = {
-            ...u,
-            lastPublished: new Date().toISOString(),
-                        atletas: allAtletasCampeonatoRef.current.map(a => ({ 
-              id: a.id, 
-              nome: a.nome || "", 
-              apelido: a.apelido || "", 
-              name: a.apelido || a.nome || a.name || "" 
-            }))
-          };
-          const cleanPayload = JSON.parse(JSON.stringify(payload));
-          await setDoc(doc(db, "campeonatos", u.npointId), cleanPayload);
-          console.log("Campeonato sincronizado automaticamente na nuvem!");
-        } catch (e) {
-          console.error("Erro na sincronização automática em background: ", e);
-        }
-      }, 500);
-    }
-  };
-  const removerChamp  =id=>setCampeonatos(p=>p.filter(c=>c.id!==id));
 
-  const publicarNaNuvem = async (c) => {
-    setCloudLoading(true);
-    
-    try {
-      if (!isFirebaseConfigured) {
-        throw new Error("O Firebase Firestore não está configurado. Por favor, adicione suas credenciais no arquivo 'src/firebase.js' para ativar a sincronização na nuvem.");
-      }
-
-      let npointId = c.npointId;
-      let docId = npointId;
-
-      if (!docId) {
-        // Cria uma referência com ID gerado automaticamente pelo Firestore
-        const novoDocRef = doc(collection(db, "campeonatos"));
-        docId = novoDocRef.id;
-      }
-
-      const payload = {
-        ...c,
-        npointId: docId,
-        lastPublished: new Date().toISOString(),
-                atletas: allAtletasCampeonatoRef.current.map(a => ({ 
-          id: a.id, 
-          nome: a.nome || "", 
-          apelido: a.apelido || "", 
-          name: a.apelido || a.nome || a.name || "" 
-        }))
-      };
-
-      // Remove campos com valor undefined (não suportados pelo Firestore)
-      const cleanPayload = JSON.parse(JSON.stringify(payload));
-
-      // Salva ou atualiza os dados na coleção "campeonatos" do Firestore
-      await setDoc(doc(db, "campeonatos", docId), cleanPayload);
-
-      const dataHoraStr = new Date().toLocaleString("pt-BR");
-      const cAtualizado = {
-        ...c,
-        npointId: docId,
-        lastPublished: dataHoraStr
-      };
-      
-      atualizarChamp(cAtualizado);
-      alert("Campeonato publicado com sucesso na nuvem do Firebase!");
-      return cAtualizado;
-    } catch (err) {
-      console.error(err);
-      let errMsg = err.message;
-      if (err instanceof TypeError && err.message.includes("failed to fetch")) {
-        errMsg = "Erro de conexão. Não foi possível acessar o Firestore. Verifique sua conexão com a internet.";
-      }
-      alert("Erro ao publicar: " + errMsg);
-      return null;
-    } finally {
-      setCloudLoading(false);
-    }
-  };
 
   // ── BACKUP / RESTAURAR ─────────────────────────────────────────
   async function exportJSON(){
-    const data = {campeonatos,peladas,datasRealizacao,atletas,atletasCampeonato,quadras,participacoes,financeiro,managers};
+    const data = {peladas,datasRealizacao,atletas,quadras,participacoes,financeiro,managers};
     const fileName = `futebol_manager_backup_${todayStr()}.json`;
     const jsonStr = JSON.stringify(data, null, 2);
     const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
@@ -14450,10 +13603,7 @@ export default function App(){
       txt += `  Datas: ${ds.length}\n`;
       ds.forEach(d => txt += `  - ${formatarData(d.data)} (${d.status}) - ${d.local||"Sem local"}\n`);
     });
-    txt += `\n--- CAMPEONATOS (${campeonatos.length}) ---\n`;
-    campeonatos.forEach(c => {
-      txt += `\n[${c.name}] - ${c.type==="pontos"?"Pontos":c.type==="mata"?"Mata-Mata":"Misto"} - Times: ${c.teams.join(", ")} - Inscrição por time: ${fmtCur(Number(c.fee||0))}\n`;
-    });
+
 
     const fileName = `futebol_manager_backup_${todayStr()}.txt`;
     const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
@@ -14493,12 +13643,10 @@ export default function App(){
       try {
         const data = JSON.parse(evt.target.result);
         if(Array.isArray(data.atletas)) setAtletas(data.atletas);
-        if(Array.isArray(data.atletasCampeonato)) setAtletasCampeonato(data.atletasCampeonato);
         if(Array.isArray(data.quadras)) setQuadras(data.quadras);
         if(Array.isArray(data.peladas)) setPeladas(data.peladas);
         if(Array.isArray(data.datasRealizacao)) setDatasRealizacao(data.datasRealizacao);
         if(Array.isArray(data.participacoes)) setParticipacoes(data.participacoes);
-        if(Array.isArray(data.campeonatos)) setCampeonatos(data.campeonatos);
         if(data.financeiro && typeof data.financeiro === 'object') setFinanceiro(data.financeiro);
         if(Array.isArray(data.managers)) setManagers(data.managers);
         alert("Backup restaurado com sucesso!");
@@ -14538,7 +13686,7 @@ export default function App(){
       alert("O Firebase não está configurado. Verifique o arquivo src/firebase.js.");
       return;
     }
-    if (!window.confirm("Atenção: Isso irá substituir TODOS os seus dados atuais (atletas, peladas, campeonatos and financeiro) pelos dados salvos na nuvem. Deseja continuar?")) {
+    if (!window.confirm("Atenção: Isso irá substituir TODOS os seus dados atuais (atletas, peladas e financeiro) pelos dados salvos na nuvem. Deseja continuar?")) {
       return;
     }
     setCloudLoading(true);
@@ -14625,12 +13773,12 @@ export default function App(){
   const DarkBtn=()=><button onClick={()=>setDark(d=>!d)} style={{...S.btnSm(t.card,t.text),padding:"8px 12px",fontSize:15,border:`1px solid ${t.cardBorder}`,borderRadius:12}}>{dark ? <IconSun size={15} /> : <IconMoon size={15} />}</button>;
 
   if(screen==="selection"){
-    return <SelectionScreen onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
+    return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} onForgotPassword={handleForgotPassword} onBack={() => {}} t={t} />;
   }
 
   if(screen==="managerRegistry"){
     if(auth.role !== "adm"){
-      return <SelectionScreen onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
+      return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} onForgotPassword={handleForgotPassword} onBack={() => {}} t={t} />;
     }
     return <ManagerRegistry managers={managers} onAdd={adicionarManager} onUpdate={atualizarManager} onRemove={removerManager} onBack={()=>setScreen("home")} t={t} />;
   }
@@ -14639,13 +13787,7 @@ export default function App(){
     return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} onForgotPassword={handleForgotPassword} onBack={() => setScreen("selection")} t={t} />;
   }
 
-    if(screen==="public"){
-    return <PublicScreen campeonatos={campeonatos} atletas={atletasCampeonato} current={current} setCurrent={setCurrent} onBack={()=>{setCurrent(null);setScreen("selection");}} t={t} />;
-  }
-
-  if(screen==="publicCloud"){
-    return <CloudPublicChampScreen champ={publicCloudChamp} onBack={()=>{setPublicCloudChamp(null);setScreen("selection");}} t={t} />;
-  }
+  
 
   if(screen==="publicPelada" && publicPeladaData){
     return <CloudPublicPeladaScreen peladaData={publicPeladaData} onRefresh={refreshPublicPelada} onBack={()=>{setPublicPeladaData(null);setScreen("selection");}} t={t} />;
@@ -14678,80 +13820,64 @@ export default function App(){
     comunicados.sort((a, b) => (b.date || 0) > (a.date || 0) ? 1 : -1);
     const comunicadosRecentes = comunicados.slice(0, 3);
 
-    // 1. Cálculo de atletas e presença/times para o Card 1
-    let card1Label = "Atletas";
+    // 1. Cálculo de atletas e presença para o Card 1
+    let card1Label = "Atletas / Presença";
     let card1Value = `${atletas.length}`;
     
-    if (dashboardTab === "campeonatos") {
-      card1Label = "Times / Atletas";
-      if (dashboardSelectedId !== "") {
-        const campIdSel = Number(dashboardSelectedId);
-        const campObj = campeonatos.find(c => c.id === campIdSel);
-        const numTimes = campObj && Array.isArray(campObj.teams) ? campObj.teams.length : 0;
-        const numAtletas = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("campeonato_" + campIdSel)).length;
-        card1Value = `${numTimes} / ${numAtletas}`;
-      } else {
-        const numTimesTotal = campeonatos.reduce((sum, c) => sum + (Array.isArray(c.teams) ? c.teams.length : 0), 0);
-        const numAtletasTotal = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.some(v => v.startsWith("campeonato_"))).length;
-        card1Value = `${numTimesTotal} / ${numAtletasTotal}`;
-      }
-    } else {
-      card1Label = "Atletas / Presença";
-      if (dashboardSelectedId !== "") {
-        const peladaIdSel = Number(dashboardSelectedId);
-        const atletasVinc = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("pelada_" + peladaIdSel));
+    if (dashboardSelectedId !== "") {
+      const peladaIdSel = Number(dashboardSelectedId);
+      const atletasVinc = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("pelada_" + peladaIdSel));
+      
+      if (dashboardSelectedDataId !== "" && dashboardSelectedDataId !== "todas") {
+        const dataIdSel = Number(dashboardSelectedDataId);
+        // Filtrar participações daquela pelada e rodada
+        const partsData = participacoes.filter(p => p.pelada_id === peladaIdSel && String(p.data_realizacao_id) === String(dataIdSel));
         
-        if (dashboardSelectedDataId !== "" && dashboardSelectedDataId !== "todas") {
-          const dataIdSel = Number(dashboardSelectedDataId);
-          // Filtrar participações daquela pelada e rodada
-          const partsData = participacoes.filter(p => p.pelada_id === peladaIdSel && String(p.data_realizacao_id) === String(dataIdSel));
-          
-          let cadastrados = partsData.length;
-          if (cadastrados === 0) {
-            cadastrados = atletasVinc.length; // Fallback se as participações não tiverem sido salvas/inicializadas
-          }
-          const presentesCount = partsData.filter(p => p.compareceu).length;
-          card1Value = `${cadastrados} / ${presentesCount}`;
-        } else {
-          // Todas as datas da pelada
-          const datasPel = datasRealizacao.filter(d => d.pelada_id === peladaIdSel && d.status === "realizado");
-          
-          let totalCadastrados = 0;
-          let totalComparecidos = 0;
-          datasPel.forEach(d => {
-            const partsData = participacoes.filter(p => p.pelada_id === peladaIdSel && String(p.data_realizacao_id) === String(d.id));
-            totalCadastrados += partsData.length > 0 ? partsData.length : atletasVinc.length;
-            totalComparecidos += partsData.filter(p => p.compareceu).length;
-          });
-          
-          const mediaCadastrados = datasPel.length > 0 ? (totalCadastrados / datasPel.length) : atletasVinc.length;
-          const mediaComparecidos = datasPel.length > 0 ? (totalComparecidos / datasPel.length) : 0;
-          
-          card1Value = `${mediaCadastrados.toFixed(0)} / ${mediaComparecidos.toFixed(0)}`;
+        let cadastrados = partsData.length;
+        if (cadastrados === 0) {
+          cadastrados = atletasVinc.length; // Fallback se as participações não tiverem sido salvas/inicializadas
         }
+        const presentesCount = partsData.filter(p => p.compareceu).length;
+        card1Value = `${cadastrados} / ${presentesCount}`;
       } else {
-        // Caso global das peladas
-        const totalAtletasPeladas = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.some(v => v.startsWith("pelada_"))).length;
-        const datasRealizadasTotal = datasRealizacao.filter(d => d.status === "realizado");
+        // Todas as datas da pelada
+        const datasPel = datasRealizacao.filter(d => d.pelada_id === peladaIdSel && d.status === "realizado");
         
-        let totalCadastradosGeral = 0;
-        let totalComparecidosGeral = 0;
-        datasRealizadasTotal.forEach(d => {
-          const partsData = participacoes.filter(p => p.pelada_id === d.pelada_id && String(p.data_realizacao_id) === String(d.id));
-          if (partsData.length > 0) {
-            totalCadastradosGeral += partsData.length;
-            totalComparecidosGeral += partsData.filter(p => p.compareceu).length;
-          } else {
-            const atletasVinc = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("pelada_" + d.pelada_id));
-            totalCadastradosGeral += atletasVinc.length;
-          }
+        let totalCadastrados = 0;
+        let totalComparecidos = 0;
+        datasPel.forEach(d => {
+          const partsData = participacoes.filter(p => p.pelada_id === peladaIdSel && String(p.data_realizacao_id) === String(d.id));
+          totalCadastrados += partsData.length > 0 ? partsData.length : atletasVinc.length;
+          totalComparecidos += partsData.filter(p => p.compareceu).length;
         });
         
-        const mediaCadastradosGeral = datasRealizadasTotal.length > 0 ? (totalCadastradosGeral / datasRealizadasTotal.length) : totalAtletasPeladas;
-        const mediaComparecidosGeral = datasRealizadasTotal.length > 0 ? (totalComparecidosGeral / datasRealizadasTotal.length) : 0;
+        const mediaCadastrados = datasPel.length > 0 ? (totalCadastrados / datasPel.length) : atletasVinc.length;
+        const mediaComparecidos = datasPel.length > 0 ? (totalComparecidos / datasPel.length) : 0;
         
-        card1Value = `${mediaCadastradosGeral.toFixed(0)} / ${mediaComparecidosGeral.toFixed(0)}`;
+        card1Value = `${mediaCadastrados.toFixed(0)} / ${mediaComparecidos.toFixed(0)}`;
       }
+    } else {
+      // Caso global das peladas
+      const totalAtletasPeladas = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.some(v => v.startsWith("pelada_"))).length;
+      const datasRealizadasTotal = datasRealizacao.filter(d => d.status === "realizado");
+      
+      let totalCadastradosGeral = 0;
+      let totalComparecidosGeral = 0;
+      datasRealizadasTotal.forEach(d => {
+        const partsData = participacoes.filter(p => p.pelada_id === d.pelada_id && String(p.data_realizacao_id) === String(d.id));
+        if (partsData.length > 0) {
+          totalCadastradosGeral += partsData.length;
+          totalComparecidosGeral += partsData.filter(p => p.compareceu).length;
+        } else {
+          const atletasVinc = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("pelada_" + d.pelada_id));
+          totalCadastradosGeral += atletasVinc.length;
+        }
+      });
+      
+      const mediaCadastradosGeral = datasRealizadasTotal.length > 0 ? (totalCadastradosGeral / datasRealizadasTotal.length) : totalAtletasPeladas;
+      const mediaComparecidosGeral = datasRealizadasTotal.length > 0 ? (totalComparecidosGeral / datasRealizadasTotal.length) : 0;
+      
+      card1Value = `${mediaCadastradosGeral.toFixed(0)} / ${mediaComparecidosGeral.toFixed(0)}`;
     }
 
     // 2. Ajuste do Card 2 (Peladas)
@@ -14905,88 +14031,12 @@ export default function App(){
         }
       }
 
-      // 2. Caso Campeonatos e Selecionado um Campeonato
-      if (dashboardTab === "campeonatos" && dashboardSelectedId !== "") {
-        const campIdSel = Number(dashboardSelectedId);
-        const campObj = campeonatos.find(c => c.id === campIdSel);
-        
-        const mDef = campObj ? MODALIDADES_ESPORTIVAS.find(x => x.id === campObj.modalidade) : null;
-        
-        const stats = {};
-        if (campObj && Array.isArray(campObj.groups)) {
-          campObj.groups.forEach(g => {
-            if (Array.isArray(g.rounds)) {
-              g.rounds.forEach(r => {
-                if (Array.isArray(r.matches)) {
-                  r.matches.forEach(m => {
-                    if (Array.isArray(m.events)) {
-                      m.events.forEach(e => {
-                        if (e.type === "gol") {
-                          stats[e.atletaId] = (stats[e.atletaId] || 0) + 1;
-                        }
-                      });
-                    }
-                  });
-                }
-              });
-            }
-          });
-        }
-        
-        const artilheiros = Object.keys(stats)
-          .map(aid => ({ atletaId: aid, gols: stats[aid] }))
-          .sort((a,b) => b.gols - a.gols);
-          
-        const principalArtilheiro = artilheiros.length > 0 ? allAtletas.find(a => String(a.id) === String(artilheiros[0].atletaId)) : null;
-
-        return (
-          <div style={S.card}>
-            <div style={{fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 16, display: "flex", alignItems: "center", gap: 8}}>
-              <span><IconTrophy size={14} style={{display: "inline-flex", verticalAlign: "middle", alignSelf: "center"}} /></span>
-              Informações do Campeonato: {campObj?.name}
-            </div>
-            <div style={{display: "flex", flexDirection: "column", gap: 10, fontSize: 13, color: t.textSec, lineHeight: 1.6, marginBottom: 16}}>
-              <div><b>Modalidade:</b> {mDef ? <span style={{display: "inline-flex", alignItems: "center", gap: 4}}>{mDef.icon} {mDef.label}</span> : <span style={{display: "inline-flex", alignItems: "center", gap: 4}}><IconSoccer size={14} /> Futebol</span>}</div>
-              <div><b>Tipo de disputa:</b> {campObj?.type === "pontos" ? "Tabela Corrida" : campObj?.type === "mata" ? "Mata-mata" : campObj?.type === "liga" ? "Liga com Grupos" : "Misto"}</div>
-              {principalArtilheiro && (
-                <div style={{padding: "8px 12px", background: "#FFD70010", borderRadius: 8, border: "1px solid #FFD70033", display: "flex", alignItems: "center", gap: 10}}>
-                  <span style={{fontSize: 20}}></span>
-                  <div>
-                    <div style={{fontWeight: 700, color: t.text}}>Artilheiro Principal:</div>
-                    <div style={{fontSize: 12}}>{getPlayerName(principalArtilheiro)} ({artilheiros[0].gols} gols)</div>
-                  </div>
-                </div>
-              )}
-              {Array.isArray(campObj?.collaborators) && campObj.collaborators.length > 0 && (
-                <div style={{marginTop: 4}}>
-                  <b>Colaboradores ({campObj.collaborators.length}):</b><br/>
-                  <div style={{display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4}}>
-                    {campObj.collaborators.map(c => (
-                      <span key={c.id} style={{fontSize: 11, background: t.cardBorder + "55", padding: "2px 8px", borderRadius: 6, color: t.text}}>
-                        {c.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <button 
-              onClick={() => { setCurrent(campObj); setScreen("gerenciarChamp"); }}
-              style={{...S.btn(t.accent), width: "100%", fontWeight: 700}}
-            >
-              Gerenciar Campeonato
-            </button>
-          </div>
-        );
-      }
-
       // 3. Caso Geral (sem nada selecionado): Renderiza as Ações Rápidas Originais
       return (
         <div>
           <div style={{fontSize: 11, fontWeight: 800, color: t.textSec, marginBottom: 16, textTransform: "uppercase", letterSpacing: 0.8}}>Ações Rápidas</div>
           <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12}}>
             {[
-              {icon: <IconTrophy size={28} />, label: "Novo Campeonato", sub: "Grupos, pontos ou chaves", action: () => setScreen("novoChamp"), color: "#10b981", scope: "campeonato"},
               {icon: <IconSoccer size={28} />, label: "Nova Pelada", sub: "Sorteador de times rápidos", action: () => setScreen("novaPelada"), color: "#10b981", scope: "pelada"},
             ].filter(b => auth.role === "adm" || auth.scope === "geral" || auth.scope === b.scope).map(b => (
               <button key={b.label} onClick={b.action}
@@ -15237,88 +14287,11 @@ export default function App(){
         onImport={importAtletas} 
         onDownloadTemplate={downloadAtletasTemplate} 
          
-        campeonatos={campeonatos}
+        campeonatos={[]}
         peladas={peladas}
         t={t}
       />
     </div>
-  );
-
-  /* ── NOVO CAMPEONATO ──────────────────────────────────────────── */
-  if(screen==="novoChamp")return renderComLayout(
-    <div style={S.page}>
-      <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
-        <h2 style={{fontSize:18,fontWeight:800,margin:0,color:t.text}}><IconTrophy size={18} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Criar Novo Campeonato / Liga</h2>
-      </div>
-      <NovoCampeonato quadras={quadras} onSave={(d, importedAtletas)=>{
-        const newD = {...d, manager_id: auth.role === "manager" ? auth.manager_id : null};
-        
-        if (importedAtletas && importedAtletas.length > 0) {
-          newD.rosters = newD.rosters || {};
-          const novosAtletasList = [];
-          
-          importedAtletas.forEach(a => {
-            const timeDoAtleta = a.grupo || "";
-            if (timeDoAtleta) {
-              newD.rosters[timeDoAtleta] = newD.rosters[timeDoAtleta] || [];
-              if (!newD.rosters[timeDoAtleta].includes(a.id)) {
-                newD.rosters[timeDoAtleta].push(a.id);
-              }
-            }
-            novosAtletasList.push(a);
-          });
-          
-          setAtletasCampeonato(prev => {
-            const updated = [...prev];
-            novosAtletasList.forEach(a => {
-              const idx = updated.findIndex(u => u.nome.toLowerCase() === a.nome.toLowerCase());
-              if (idx >= 0) {
-                // Atualiza mantendo o ID existente
-                updated[idx] = { ...updated[idx], ...a, id: updated[idx].id };
-                const timeDoAtleta = a.grupo || "";
-                if (timeDoAtleta && newD.rosters[timeDoAtleta]) {
-                  newD.rosters[timeDoAtleta] = newD.rosters[timeDoAtleta].map(x => x === a.id ? updated[idx].id : x);
-                }
-              } else {
-                // Adiciona novo atleta
-                updated.push({
-                  ...a,
-                  manager_id: auth.role === "manager" ? auth.manager_id : null
-                });
-              }
-            });
-            return updated;
-          });
-        }
-
-        setCampeonatos(p=>[...p,newD]);
-        setCurrent(newD);
-        setScreen("gerenciarChamp");
-      }} onCancel={()=>setScreen("home")} t={t}/>
-    </div>
-  );
-
-  /* ── GERENCIAR CAMPEONATO ─────────────────────────────────────── */
-  if(screen==="gerenciarChamp"&&current)return renderComLayout(
-    <CampeonatoScreen 
-      champ={campeonatos.find(c=>c.id===current.id)||current} 
-      atletas={atletasCampeonato} 
-      onUpdate={atualizarChamp} 
-      onDelete={id=>{removerChamp(id); setFinanceiroWrapped(f=>({entries:(f.entries||[]).filter(e=>String(e.champ_id)!==String(id))})); setScreen("home");}} 
-      onBack={()=>setScreen("home")} 
-      setFinanceiro={setFinanceiroWrapped}
-      onAddAtleta={adicionarAtletaCampeonato}
-      onUpdateAtleta={atualizarAtletaCampeonato}
-      cloudLoading={cloudLoading}
-      publicarNaNuvem={publicarNaNuvem}
-      t={t}
-      tab={activeChampTab}
-      setTab={setActiveChampTab}
-      isMobile={isMobile}
-      auth={auth}
-      managers={managers}
-      assegurarManagerColaborador={assegurarManagerColaborador}
-    />
   );
 
   /* ── NOVA PELADA ──────────────────────────────────────────────── */
@@ -15366,7 +14339,7 @@ export default function App(){
 
   if(screen==="managerRegistry"){
     if(auth.role !== "adm"){
-      return <SelectionScreen onLoginScreen={()=>setScreen("login")} onAccessCloud={acessarCampeonatoNuvem} t={t} />;
+      return <LoginScreen onLogin={handleLogin} onRegister={handleRegister} onForgotPassword={handleForgotPassword} onBack={() => {}} t={t} />;
     }
     return renderComLayout(<ManagerRegistry managers={managers} onAdd={adicionarManager} onUpdate={atualizarManager} onRemove={removerManager} onBack={()=>setScreen("home")} t={t} />);
   }
