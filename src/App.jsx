@@ -361,6 +361,17 @@ const IconMapPin = ({size=18,color="currentColor"}) => (
     <circle cx="12" cy="10" r="3"/>
   </svg>
 );
+const IconStar = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{display: "inline-block", verticalAlign: "middle"}}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+  </svg>
+);
+
+const IconStarFilled = ({size=18,color="currentColor"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{display: "inline-block", verticalAlign: "middle"}}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+  </svg>
+);
 
 /* ─────────────────────────── CONSTANTES ─────────────────────────── */
 const COLORS = ["#1D9E75","#22b7d9","#D85A30","#7F77DD","#BA7517","#D4537E","#639922","#E24B4A","#5F5E5A","#0F6E56"];
@@ -903,665 +914,6 @@ const downloadCsv = (filename, headers, rows) => {
 };
 // Alias para manter compatibilidade com todo o código existente
 const downloadXls = downloadCsv;
-
-
-function GaleriaThumbnail({ mediaUrl, title, t }) {
-  const [imageError, setImageError] = useState(false);
-  const embed = getEmbedUrl(mediaUrl);
-  const isImg = mediaUrl && isImageUrl(mediaUrl);
-  
-  let thumbUrl = getDirectImageUrl(mediaUrl);
-  if (embed) {
-    let match = mediaUrl.match(/^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/);
-    if (match && match[2].length === 11) {
-      thumbUrl = `https://img.youtube.com/vi/${match[2]}/0.jpg`;
-    }
-  }
-
-  useEffect(() => {
-    setImageError(false);
-  }, [mediaUrl]);
-
-  if (embed) {
-    return (
-      <div style={{ width: "100%", height: "100%", position: "relative" }}>
-        <img 
-          src={thumbUrl} 
-          style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-          alt={title} 
-        />
-        <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center", color: "#fff", fontSize: 11 }}>
-          ▶️
-        </div>
-      </div>
-    );
-  }
-
-  if (isImg && !imageError) {
-    return (
-      <img 
-        src={thumbUrl} 
-        style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-        alt={title} 
-        onError={() => setImageError(true)}
-      />
-    );
-  }
-
-  // Se falhou como imagem ou é reconhecido como vídeo do OneDrive
-  if (mediaUrl && (mediaUrl.toLowerCase().includes("onedrive.live.com") || mediaUrl.toLowerCase().includes("1drv.ms"))) {
-    return (
-      <div style={{ 
-        width: "100%", 
-        height: "100%", 
-        display: "flex", 
-        flexDirection: "column",
-        justifyContent: "center", 
-        alignItems: "center", 
-        background: "linear-gradient(135deg, #1f1c2c 0%, #928dab 100%)", 
-        color: "#fff",
-        padding: 12,
-        boxSizing: "border-box",
-        textAlign: "center",
-        position: "relative"
-      }}>
-        <div style={{ fontSize: 28, marginBottom: 4 }}>🎬</div>
-        <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.8, textTransform: "uppercase", letterSpacing: 0.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-          {title || "Vídeo OneDrive"}
-        </div>
-        <div style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(34, 183, 217, 0.85)", borderRadius: 6, padding: "2px 6px", color: "#fff", fontSize: 9, fontWeight: 800 }}>
-          ONEDRIVE
-        </div>
-      </div>
-    );
-  }
-
-  if (mediaUrl) {
-    const directUrl = getDirectImageUrl(mediaUrl);
-    return (
-      <div style={{ width: "100%", height: "100%", position: "relative", background: "#000" }}>
-        <video 
-          src={directUrl} 
-          preload="metadata" 
-          muted 
-          style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-        />
-        <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.6)", borderRadius: 6, width: 24, height: 24, display: "flex", justifyContent: "center", alignItems: "center", color: "#fff", fontSize: 11 }}>
-          ▶️
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", fontSize: 24, background: "#00000010" }}>
-      🎬
-    </div>
-  );
-}
-
-function MuralPostCard({ 
-  item, 
-  isAdmin, 
-  onStartEdit, 
-  onDelete, 
-  t,
-  editingPostId,
-  setEditingPostId,
-  editTitle,
-  setEditTitle,
-  editContent,
-  setEditContent,
-  editType,
-  setEditType,
-  editMediaUrl,
-  setEditMediaUrl,
-  onSaveEdit
-}) {
-  const S = makeStyles(t);
-  const embed = getEmbedUrl(item.mediaUrl);
-  const isImg = item.mediaUrl && isImageUrl(item.mediaUrl);
-  const hasMedia = item.mediaUrl && (embed || isImg || item.mediaUrl.trim() !== "");
-
-  const [imageError, setImageError] = useState(false);
-
-  useEffect(() => {
-    setImageError(false);
-  }, [item.mediaUrl, item.id]);
-
-  // Se este post específico estiver sendo editado e o usuário for administrador
-  if (isAdmin && item.id === editingPostId) {
-    return (
-      <div className="mural-card" style={{ borderColor: "#22b7d9", background: t.inputBg, borderStyle: "solid", borderWidth: "2px", borderRadius: 12, padding: 22, display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${t.cardBorder}`, paddingBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: "#22b7d9", display: "flex", alignItems: "center", gap: 6 }}><IconEdit size={12} /> Editar Publicação</span>
-            <button 
-              onClick={() => setEditingPostId(null)}
-              style={{ background: "none", border: "none", color: t.textSec, cursor: "pointer", fontSize: 18, padding: 0 }}
-              title="Cancelar edição"
-            >×</button>
-          </div>
-
-          <div>
-            <label style={S.label}>Tipo de Publicação</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={()=>setEditType("noticia")} style={{ ...S.btnSm(editType === "noticia" ? "#0095F6" : "transparent", editType === "noticia" ? "#fff" : t.textSec), border: `1px solid ${editType === "noticia" ? "#0095F6" : t.cardBorder}`, flex: 1, padding: "8px" }}>Notícia</button>
-              <button onClick={()=>setEditType("midia")} style={{ ...S.btnSm(editType === "midia" ? "#0095F6" : "transparent", editType === "midia" ? "#fff" : t.textSec), border: `1px solid ${editType === "midia" ? "#0095F6" : t.cardBorder}`, flex: 1, padding: "8px" }}>Foto / Vídeo</button>
-            </div>
-          </div>
-
-          <div>
-            <label style={S.label}>Título</label>
-            <input style={S.input} value={editTitle} onChange={e=>setEditTitle(e.target.value)} placeholder="Título da publicação" />
-          </div>
-
-          <div>
-            <label style={S.label}>Conteúdo</label>
-            <textarea style={{ ...S.input, height: 90, resize: "vertical" }} value={editContent} onChange={e=>setEditContent(e.target.value)} placeholder="Conteúdo da matéria..." />
-          </div>
-
-          <div>
-            <label style={S.label}>{editType === "noticia" ? "Link da Imagem de Capa (Opcional)" : "Link da Mídia (YouTube, imagem, etc.)"}</label>
-            <input style={S.input} value={editMediaUrl} onChange={e=>setEditMediaUrl(e.target.value)} placeholder="https://..." />
-          </div>
-
-          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button onClick={() => onSaveEdit(item.id)} style={{ ...S.btn("#0095F6"), padding: "24px", fontSize: 13, flex: 1, justifyContent: "center" }}>Salvar Alterações</button>
-            <button onClick={() => setEditingPostId(null)} style={{ ...S.btn(t.card, t.textSec), border: `1.5px solid ${t.cardBorder}`, padding: "24px", fontSize: 13, cursor: "pointer" }}>Cancelar</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (item.type === "midia") {
-    // 🎬 ESTILO INSTAGRAM (FOTO / MÍDIA)
-    return (
-      <div className="instagram-post" style={{ 
-        background: t.card, 
-        border: `1px solid ${t.cardBorder}`, 
-        borderRadius: 12, 
-        overflow: "hidden", 
-        marginBottom: 24, 
-        boxShadow: "0 6px 20px rgba(0,0,0,0.03)",
-        transition: "transform 0.3s, box-shadow 0.3s",
-        position: "relative"
-      }}>
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${t.cardBorder}33` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {/* Instagram Style Colorful Border Avatar */}
-            <div style={{ 
-              background: "linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)", 
-              padding: "2.5px", 
-              borderRadius: "50%", 
-              display: "flex", 
-              justifyContent: "center", 
-              alignItems: "center" 
-            }}>
-              <div style={{ background: t.card, borderRadius: "50%", width: 36, height: 36, display: "flex", justifyContent: "center", alignItems: "center", fontSize: 18 }}>
-                🎬
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: t.text, display: "flex", alignItems: "center", gap: 5 }}>
-                Organização
-                <span style={{ color: "#3897f0", fontSize: 12, fontWeight: "bold" }} title="Conta Oficial">Verified ✓</span>
-              </div>
-              <div style={{ fontSize: 11, color: t.textSec }}>{fmtDate(item.date)}</div>
-            </div>
-          </div>
-          {isAdmin && (
-            <div style={{ display: "flex", gap: 8 }}>
-              <button 
-                onClick={() => onStartEdit(item)} 
-                style={{ 
-                  background: "rgba(34, 183, 217, 0.1)", 
-                  border: "none", 
-                  color: "#22b7d9", 
-                  cursor: "pointer", 
-                  fontSize: 11, 
-                  fontWeight: 700, 
-                  padding: "4px 10px", 
-                  borderRadius: 8,
-                  transition: "background 0.2s"
-                }}
-              >
-                <IconEdit size={12} /> Editar
-              </button>
-              <button 
-                onClick={() => onDelete(item.id)} 
-                style={{ 
-                  background: "rgba(226, 75, 74, 0.1)", 
-                  border: "none", 
-                  color: "#E24B4A", 
-                  cursor: "pointer", 
-                  fontSize: 11, 
-                  fontWeight: 700, 
-                  padding: "4px 10px", 
-                  borderRadius: 8,
-                  transition: "background 0.2s"
-                }}
-              >
-                Excluir
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Media Element (Image / Video) - 100% width style instagram */}
-        {hasMedia && (
-          <div style={{ 
-            background: "#00000010", 
-            borderTop: `1px solid ${t.cardBorder}33`, 
-            borderBottom: `1px solid ${t.cardBorder}33`, 
-            overflow: "hidden", 
-            display: "flex", 
-            justifyContent: "center", 
-            alignItems: "center" 
-          }}>
-            {embed ? (
-              <div style={{ position: "relative", width: "100%", paddingTop: "56.25%" }}>
-                <iframe 
-                  src={embed} 
-                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
-                  allowFullScreen
-                  title={item.title}
-                />
-              </div>
-            ) : isImg && !imageError ? (
-              <img 
-                src={getDirectImageUrl(item.mediaUrl)} 
-                style={{ width: "100%", maxHeight: 460, objectFit: "contain", display: "block", background: "#000" }} 
-                alt={item.title} 
-                onError={() => setImageError(true)}
-              />
-            ) : (isImg && imageError) || hasMedia ? (
-              item.mediaUrl && (item.mediaUrl.toLowerCase().includes("onedrive.live.com") || item.mediaUrl.toLowerCase().includes("1drv.ms")) ? (
-                <div style={{ position: "relative", width: "100%", paddingTop: "56.25%" }}>
-                  <iframe 
-                    src={getOneDriveEmbedUrl(item.mediaUrl)} 
-                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
-                    allowFullScreen
-                    title={item.title}
-                  />
-                </div>
-              ) : (
-                <div style={{ width: "100%", background: "#000", display: "flex", justifyContent: "center" }}>
-                  <video 
-                    src={getDirectImageUrl(item.mediaUrl)} 
-                    controls 
-                    preload="metadata"
-                    style={{ width: "100%", maxHeight: 460, display: "block", objectFit: "contain" }}
-                  />
-                </div>
-              )
-            ) : null}
-          </div>
-        )}
-
-        {/* Instagram Action Row */}
-        <div style={{ padding: "14px 20px 8px", display: "flex", gap: 18, fontSize: 22, borderTop: hasMedia ? "none" : `1px solid ${t.cardBorder}33` }}>
-          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Curtir"><IconCheck size={14} /></span>
-          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Comentar"><IconClipboard size={14} /></span>
-          <span style={{ cursor: "pointer", display: "inline-block", transition: "transform 0.15s" }} title="Compartilhar"><IconShare size={14} /></span>
-        </div>
-
-        {/* Title & Caption */}
-        <div style={{ padding: "0 20px 20px", display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ fontSize: 16, fontWeight: 900, color: t.text, letterSpacing: "-0.2px" }}>{item.title}</div>
-          <div style={{ fontSize: 14, color: t.text, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-            <strong style={{ marginRight: 8, color: "#22b7d9" }}>organizador_thorneios</strong>
-            {item.content}
-          </div>
-        </div>
-      </div>
-    );
-  } else {
-    // 📢 ESTILO X / TWITTER (NOTÍCIA / COMUNICADO)
-    return (
-      <div className="x-tweet" style={{ 
-        background: t.card, 
-        border: `1px solid ${t.cardBorder}`, 
-        borderRadius: 12, 
-        padding: "20px", 
-        marginBottom: 24, 
-        display: "flex", 
-        gap: 14, 
-        boxShadow: "0 6px 20px rgba(0,0,0,0.03)",
-        transition: "transform 0.3s"
-      }}>
-        {/* Left Column (Circular Twitter Avatar) */}
-        <div style={{ flexShrink: 0 }}>
-          <div style={{ 
-            background: "rgba(34, 183, 217, 0.12)", 
-            color: "#22b7d9", 
-            borderRadius: "50%", 
-            width: 44, 
-            height: 44, 
-            display: "flex", 
-            justifyContent: "center", 
-            alignItems: "center", 
-            fontSize: 22, 
-            fontWeight: 800 
-          }}>
-            📢
-          </div>
-        </div>
-
-        {/* Right Column (Tweet Body) */}
-        <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
-          {/* Top row */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, fontSize: 14 }}>
-              <span style={{ fontWeight: 900, color: t.text }}>Thorneios</span>
-              <span style={{ color: t.textSec, fontSize: 13.5 }}>@thorneios_varzea</span>
-              <span style={{ color: t.textSec }}>·</span>
-              <span style={{ color: t.textSec }} title={item.date}>{fmtDate(item.date)}</span>
-            </div>
-            {isAdmin && (
-              <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => onStartEdit(item)} style={{ background: "none", border: "none", color: "#22b7d9", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 6px" }}><IconEdit size={12} /> Editar</button>
-                <button onClick={() => onDelete(item.id)} style={{ background: "none", border: "none", color: "#E24B4A", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "2px 6px" }}>Excluir</button>
-              </div>
-            )}
-          </div>
-
-          {/* Tweet content */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: t.text, letterSpacing: "-0.3px", lineHeight: 1.3 }}>{item.title}</div>
-            <p style={{ fontSize: 14.5, color: t.text, lineHeight: 1.6, whiteSpace: "pre-wrap", margin: 0 }}>{item.content}</p>
-          </div>
-
-          {/* Attached Card (if mediaUrl exists) */}
-          {hasMedia && (
-            <div style={{ 
-              border: `1px solid ${t.cardBorder}`, 
-              borderRadius: 12, 
-              overflow: "hidden", 
-              marginTop: 6,
-              background: t.inputBg,
-              cursor: "pointer"
-            }}>
-              {embed ? (
-                <div style={{ position: "relative", width: "100%", paddingTop: "56.25%" }}>
-                  <iframe 
-                    src={embed} 
-                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
-                    allowFullScreen
-                    title={item.title}
-                  />
-                </div>
-              ) : isImg && !imageError ? (
-                <div>
-                  <img 
-                    src={getDirectImageUrl(item.mediaUrl)} 
-                    style={{ width: "100%", height: "auto", display: "block" }} 
-                    alt={item.title} 
-                    onClick={() => handleOpenExternalLink(item.mediaUrl)}
-                    onError={() => setImageError(true)}
-                  />
-                  <div style={{ padding: "24px", borderTop: `1px solid ${t.cardBorder}` }} onClick={() => handleOpenExternalLink(item.mediaUrl)}>
-                    <div style={{ fontSize: 11, color: t.textSec, textTransform: "lowercase", letterSpacing: 0.5, fontWeight: 700 }}>thorneios.com.br</div>
-                    <div style={{ fontSize: 13.5, fontWeight: 800, color: t.text, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</div>
-                  </div>
-                </div>
-              ) : (isImg && imageError) || hasMedia ? (
-                <div>
-                  {item.mediaUrl && (item.mediaUrl.toLowerCase().includes("onedrive.live.com") || item.mediaUrl.toLowerCase().includes("1drv.ms")) ? (
-                    <div style={{ position: "relative", width: "100%", paddingTop: "56.25%" }}>
-                      <iframe 
-                        src={getOneDriveEmbedUrl(item.mediaUrl)} 
-                        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }} 
-                        allowFullScreen
-                        title={item.title}
-                      />
-                    </div>
-                  ) : (
-                    <video 
-                      src={getDirectImageUrl(item.mediaUrl)} 
-                      controls 
-                      preload="metadata"
-                      style={{ width: "100%", height: "auto", display: "block", maxHeight: 400, background: "#000" }} 
-                    />
-                  )}
-                  <div style={{ padding: "24px", borderTop: `1px solid ${t.cardBorder}` }}>
-                    <div style={{ fontSize: 11, color: t.textSec, textTransform: "lowercase", letterSpacing: 0.5, fontWeight: 700 }}>thorneios.com.br</div>
-                    <div style={{ fontSize: 13.5, fontWeight: 800, color: t.text, marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</div>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ padding: "24px" }}>
-                  <a 
-                    href={item.mediaUrl} 
-                    onClick={(e) => { e.preventDefault(); handleOpenExternalLink(item.mediaUrl); }} 
-                    style={{ fontSize: 13.5, color: "#22b7d9", textDecoration: "none", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}
-                  >
-                    🔗 Abrir link oficial do comunicado →
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Twitter Action bar */}
-          <div style={{ display: "flex", justifyContent: "space-between", maxWidth: 380, marginTop: 10, color: t.textSec, fontSize: 14 }}>
-            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Responder"><IconClipboard size={14} /> <span style={{ fontSize: 11.5 }}>15</span></span>
-            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Retweetar"><IconRefresh size={14} /> <span style={{ fontSize: 11.5 }}>8</span></span>
-            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Curtir"><IconCheck size={14} /> <span style={{ fontSize: 11.5 }}>142</span></span>
-            <span style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5 }} title="Visualizações"><IconDatabase size={14} /> <span style={{ fontSize: 11.5 }}>2.4K</span></span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-}
-
-function MuralLightboxModal({ post, onClose, t, isAdmin, onStartEdit, onDelete, editingPostId, setEditingPostId, editTitle, setEditTitle, editContent, setEditContent, editType, setEditType, editMediaUrl, setEditMediaUrl, onSaveEdit }) {
-  if (!post) return null;
-  return (
-    <div style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100vw",
-      height: "100vh",
-      background: "rgba(0,0,0,0.85)",
-      backdropFilter: "blur(10px)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 9999,
-      padding: 16
-    }} onClick={onClose}>
-      <div 
-        style={{ 
-          maxWidth: 640, 
-          width: "100%", 
-          maxHeight: "90vh", 
-          overflowY: "auto", 
-          background: t.card, 
-          borderRadius: 12, 
-          border: `1px solid ${t.cardBorder}`,
-          boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
-          position: "relative"
-        }} 
-        onClick={e => e.stopPropagation()} // Impede fechar ao clicar dentro do modal
-      >
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "14px 20px 0", position: "absolute", top: 0, right: 0, zIndex: 10 }}>
-          <button 
-            onClick={onClose} 
-            style={{ 
-              background: t.card, 
-              border: `1px solid ${t.cardBorder}`, 
-              borderRadius: "50%",
-              width: 32,
-              height: 32,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              color: t.text, 
-              fontSize: 18, 
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-              padding: 0
-            }}
-          >×</button>
-        </div>
-        <div style={{ padding: "30px 20px 20px" }}>
-          <MuralPostCard 
-            item={post} 
-            isAdmin={isAdmin} 
-            onStartEdit={onStartEdit}
-            onDelete={(id) => { onDelete(id); onClose(); }} // Fecha o lightbox ao excluir
-            t={t}
-            editingPostId={editingPostId}
-            setEditingPostId={setEditingPostId}
-            editTitle={editTitle}
-            setEditTitle={setEditTitle}
-            editContent={editContent}
-            setEditContent={setEditContent}
-            editType={editType}
-            setEditType={setEditType}
-            editMediaUrl={editMediaUrl}
-            setEditMediaUrl={setEditMediaUrl}
-            onSaveEdit={(id) => { onSaveEdit(id); onClose(); }} // Fecha o lightbox ao salvar
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AbaGaleriaOrganizador({ c, onUpdate, t }) {
-  const S = makeStyles(t);
-  const mural = c.mural || [];
-  const midias = mural.filter(item => item.type === "midia");
-  
-  const [lightboxPost, setLightboxPost] = useState(null);
-
-  // Estados para Edição de Publicação
-  const [editingPostId, setEditingPostId] = useState(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editContent, setEditContent] = useState("");
-  const [editType, setEditType] = useState("midia");
-  const [editMediaUrl, setEditMediaUrl] = useState("");
-
-  const handleStartEdit = (post) => {
-    setEditingPostId(post.id);
-    setEditTitle(post.title || "");
-    setEditContent(post.content || "");
-    setEditType(post.type || "midia");
-    setEditMediaUrl(post.mediaUrl || "");
-  };
-
-  const handleSaveEdit = (id) => {
-    try {
-      if (!editTitle.trim() || !editContent.trim()) {
-        alert("Por favor, preencha o título e o conteúdo.");
-        return;
-      }
-      const tc = deepClone(c);
-      tc.mural = (tc.mural || []).map(post => {
-        if (post.id === id) {
-          return {
-            ...post,
-            title: editTitle.trim(),
-            content: editContent.trim(),
-            type: editType,
-            mediaUrl: editMediaUrl.trim()
-          };
-        }
-        return post;
-      });
-      onUpdate(tc);
-      setEditingPostId(null);
-      alert("Publicação atualizada com sucesso!");
-    } catch (err) {
-      console.error("Erro fatal ao editar post do mural:", err);
-      alert("Ocorreu um erro ao salvar as alterações: " + err.message);
-    }
-  };
-
-  const handleDeletePost = (id) => {
-    try {
-      if (!window.confirm("Deseja excluir esta publicação da galeria?")) return;
-      const tc = deepClone(c);
-      tc.mural = (tc.mural || []).filter(item => item.id !== id);
-      onUpdate(tc);
-      alert("Publicação excluída.");
-    } catch (err) {
-      console.error("Erro fatal ao excluir post do mural:", err);
-      alert("Ocorreu um erro ao excluir o post: " + err.message);
-    }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}><IconCamera size={16} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Galeria de Fotos & Vídeos (Estilo Instagram)</h3>
-      
-      {midias.length === 0 ? (
-        <div style={{ ...S.card, textAlign: "center", padding: 24, color: t.textSec }}>
-          Nenhuma foto ou vídeo na galeria. Para publicar uma nova mídia, use a aba "Mural" e marque o tipo como "Foto / Vídeo"!
-        </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-          {[...midias].reverse().map((item, idx) => (
-            <div 
-              key={item.id || idx}
-              onClick={() => setLightboxPost(item)}
-              style={{ 
-                aspectRatio: "1/1", 
-                borderRadius: 12, 
-                overflow: "hidden", 
-                cursor: "pointer", 
-                background: "#00000010",
-                position: "relative",
-                border: `1px solid ${t.cardBorder}`,
-                transition: "transform 0.2s, box-shadow 0.2s"
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.transform = "scale(1.02)";
-                e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            >
-              <GaleriaThumbnail mediaUrl={item.mediaUrl} title={item.title} t={t} />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Lightbox Modal para o Organizador (com permissões de Admin) */}
-      {lightboxPost && (
-        <MuralLightboxModal 
-          post={lightboxPost} 
-          onClose={() => setLightboxPost(null)} 
-          t={t} 
-          isAdmin={true}
-          onStartEdit={handleStartEdit}
-          onDelete={handleDeletePost}
-          editingPostId={editingPostId}
-          setEditingPostId={setEditingPostId}
-          editTitle={editTitle}
-          setEditTitle={setEditTitle}
-          editContent={editContent}
-          setEditContent={setEditContent}
-          editType={editType}
-          setEditType={setEditType}
-          editMediaUrl={editMediaUrl}
-          setEditMediaUrl={setEditMediaUrl}
-          onSaveEdit={handleSaveEdit}
-        />
-      )}
-    </div>
-  );
-}
-
 
 
 function PlayerAvatar({atleta, size=24}) {
@@ -2922,17 +2274,19 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey, onTimerUpdate }) {
 
   return (
     <div style={{
-      background: t.inputBg,
-      border: `1.5px solid ${isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : t.cardBorder}`,
-      borderRadius: 14,
-      padding: 12,
+      background: "#0D0E12",
+      border: `1.5px solid ${isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : "#1E293B"}`,
+      borderRadius: 16,
+      padding: 16,
       display: "flex",
       flexDirection: "column",
-      gap: 10,
+      gap: 12,
       width: "100%",
       boxSizing: "border-box",
       marginBottom: 16,
-      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+      boxShadow: isFinished || isUrgent 
+        ? "0 0 15px rgba(226, 75, 74, 0.25), inset 0 0 8px rgba(226, 75, 74, 0.1)"
+        : "0 0 15px rgba(255, 159, 10, 0.15), inset 0 0 8px rgba(255, 159, 10, 0.05)",
       transition: "all 0.3s ease"
     }}>
       <style>{`
@@ -2947,208 +2301,235 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey, onTimerUpdate }) {
         }
       `}</style>
       {isConfiguring ? (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: t.textSec, textTransform: "uppercase" }}>Tempo de Jogo:</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5 }}>Tempo de Jogo:</span>
             <input 
               type="number" 
               value={minutesInput} 
               onChange={e => setMinutesInput(e.target.value)}
               style={{
-                width: 60,
-                padding: "6px 8px",
+                width: 50,
+                padding: "4px 8px",
                 borderRadius: 8,
-                border: `1.5px solid ${t.inputBorder}`,
-                background: t.inputBg,
-                color: t.text,
+                border: "1px solid #334155",
+                background: "#0F172A",
+                color: "#F8FAFC",
                 fontSize: 13,
                 fontWeight: 700,
-                textAlign: "center"
+                textAlign: "center",
+                outline: "none"
               }}
             />
-            <span style={{ fontSize: 11, fontWeight: 600, color: t.textSec }}>min</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8" }}>minutos</span>
           </div>
           <button 
             onClick={handleConfigSave}
             style={{
-              padding: "7px 12px",
-              borderRadius: 8,
-              background: "#1D9E75",
+              padding: "6px 14px",
+              borderRadius: 20,
+              background: "linear-gradient(135deg, #10B981, #059669)",
               color: "#fff",
               border: "none",
               cursor: "pointer",
-              fontWeight: 600,
-              fontSize: 12
+              fontWeight: 800,
+              fontSize: 11,
+              boxShadow: "0 0 8px rgba(16, 185, 129, 0.4)"
             }}
           >
             ✓ Definir
           </button>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "center", width: "100%" }}>
+          {/* Relógio Centralizado */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <span style={{
+              fontSize: 36,
+              fontWeight: 900,
+              fontFamily: "monospace",
+              color: isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : "#FF9F0A",
+              textShadow: isFinished ? "0 0 10px #E24B4A" : isUrgent ? "0 0 10px #E24B4A" : "0 0 10px #FF9F0A",
+              animation: isUrgent ? "pulse-red-timer 1s infinite" : isFinished ? "blink-red-timer 1.5s infinite" : "none",
+              letterSpacing: 1
+            }}>
+              {formatTimer(seconds)}
+            </span>
+            {isFinished && (
               <span style={{
-                fontSize: 32,
-                fontWeight: 850,
-                fontFamily: "monospace",
-                color: isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : t.text,
-                animation: isUrgent ? "pulse-red-timer 1s infinite" : isFinished ? "blink-red-timer 1.5s infinite" : "none",
-                letterSpacing: 0.5
+                fontSize: 9,
+                fontWeight: 900,
+                color: "#E24B4A",
+                background: "#E24B4A22",
+                padding: "2px 8px",
+                borderRadius: 20,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                border: "1px solid #E24B4A44",
+                boxShadow: "0 0 8px rgba(226, 75, 74, 0.2)"
               }}>
-                {formatTimer(seconds)}
+                ⚽ Fim de Jogo!
               </span>
-              {isFinished && (
-                <span style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  color: "#E24B4A",
-                  background: "#E24B4A22",
-                  padding: "2px 6px",
-                  borderRadius: 6,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5
-                }}>
-                  ⚽ Fim!
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-              {running ? (
-                <button 
-                  onClick={handlePause} 
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                    background: "#BA751722",
-                    color: "#BA7517",
-                    border: "none",
-                    fontWeight: 700,
-                    fontSize: 11,
-                    cursor: "pointer"
-                  }}
-                >
-                  ⏸ Pausar
-                </button>
-              ) : (
-                <button 
-                  onClick={handleStart} 
-                  style={{
-                    padding: "6px 10px",
-                    borderRadius: 8,
-                    background: "#1D9E7522",
-                    color: "#1D9E75",
-                    border: "none",
-                    fontWeight: 700,
-                    fontSize: 11,
-                    cursor: "pointer"
-                  }}
-                >
-                  ▶ Iniciar
-                </button>
-              )}
-              
-              <button 
-                onClick={handleReset} 
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 8,
-                  background: isDark ? "#2d334a" : "#e2e8f0",
-                  color: t.textSec,
-                  border: "none",
-                  fontWeight: 700,
-                  fontSize: 11,
-                  cursor: "pointer"
-                }}
-              >
-                🔄 Reset
-              </button>
-
-              <button 
-                onClick={() => setIsConfiguring(true)} 
-                style={{
-                  padding: "6px 8px",
-                  borderRadius: 8,
-                  background: "transparent",
-                  color: t.textSec,
-                  border: `1.5px solid ${t.cardBorder}`,
-                  fontSize: 11,
-                  cursor: "pointer"
-                }}
-                title="Configurar Tempo"
-              >
-                ⚙️
-              </button>
-            </div>
+            )}
           </div>
 
+          {/* Barra de Progresso Neon */}
           {!isFinished && (
             <div style={{
               width: "100%",
-              height: 5,
-              borderRadius: 3,
-              background: isDark ? "#2a2d3e" : "#e2e8f0",
-              overflow: "hidden"
+              height: 4,
+              borderRadius: 2,
+              background: "#1E293B",
+              overflow: "hidden",
+              border: "1px solid #33415544"
             }}>
               <div style={{
                 width: `${progressPercent}%`,
                 height: "100%",
-                background: isUrgent ? "#E24B4A" : "#1D9E75",
+                background: isUrgent ? "#E24B4A" : "linear-gradient(90deg, #FF9F0A, #FFB020)",
+                boxShadow: isUrgent ? "0 0 8px #E24B4A" : "0 0 8px #FF9F0A",
                 transition: "width 1s linear"
               }} />
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 6, justifyContent: "flex-start", marginTop: 2 }}>
+          {/* Controles Principais */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", width: "100%" }}>
+            {/* -1 min */}
             <button 
               onClick={handleSubMinute} 
               style={{
-                padding: "3px 8px",
-                borderRadius: 6,
-                background: isDark ? "#25293d" : "#f8fafc",
-                color: t.textSec,
-                border: `1.5px solid ${t.cardBorder}`,
+                padding: "4px 10px",
+                borderRadius: 8,
+                background: "#1E293B",
+                color: "#94A3B8",
+                border: "1px solid #334155",
                 fontSize: 10,
                 fontWeight: 700,
-                cursor: "pointer"
+                cursor: "pointer",
+                transition: "background 0.2s"
               }}
+              onMouseEnter={e => e.currentTarget.style.background = "#334155"}
+              onMouseLeave={e => e.currentTarget.style.background = "#1E293B"}
             >
               - 1 min
             </button>
+
+            {/* Iniciar / Pausar */}
+            {running ? (
+              <button 
+                onClick={handlePause} 
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 20,
+                  background: "linear-gradient(135deg, #BA7517, #D97706)",
+                  color: "#fff",
+                  border: "none",
+                  fontWeight: 800,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  boxShadow: "0 0 8px rgba(186, 117, 23, 0.4)"
+                }}
+              >
+                ⏸ Pausar
+              </button>
+            ) : (
+              <button 
+                onClick={handleStart} 
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 20,
+                  background: "linear-gradient(135deg, #10B981, #059669)",
+                  color: "#fff",
+                  border: "none",
+                  fontWeight: 800,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  boxShadow: "0 0 8px rgba(16, 185, 129, 0.4)"
+                }}
+              >
+                ▶ Iniciar
+              </button>
+            )}
+            
+            {/* Reset */}
             <button 
-              onClick={handleAddMinute} 
+              onClick={handleReset} 
               style={{
-                padding: "3px 8px",
-                borderRadius: 6,
-                background: isDark ? "#25293d" : "#f8fafc",
-                color: t.textSec,
-                border: `1.5px solid ${t.cardBorder}`,
-                fontSize: 10,
+                padding: "6px 12px",
+                borderRadius: 20,
+                background: "#334155",
+                color: "#E2E8F0",
+                border: "none",
                 fontWeight: 700,
+                fontSize: 11,
                 cursor: "pointer"
               }}
             >
+              🔄 Reset
+            </button>
+
+            {/* +1 min */}
+            <button 
+              onClick={handleAddMinute} 
+              style={{
+                padding: "4px 10px",
+                borderRadius: 8,
+                background: "#1E293B",
+                color: "#94A3B8",
+                border: "1px solid #334155",
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: "pointer",
+                transition: "background 0.2s"
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "#334155"}
+              onMouseLeave={e => e.currentTarget.style.background = "#1E293B"}
+            >
               + 1 min
             </button>
+          </div>
+
+          {/* Linha Auxiliar de Apito / Configurar */}
+          <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+            <button 
+              onClick={() => setIsConfiguring(true)} 
+              style={{
+                padding: "4px 8px",
+                borderRadius: 6,
+                background: "transparent",
+                color: "#64748B",
+                border: "1px solid #334155",
+                fontSize: 10,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 4
+              }}
+              title="Ajustar tempo inicial"
+            >
+              <IconSettings size={10} /> Ajustar Tempo
+            </button>
+
             {isFinished && (
               <button 
-                onClick={() => {
-                  playWhistleSound();
-                }}
+                onClick={playWhistleSound}
                 style={{
-                  padding: "3px 8px",
+                  padding: "4px 10px",
                   borderRadius: 6,
                   background: "#BA751722",
                   color: "#BA7517",
-                  border: "none",
+                  border: "1px solid #BA751744",
                   fontSize: 10,
                   fontWeight: 700,
                   cursor: "pointer",
-                  marginLeft: "auto"
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4
                 }}
               >
-                Apitar
+                📢 Apitar Novamente
               </button>
             )}
           </div>
@@ -3913,687 +3294,6 @@ function PublicScreen({campeonatos,atletas,current,setCurrent,onBack,t}){
 }
 
 /* ──────────────────────── VISUALIZAÇÃO NUVEM PÚBLICA ──────────────── */
-function CloudPublicChampScreen({champ,onBack,t}){
-  const S=makeStyles(t);
-  const c = champ;
-  const [tab,setTab]=useState(c.type==="mata"?"chave":"tabela");
-  const [lightboxPost, setLightboxPost] = useState(null);
-
-  const [publicTeamName, setPublicTeamName] = useState("");
-  const [publicTeamColors, setPublicTeamColors] = useState("");
-  const [publicLeaderName, setPublicLeaderName] = useState("");
-  const [publicLeaderContact, setPublicLeaderContact] = useState("");
-  const [publicPlayersList, setPublicPlayersList] = useState([]);
-  const [submittingReg, setSubmittingReg] = useState(false);
-
-  const [playerForm, setPlayerForm] = useState({
-    nome: "",
-    apelido: "",
-    documento: "",
-    dataNascimento: "",
-    numeroCamisa: "",
-    customFields: {}
-  });
-
-  const handleAddPlayerToPublicList = () => {
-    if (!playerForm.nome.trim()) {
-      alert("Por favor, digite o nome do jogador.");
-      return;
-    }
-    setPublicPlayersList(prev => [...prev, { ...playerForm }]);
-    setPlayerForm({
-      nome: "",
-      apelido: "",
-      documento: "",
-      dataNascimento: "",
-      numeroCamisa: "",
-      customFields: {}
-    });
-  };
-
-  const handleRemovePlayerFromPublicList = (idx) => {
-    setPublicPlayersList(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleSendOnlineReg = async () => {
-    if (!publicTeamName.trim()) {
-      alert("Por favor, informe o nome do time.");
-      return;
-    }
-    if (!publicLeaderName.trim()) {
-      alert("Por favor, informe o nome do responsável.");
-      return;
-    }
-    if (publicPlayersList.length === 0) {
-      alert("Por favor, adicione pelo menos um atleta.");
-      return;
-    }
-
-    try {
-      setSubmittingReg(true);
-      const docRef = doc(db, "campeonatos", c.id);
-      
-      const newReg = {
-        id: Date.now() + Math.floor(Math.random() * 1000),
-        teamName: publicTeamName.trim(),
-        teamColors: publicTeamColors.trim(),
-        leaderName: publicLeaderName.trim(),
-        leaderContact: publicLeaderContact.trim(),
-        players: publicPlayersList.map((p, idx) => ({
-          ...p,
-          id: Date.now() + Math.floor(Math.random() * 100000) + idx
-        })),
-        status: "pendente",
-        date: todayStr(),
-        feedback: ""
-      };
-
-      const updatedPending = [...(c.pendingRegistrations || []), newReg];
-      
-      await setDoc(docRef, {
-        ...c,
-        pendingRegistrations: updatedPending
-      });
-
-      c.pendingRegistrations = updatedPending;
-      
-      alert("Solicitação de inscrição enviada com sucesso!");
-      
-      setPublicTeamName("");
-      setPublicTeamColors("");
-      setPublicLeaderName("");
-      setPublicLeaderContact("");
-      setPublicPlayersList([]);
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao enviar a inscrição: " + e.message);
-    } finally {
-      setSubmittingReg(false);
-    }
-  };
-
-  const renderMuralPublic = () => {
-    const noticias = (c.mural || []).filter(item => item.type === "noticia");
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}><IconAlertCircle size={16} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Mural de Comunicados (Estilo X)</h3>
-        
-        {noticias.length === 0 ? (
-          <div style={{ ...S.card, textAlign: "center", padding: 30, color: t.textSec }}>
-            Nenhum comunicado publicado no mural ainda. Fique atento às novidades da organização!
-          </div>
-        ) : (
-          [...noticias].reverse().map((item, idx) => (
-            <MuralPostCard 
-              key={item.id || idx}
-              item={item}
-              isAdmin={false}
-              t={t}
-            />
-          ))
-        )}
-      </div>
-    );
-  };
-
-  const renderGaleriaPublic = () => {
-    const midias = (c.mural || []).filter(item => item.type === "midia");
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, margin: "0 0 4px 0" }}><IconCamera size={16} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Galeria de Fotos e Mídias (Estilo Instagram)</h3>
-        
-        {midias.length === 0 ? (
-          <div style={{ ...S.card, textAlign: "center", padding: 30, color: t.textSec }}>
-            Nenhuma foto ou mídia publicada na galeria ainda.
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            {[...midias].reverse().map((item, idx) => (
-              <div 
-                key={item.id || idx}
-                onClick={() => setLightboxPost(item)}
-                style={{ 
-                  aspectRatio: "1/1", 
-                  borderRadius: 12, 
-                  overflow: "hidden", 
-                  cursor: "pointer", 
-                  background: "#00000010",
-                  position: "relative",
-                  border: `1px solid ${t.cardBorder}`,
-                  transition: "transform 0.2s, box-shadow 0.2s"
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = "scale(1.02)";
-                  e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)";
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = "scale(1)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
-                <GaleriaThumbnail mediaUrl={item.mediaUrl} title={item.title} t={t} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderInscricaoPublic = () => {
-    const customFieldsDef = c.customFieldsDef || [];
-    const pendingRegs = c.pendingRegistrations || [];
-    const mySubmissions = pendingRegs.filter(r => publicLeaderContact && r.leaderContact === publicLeaderContact);
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={S.card}>
-          <h3 style={{ fontSize: 16, fontWeight: 800, color: t.text, marginBottom: 16 }}><IconFile size={16} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Ficha de Inscrição Online</h3>
-          <p style={{ fontSize: 12, color: t.textSec, lineHeight: 1.5, marginBottom: 16 }}>
-            Preencha a ficha abaixo para enviar a solicitação de inscrição do seu time. A organização analisará os dados no painel do torneio.
-          </p>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: 140 }}>
-                <label style={S.label}>Nome do Time</label>
-                <input 
-                  style={S.input} 
-                  placeholder="Ex: Spartanos FC" 
-                  value={publicTeamName} 
-                  onChange={e => setPublicTeamName(e.target.value)}
-                />
-              </div>
-              <div style={{ flex: 1, minWidth: 140 }}>
-                <label style={S.label}>Cores do Uniforme</label>
-                <input 
-                  style={S.input} 
-                  placeholder="Ex: Azul e Branco" 
-                  value={publicTeamColors} 
-                  onChange={e => setPublicTeamColors(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: 140 }}>
-                <label style={S.label}>Nome do Responsável</label>
-                <input 
-                  style={S.input} 
-                  placeholder="Ex: João Silva" 
-                  value={publicLeaderName} 
-                  onChange={e => setPublicLeaderName(e.target.value)}
-                />
-              </div>
-              <div style={{ flex: 1, minWidth: 140 }}>
-                <label style={S.label}>Contato (WhatsApp)</label>
-                <input 
-                  style={S.input} 
-                  placeholder="Ex: (11) 99999-9999" 
-                  value={publicLeaderContact} 
-                  onChange={e => setPublicLeaderContact(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={{ border: `1px solid ${t.cardBorder}`, borderRadius: 12, padding: 12, background: t.card, marginTop: 8 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: t.text, marginBottom: 16 }}>➕ Adicionar Jogador ao Elenco</div>
-              
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <div style={{ flex: 2, minWidth: 150 }}>
-                    <label style={{ ...S.label, fontSize: 10 }}>Nome Completo</label>
-                    <input 
-                      style={{ ...S.input, padding: "7px 10px" }} 
-                      placeholder="Nome oficial" 
-                      value={playerForm.nome} 
-                      onChange={e => setPlayerForm(v => ({ ...v, nome: e.target.value }))}
-                    />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 100 }}>
-                    <label style={{ ...S.label, fontSize: 10 }}>Apelido</label>
-                    <input 
-                      style={{ ...S.input, padding: "7px 10px" }} 
-                      placeholder="Ex: Juninho" 
-                      value={playerForm.apelido} 
-                      onChange={e => setPlayerForm(v => ({ ...v, apelido: e.target.value }))}
-                    />
-                  </div>
-                  <div style={{ width: 60 }}>
-                    <label style={{ ...S.label, fontSize: 10 }}>Nº Camisa</label>
-                    <input 
-                      type="number" 
-                      style={{ ...S.input, padding: "7px 4px", textAlign: "center" }} 
-                      placeholder="—" 
-                      value={playerForm.numeroCamisa} 
-                      onChange={e => setPlayerForm(v => ({ ...v, numeroCamisa: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <div style={{ flex: 1, minWidth: 120 }}>
-                    <label style={{ ...S.label, fontSize: 10 }}>Data de Nascimento</label>
-                    <input 
-                      type="date" 
-                      style={{ ...S.input, padding: "5px 10px" }} 
-                      value={playerForm.dataNascimento} 
-                      onChange={e => setPlayerForm(v => ({ ...v, dataNascimento: e.target.value }))}
-                    />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 120 }}>
-                    <label style={{ ...S.label, fontSize: 10 }}>Documento (CPF/RG)</label>
-                    <input 
-                      style={{ ...S.input, padding: "7px 10px" }} 
-                      placeholder="Apenas números" 
-                      value={playerForm.documento} 
-                      onChange={e => setPlayerForm(v => ({ ...v, documento: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                {customFieldsDef.length > 0 && (
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", borderTop: `1px dashed ${t.cardBorder}`, paddingTop: 10 }}>
-                    {customFieldsDef.map(field => (
-                      <div key={field} style={{ flex: 1, minWidth: 120 }}>
-                        <label style={{ ...S.label, fontSize: 10 }}>{field}</label>
-                        <input 
-                          style={{ ...S.input, padding: "7px 10px" }} 
-                          placeholder={`Informe o ${field}`} 
-                          value={playerForm.customFields[field] || ""} 
-                          onChange={e => {
-                            const val = e.target.value;
-                            setPlayerForm(v => ({
-                              ...v,
-                              customFields: { ...v.customFields, [field]: val }
-                            }));
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <button 
-                  onClick={handleAddPlayerToPublicList} 
-                  style={{ ...S.btn("#1D9E7522", "#1D9E75"), justifyContent: "center", padding: "8px 12px", fontSize: 12 }}
-                >
-                  ➕ Adicionar Jogador à Lista
-                </button>
-              </div>
-            </div>
-
-            <div style={{ marginTop: 10 }}>
-              <div style={{ fontWeight: 800, fontSize: 12, color: t.textSec, marginBottom: 16 }}>Jogadores Adicionados ({publicPlayersList.length}):</div>
-              {publicPlayersList.length === 0 ? (
-                <div style={{ fontSize: 11, color: t.textSec, fontStyle: "italic", textAlign: "center", padding: "24px", border: `1px dashed ${t.cardBorder}`, borderRadius: 8 }}>
-                  Nenhum jogador na lista. Adicione-os no card acima.
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 150, overflowY: "auto" }}>
-                  {publicPlayersList.map((p, idx) => (
-                    <div key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: t.card, border: `1px solid ${t.cardBorder}`, borderRadius: 8, padding: "6px 10px", fontSize: 12 }}>
-                      <span style={{ color: t.text }}>
-                        <strong>{p.numeroCamisa ? `#${p.numeroCamisa} ` : ""}</strong>
-                        {p.nome} {p.apelido ? `(${p.apelido})` : ""}
-                      </span>
-                      <button 
-                        onClick={() => handleRemovePlayerFromPublicList(idx)} 
-                        style={{ background: "none", border: "none", color: "#E24B4A", fontWeight: 800, cursor: "pointer" }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <button 
-              onClick={handleSendOnlineReg} 
-              disabled={submittingReg}
-              style={{ ...S.btn("#22b7d9"), justifyContent: "center", padding: "12px", width: "100%", fontSize: 13, marginTop: 10 }}
-            >
-              {submittingReg ? "Enviando Inscrição..." : "🚀 Enviar Solicitação de Inscrição"}
-            </button>
-          </div>
-        </div>
-
-        {publicLeaderContact && mySubmissions.length > 0 && (
-          <div style={S.card}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: t.text, marginBottom: 16 }}>📋 Minhas Solicitações</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {mySubmissions.map((sub, idx) => (
-                <div key={idx} style={{ border: `1px solid ${t.cardBorder}`, borderRadius: 10, padding: 10, background: t.inputBg }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{sub.teamName}</span>
-                    <span style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      color: sub.status === "aceito" ? "#1D9E75" : sub.status === "devolvido" ? "#BA7517" : sub.status === "rejeitado" ? "#E24B4A" : t.textSec,
-                      background: sub.status === "aceito" ? "#1D9E7518" : sub.status === "devolvido" ? "#BA751718" : sub.status === "rejeitado" ? "#E24B4A18" : `${t.cardBorder}55`,
-                      padding: "2px 6px",
-                      borderRadius: 6
-                    }}>
-                      {sub.status === "aceito" ? "Aceito" : sub.status === "devolvido" ? "Devolvido" : sub.status === "rejeitado" ? "Rejeitado" : "Pendente"}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 11, color: t.textSec }}>
-                    Responsável: {sub.leaderName} · {sub.players.length} jogadores
-                  </div>
-                  {sub.feedback && (
-                    <div style={{ marginTop: 8, padding: 8, background: "#BA751712", borderLeft: "3.5px solid #BA7517", borderRadius: 4, fontSize: 11, color: t.text }}>
-                      <strong>Motivo de Retorno:</strong> {sub.feedback}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const colorOf = useCallback((n,teams)=>COLORS[(teams||[]).indexOf(n)%COLORS.length],[]);
-  const getPlayerNameById = id => {
-    const a = (c.atletas || []).find(x => String(x.id) === String(id));
-    if (!a) return `Atleta Desconhecido (#${id})`;
-    return a.apelido || a.nome || a.name || `Atleta Sem Nome (#${id})`;
-  };
-
-  const allEvents = [];
-  if(c.rounds) c.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>allEvents.push(e))));
-  if(c.groups) c.groups.forEach(g=>g.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>allEvents.push(e)))));
-  if(c.knockout) c.knockout.forEach(p=>p.matches.forEach(m=>m.events?.forEach(e=>allEvents.push(e))));
-
-  const stats = {};
-  allEvents.forEach(e => {
-    const key = String(e.atletaId || e.atleta);
-    if(!stats[key]) stats[key] = { atletaId:key, gols:0, am:0, vm:0, teamName:e.teamName };
-    if(e.type==="gol") stats[key].gols++;
-    if(e.type==="amarelo") stats[key].am++;
-    if(e.type==="vermelho") stats[key].vm++;
-  });
-
-  const statsArr = Object.values(stats).map(s => ({
-    ...s,
-    name: getPlayerNameById(s.atletaId)
-  }));
-
-  const topGols = [...statsArr].filter(x=>x.gols>0).sort((a,b)=>b.gols-a.gols);
-  const topAm = [...statsArr].filter(x=>x.am>0).sort((a,b)=>b.am-a.am);
-  const topVm = [...statsArr].filter(x=>x.vm>0).sort((a,b)=>b.vm-a.vm);
-
-  const formatarDataLocal = (dStr) => {
-    if(!dStr) return "";
-    try {
-      const d = new Date(dStr);
-      return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", {hour: '2-digit', minute:'2-digit'});
-    } catch(e) { return dStr; }
-  };
-
-  const renderMatch = (m) => {
-    const matchEvents = m.events || [];
-    const leftEvents = matchEvents.filter(e=>e.teamName===m.home);
-    const rightEvents = matchEvents.filter(e=>e.teamName===m.away);
-    const renderSide = (events, sideName) => {
-      const goalsSide = events.filter(e=>e.type==="gol");
-      const yellowSide = events.filter(e=>e.type==="amarelo");
-      const redSide = events.filter(e=>e.type==="vermelho");
-      return (
-        <div style={{display:"flex",flexDirection:"column",gap:6,padding:10,border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.inputBg}}>
-          <div style={{fontSize:12,fontWeight:700,color:t.text}}>{sideName}</div>
-          {goalsSide.length>0 ? goalsSide.map((e,i)=><div key={`g-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><IconSoccer size={12} /></span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum gol</div>}
-          {yellowSide.length>0 ? yellowSide.map((e,i)=><div key={`y-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#BA7517",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum amarelo</div>}
-          {redSide.length>0 ? redSide.map((e,i)=><div key={`r-${i}`} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#E24B4A",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId || e.atleta)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum vermelho</div>}
-        </div>
-      );
-    };
-    return (
-      <div key={`${m.home}-${m.away}-${m.date||Math.random()}`} style={{padding:12,border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,display:"flex",flexDirection:"column",gap:10}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0,justifyContent:"flex-start"}}><Avatar name={m.home} size={36} color={colorOf(m.home,c.teams)} src={c.emblems?.[m.home]}/><span style={{fontWeight:800,fontSize:15,color:t.text}}>{m.home}</span></div>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minWidth:100,flexShrink:0}}><div style={{fontSize:20,fontWeight:900,color:t.text}}>{m.played?`${m.homeScore}×${m.awayScore}`:"—×—"}</div><div style={{fontSize:11,color:t.textSec,marginTop:4}}>{m.date?m.date.split("-").reverse().join("/"):"Data não informada"}</div></div>
-          <div style={{display:"flex",alignItems:"center",gap:10,flex:1,minWidth:0,justifyContent:"flex-end"}}><span style={{fontWeight:800,fontSize:15,color:t.text}}>{m.away}</span><Avatar name={m.away} size={36} color={colorOf(m.away,c.teams)} src={c.emblems?.[m.away]}/></div>
-        </div>
-        {matchEvents.length ? (
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            {renderSide(leftEvents, m.home)}
-            {renderSide(rightEvents, m.away)}
-          </div>
-        ) : null}
-      </div>
-    );
-  };
-
-  const tabs = [
-    ...(c.type==="pontos" ? ["tabela","jogos","artilharia"] : c.type==="mata" ? ["chave","jogos","artilharia"] : ["tabela","chave","jogos","artilharia"]),
-    "mural",
-    "galeria"
-  ];
-  if (c.allowOnlineReg) {
-    tabs.push("inscrição");
-  }
-
-  return (
-    <div style={S.page}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:12}}>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <button onClick={onBack} style={{...S.btnSm(t.card,t.text),border:`1px solid ${t.cardBorder}`,padding:"8px 12px"}}>← Sair</button>
-          <div>
-            <h2 style={{fontSize:20,fontWeight:800,color:t.text,margin:0}}>{c.name}</h2>
-            <div style={{fontSize:11,color:t.textSec,marginTop:2}}>
-              Nuvem · Atualizado em: {formatarDataLocal(c.lastPublished)}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{display:"flex",gap:0,marginBottom:20,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto"}}>
-        {tabs.map(tb=><button key={tb} onClick={()=>setTab(tb)} style={S.tab(tab===tb)}>{tb.charAt(0).toUpperCase()+tb.slice(1)}</button>)}
-      </div>
-
-      {tab==="tabela"&&c.type==="pontos"&&(
-         <StandingsTable standings={c.standings || []} teams={c.teams || []} colorOf={colorOf} t={t} emblems={c.emblems}/>
-      )}
-            {tab==="tabela"&&(c.type==="misto"||c.type==="liga")&&(
-         <div>
-           {(c.groups || []).map((g,gi)=><div key={gi} style={{marginBottom:20}}><h3 style={{fontSize:14,fontWeight:700,marginBottom:16,color:t.text}}>{g.name}</h3><StandingsTable standings={g.standings || []} teams={c.teams || []} colorOf={colorOf} t={t} emblems={c.emblems}/></div>)}
-         </div>
-      )}
-
-      {tab==="chave"&&c.knockout&&(
-        <div style={{overflowX:"auto"}}>
-          <div style={{display:"flex",gap:14,minWidth:"fit-content",paddingBottom:8}}>
-            {(c.knockout || []).map((phase,pi)=>(
-              <div key={pi} style={{minWidth:200}}>
-                <div style={{fontSize:11,fontWeight:700,color:t.textSec,textAlign:"center",textTransform:"uppercase",letterSpacing:1,marginBottom:16}}>{phase.name}</div>
-                <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                  {(phase.matches || []).map((m,mi)=>(
-                    <div key={mi} style={{border:`1px solid ${t.cardBorder}`,borderRadius:12,overflow:"hidden",background:t.card}}>
-                      {[{tm:m.home,s:m.homeScore,w:m.winner===m.home},{tm:m.away,s:m.awayScore,w:m.winner===m.away}].map((side,si)=>(
-                        <div key={si} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",borderBottom:si===0?`1px solid ${t.cardBorder}`:"none",background:side.w?"#1D9E7514":"transparent"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={side.tm||"?"} color={colorOf(side.tm,c.teams)} size={26} src={c.emblems?.[side.tm]}/><span style={{fontSize:13,fontWeight:700,color:t.text}}>{side.tm||"—"}</span></div>
-                          <span style={{fontWeight:800,color:side.w?"#1D9E75":t.text,fontSize:14}}>{m.played?side.s:"—"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {tab==="jogos"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:16}}>
-          {c.rounds ? (c.rounds || []).map((r,ri)=>(
-            <Sec key={ri} title={r.name} t={t}>
-              <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                {(r.matches || []).map(renderMatch)}
-              </div>
-            </Sec>
-          )) : c.groups ? (c.groups || []).map((g,gi)=>(
-            <Sec key={gi} title={g.name} t={t}>
-              {(g.rounds || []).map((r,ri)=>(
-                <div key={ri} style={{marginBottom:16}}>
-                  <div style={{fontSize:12,fontWeight:700,color:t.textSec,marginBottom:16}}>{r.name}</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                    {(r.matches || []).map(renderMatch)}
-                  </div>
-                </div>
-              ))}
-            </Sec>
-          )) : null}
-        </div>
-      )}
-
-      {tab==="artilharia"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:18}}>
-          <Sec title="Artilharia (Gols)" t={t}>
-            {topGols.length===0 ? <div style={{fontSize:12,color:t.textSec}}>Nenhum gol marcado</div> : (
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {topGols.map((s,i)=>(
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,fontSize:13}}>
-                    <span style={{color:t.text}}>{i+1}. <strong>{s.name}</strong> ({s.teamName})</span>
-                    <strong style={{color:"#1D9E75"}}>{s.gols} gols</strong>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Sec>
-
-          <Sec title="🟨 Cartões Amarelos" t={t}>
-            {topAm.length===0 ? <div style={{fontSize:12,color:t.textSec}}>Nenhum cartão amarelo</div> : (
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {topAm.map((s,i)=>(
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,fontSize:13}}>
-                    <span style={{color:t.text}}>{i+1}. <strong>{s.name}</strong> ({s.teamName})</span>
-                    <strong style={{color:"#BA7517"}}>{s.am} amarelo(s)</strong>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Sec>
-
-          <Sec title="🟥 Cartões Vermelhos" t={t}>
-            {topVm.length===0 ? <div style={{fontSize:12,color:t.textSec}}>Nenhum cartão vermelho</div> : (
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {topVm.map((s,i)=>(
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,fontSize:13}}>
-                    <span style={{color:t.text}}>{i+1}. <strong>{s.name}</strong> ({s.teamName})</span>
-                    <strong style={{color:"#E24B4A"}}>{s.vm} vermelho(s)</strong>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Sec>
-        </div>
-      )}
-      {tab==="mural"&&renderMuralPublic()}
-      {tab==="galeria"&&renderGaleriaPublic()}
-      {tab==="inscrição"&&c.allowOnlineReg&&renderInscricaoPublic()}
-
-      {/* Modal de Lightbox para exibição premium */}
-      {lightboxPost && (
-        <MuralLightboxModal 
-          post={lightboxPost} 
-          onClose={() => setLightboxPost(null)} 
-          t={t} 
-          isAdmin={false} 
-        />
-      )}
-    </div>
-  );
-}
-
-/* ──────────────────────── VISUALIZAÇÃO PELADA PÚBLICA ──────────────── */
-// Converte um valor de timestamp (pode ser ms Unix, Firestore Timestamp ou null) para ms Unix seguro
-function toSafeTimestampMs(val) {
-  if (val === null || val === undefined) return null;
-  if (typeof val === "number" && isFinite(val) && val > 0) return val;
-  // Firestore Timestamp: { seconds: number, nanoseconds: number }
-  if (typeof val === "object" && typeof val.seconds === "number") {
-    return val.seconds * 1000 + Math.floor((val.nanoseconds || 0) / 1e6);
-  }
-  const n = Number(val);
-  return isFinite(n) && n > 0 ? n : null;
-}
-
-// Cronômetro independente do público.
-// Não depende de serverTimestamp — apenas reage ao sinal timerRunning e à duração timerSecondsAtStart.
-// Quando timerRunning muda para true: inicia contagem local a partir de timerSecondsAtStart.
-// Quando timerRunning muda para false: para e mantém o valor exibido.
-function IndependentPublicTimer({ timerRunning, timerSecondsAtStart, t }) {
-  const safeRunning = Boolean(timerRunning);
-  const safeSecs = (timerSecondsAtStart !== undefined && timerSecondsAtStart !== null && Number(timerSecondsAtStart) > 0)
-    ? Number(timerSecondsAtStart)
-    : 600;
-
-  // display começa com a duração configurada pelo gestor
-  const [displaySeconds, setDisplaySeconds] = useState(safeSecs);
-  // Ref para preservar o valor exibido quando timer para (sem flash para 0)
-  const pausedAtRef = useRef(safeSecs);
-
-  useEffect(() => {
-    // --- Timer parado pelo gestor ---
-    if (!safeRunning) {
-      // Firebase envia timerSecondsAtStart como o offset (tempo restante) ao pausar
-      // Exibimos exatamente esse valor
-      if (safeSecs > 0) {
-        setDisplaySeconds(safeSecs);
-        pausedAtRef.current = safeSecs;
-      }
-      return;
-    }
-
-    // --- Timer iniciado pelo gestor ---
-    // Partimos do timerSecondsAtStart (duração definida pelo gestor) e rodamos localmente.
-    // Não dependemos de serverTimestamp — sem risco de flash para 0:00.
-    let current = safeSecs;
-    setDisplaySeconds(current);
-    pausedAtRef.current = current;
-
-    const interval = setInterval(() => {
-      current -= 1;
-      if (current <= 0) {
-        current = 0;
-        clearInterval(interval);
-      }
-      setDisplaySeconds(current);
-      pausedAtRef.current = current;
-    }, 1000);
-
-    return () => clearInterval(interval);
-  // Reinicia APENAS quando timerRunning muda (sinal do gestor) ou quando a duração muda
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [safeRunning, safeSecs]);
-
-  const formatTimer = (s) => {
-    const min = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${min}:${sec < 10 ? "0" : ""}${sec}`;
-  };
-
-  return (
-    <div style={{
-      fontSize: 24,
-      fontWeight: 900,
-      color: safeRunning ? "#1D9E75" : t.text,
-      textAlign: "center",
-      fontVariantNumeric: "tabular-nums",
-      margin: "4px 0"
-    }}>
-      {formatTimer(displaySeconds)}
-    </div>
-  );
-}
-
 function CloudPublicPeladaScreen({ peladaData, onRefresh, onBack, t }) {
   const S = makeStyles(t);
   const { pelada: initialPelada, selDataId } = peladaData;
@@ -6357,8 +5057,8 @@ function FinancialPanel({finance,onChange,autoIncome=0,filtro="geral",filtroData
   const[editId,setEditId]=useState(null);
 
   const allEntries=finance?.entries||[];
-  const isChamp = String(filtro).startsWith("champ:");
-  const champId = isChamp ? filtro.split(":")[1] : null;
+  const isChamp = false;
+  const champId = null;
   const CATS=["Coletes","Água","Bola","Aluguel do campo","Arbitragem","Material esportivo","Premiação","Alimentação","Transporte","Taxa de inscrição","Outros"];
 
   function save(){
@@ -6427,14 +5127,10 @@ function FinancialPanel({finance,onChange,autoIncome=0,filtro="geral",filtroData
   );
 }
 
-function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeonatos,datasRealizacao,setScreen,DarkBtn,FontScaleBtn,t,atletas,auth}){
+function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,datasRealizacao,setScreen,DarkBtn,FontScaleBtn,t,atletas,auth}){
   const S=makeStyles(t);
   const getFiltroInicial = () => {
     if (!auth || auth.role === "adm" || auth.scope === "geral") return "geral";
-    if (auth.scope === "campeonato") {
-      const primeiroChamp = campeonatos[0];
-      return primeiroChamp ? `champ:${primeiroChamp.id}` : "geral";
-    }
     if (auth.scope === "pelada") {
       const primeiraPelada = peladas[0];
       return primeiraPelada ? `pelada:${primeiraPelada.id}` : "geral";
@@ -6450,7 +5146,7 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
   // helper to parse filtro values: 'geral' | 'pelada:<id>' | 'champ:<id>'
   const isGeral = filtro === "geral";
   const isPelada = String(filtro).startsWith("pelada:");
-  const isChamp = String(filtro).startsWith("champ:");
+  const isChamp = false;
   const filtroId = isPelada || isChamp ? filtro.split(":")[1] : null;
 
   const datasPelada = isPelada ? datasRealizacao.filter(d=>String(d.pelada_id)===String(filtroId)) : [];
@@ -6648,7 +5344,7 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
           <label style={{...S.label,marginRight:10}}>Visualizando Evento:</label>
           <select style={{...S.select,display:"inline-block"}} value={filtro} onChange={e=>setFiltro(e.target.value)}>
             {(!auth || auth.role === "adm" || auth.scope === "geral") && <option value="geral">Visão Geral (Todas as Peladas e Caixa Livre)</option>}
-            {(!auth || auth.role === "adm" || auth.scope === "geral" || auth.scope === "campeonato") && campeonatos.map(c=> <option key={`champ:${c.id}`} value={`champ:${c.id}`}>{c.name}</option>)}
+            
             {(!auth || auth.role === "adm" || auth.scope === "geral" || auth.scope === "pelada") && peladas.map(p=> <option key={`pelada:${p.id}`} value={`pelada:${p.id}`}>{p.nome}</option>)}
           </select>
         </div>
@@ -6685,50 +5381,15 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
 
       {/* Cabeçalho de Impressão */}
       <div className="print-title" style={{display:"none", borderBottom:"2px solid #1D9E75", paddingBottom:12, marginBottom:20}}>
-        <h1 style={{fontSize:22, fontWeight:800, margin:0, color:t.text}}>📊 Relatório Financeiro Thorneios</h1>
+        <h1 style={{fontSize:22, fontWeight:800, margin:0, color:t.text}}>📊 Relatório Financeiro Minhas Peladas</h1>
         <p style={{fontSize:14, margin:"6px 0 0 0", color:t.textSec}}>
-          <b>Evento:</b> {isGeral ? "Visão Geral (Todas as Peladas e Caixa Geral)" : (isChamp ? (campeonatos.find(c=>String(c.id)===String(filtroId))?.name || "Campeonato") : (peladas.find(p=>String(p.id)===String(filtroId))?.nome || "Pelada"))}
-          {filtroData !== "todas" && isPelada && ` | <b>Data:</b> ${fmtDate(datasPelada.find(d=>String(d.id)===String(filtroData))?.data)}`}
+          <b>Evento:</b> {isGeral ? "Visão Geral (Todas as Peladas e Caixa Geral)" : (peladas.find(p=>String(p.id)===String(filtroId))?.nome || "Pelada")}
         </p>
       </div>
 
       <div style={{...S.card,marginBottom:16,borderColor:"#1D9E7555",background:"#1D9E7508"}}>
         
-        {isChamp ? (
-          (()=> {
-            const ch = campeonatos.find(c=>String(c.id)===String(filtroId));
-            const fee = Number(ch?.fee||0);
-            const totalAtletas = Object.values(ch?.rosters || {}).flat().length;
-            const paidRegs = (ch?.registrations || []).filter(r => r.paid).length;
-            const totalPago = paidRegs * fee;
-            const totalPrevisto = totalAtletas * fee;
-            return (
-              <>
-                <div style={{fontWeight:700,color:"#BA7517",marginBottom:16}}>Inscrições (Campeonato)</div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                  <span style={{fontSize:13,color:t.textSec}}>Taxa por atleta</span>
-                  <span style={{fontSize:15,fontWeight:700,color:"#BA7517"}}>{fmtCur(fee)}</span>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                  <span style={{fontSize:13,color:t.textSec}}>Atletas nos elencos</span>
-                  <span style={{fontSize:15,fontWeight:700,color:t.text}}>{totalAtletas}</span>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                  <span style={{fontSize:13,color:t.textSec}}>Inscrições pagas</span>
-                  <span style={{fontSize:15,fontWeight:700,color:"#1D9E75"}}>{paidRegs}</span>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-                  <span style={{fontSize:13,color:t.textSec}}>Total arrecadado</span>
-                  <span style={{fontSize:15,fontWeight:700,color:"#1D9E75"}}>{fmtCur(totalPago)}</span>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px dashed #1D9E7555",paddingTop:8}}>
-                  <span style={{fontSize:14,color:t.text,fontWeight:600}}>Total previsto (Elencos)</span>
-                  <span style={{fontSize:18,fontWeight:800,color:"#BA7517"}}>{fmtCur(totalPrevisto)}</span>
-                </div>
-              </>
-            );
-          })()
-        ) : (
+        {
         <>
         <div style={{fontWeight:700,color:"#1D9E75",marginBottom:16}}>Receitas Automáticas (Peladas)</div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
@@ -6757,7 +5418,7 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
           </>
         )}
         </>
-      )}
+      }
       </div>
       {isPelada&&(
         <div style={{...S.card,marginBottom:16,borderColor:"#BA751755"}}>
@@ -6865,8 +5526,7 @@ function FinanceiroScreen({financeiro,setFinanceiro,participacoes,peladas,campeo
 /* ─────────────────────────── CRUD ATLETAS ───────────────────────── */
 function CRUDAtletas({
   atletas, onAdd, onUpdate, onRemove, onExport, onImport, onDownloadTemplate,
-  atletasCampeonato, onAddCamp, onUpdateCamp, onRemoveCamp, onExportCamp, onImportCamp, onDownloadTemplateCamp,
-  campeonatos, peladas, t
+  peladas, t
 }){
   const S=makeStyles(t);
   const [modal, setModal] = useState(false);
@@ -6963,7 +5623,7 @@ function CRUDAtletas({
     if(!form.nome.trim())return;
     // O cadastro de atletas depende de ter ao menos um vínculo (ou de ter Ligas/Peladas criadas no sistema)
     if (form.vinculos.length === 0) {
-      alert("Por favor, selecione ao menos uma Liga ou Pelada para vincular o atleta!");
+      alert("Por favor, selecione ao menos uma Pelada para vincular o atleta!");
       return;
     }
     if(editId) handleUpdate(editId, form);
@@ -6993,11 +5653,7 @@ function CRUDAtletas({
           onChange={e=>{ setFiltroVinculo(e.target.value); setFiltro(""); }}
         >
           <option value="todos">Todos os Atletas (Sem Filtro)</option>
-          {campeonatos && campeonatos.length > 0 && (
-            <optgroup label="Ligas / Campeonatos">
-              {campeonatos.map(c => <option key={c.id} value={"campeonato_" + c.id}>{c.name}</option>)}
-            </optgroup>
-          )}
+          
           {peladas && peladas.length > 0 && (
             <optgroup label="Peladas">
               {peladas.map(p => <option key={p.id} value={"pelada_" + p.id}>{p.nome}</option>)}
@@ -7059,16 +5715,7 @@ function CRUDAtletas({
                 {Array.isArray(a.vinculos) && a.vinculos.length > 0 && (
                   <div style={{display:"flex", flexWrap:"wrap", gap:4, marginTop:4, marginBottom:6}}>
                     {a.vinculos.map(vId => {
-                      if (vId.startsWith("campeonato_")) {
-                        const id = Number(vId.replace("campeonato_", ""));
-                        const c = campeonatos.find(x => x.id === id);
-                        if (!c) return null;
-                        return (
-                          <span key={vId} style={{display: "inline-flex", alignItems: "center", gap: 4, fontSize:9, fontWeight:700, color:t.accent, background:`${t.accent}12`, padding:"2px 6px", borderRadius:4, border: `1px solid ${t.accent}22`}}>
-                            <IconTrophy size={10} /> {c.name}
-                          </span>
-                        );
-                      } else if (vId.startsWith("pelada_")) {
+                       if (vId.startsWith("pelada_")) {
                         const id = Number(vId.replace("pelada_", ""));
                         const p = peladas.find(x => x.id === id);
                         if (!p) return null;
@@ -7085,7 +5732,7 @@ function CRUDAtletas({
 
                 <div style={{fontSize:11,color:t.textSec,marginTop:4,display:"flex",flexDirection:"column",gap:2}}>
                   <div style={{color:SKILL_COLORS[a.habilidade-1],fontWeight:700}}>
-                    {"⭐".repeat(a.habilidade)} · {SKILL_NAMES[a.habilidade-1]}
+                    {Array.from({length: 5}, (_, i) => i < a.habilidade ? <IconStarFilled key={i} size={11} color={SKILL_COLORS[a.habilidade-1]} style={{marginRight:1}} /> : <IconStar key={i} size={11} color={t.textSec} style={{marginRight:1}} />)} · {SKILL_NAMES[a.habilidade-1]}
                     {a.dataNascimento && ` · <IconCalendar size={11} style={{marginRight: 4, display: "inline-block", verticalAlign: "middle"}} /> Nasc: ${a.dataNascimento.split("-").reverse().join("/")}`}
                     {a.documento && ` · 🪪 RG/CPF: ${a.documento}`}
                   </div>
@@ -7163,7 +5810,7 @@ function CRUDAtletas({
 
               <div>
                 <label style={S.label}>Habilidade (Nível técnico)</label>
-                <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setForm(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${form.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:form.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:form.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:form.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
+                <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setForm(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${form.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:form.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:form.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:form.habilidade===s?700:400}}>{Array.from({length: 5}, (_, i) => i < s ? <IconStarFilled key={i} size={10} color={form.habilidade===s?SKILL_COLORS[s-1]:t.textSec} style={{marginRight: 1}} /> : <IconStar key={i} size={10} color={t.textSec} style={{marginRight: 1}} />)}</button>)}</div>
               </div>
 
               {/* Vínculo de Ligas e Peladas */}
@@ -7180,33 +5827,6 @@ function CRUDAtletas({
                   flexDirection: "column",
                   gap: 8
                 }}>
-                  {campeonatos && campeonatos.length > 0 && (
-                    <div>
-                      <div style={{fontSize: 10, fontWeight: 700, color: t.accent, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4}}>Ligas / Campeonatos</div>
-                      {campeonatos.map(c => {
-                        const vinculoId = "campeonato_" + c.id;
-                        const checked = (form.vinculos || []).includes(vinculoId);
-                        return (
-                          <label key={c.id} style={{display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", color: t.text, padding: "2px 0"}}>
-                            <input 
-                              type="checkbox" 
-                              checked={checked} 
-                              onChange={() => {
-                                setForm(v => {
-                                  const cur = Array.isArray(v.vinculos) ? v.vinculos : [];
-                                  return {
-                                    ...v,
-                                    vinculos: checked ? cur.filter(x => x !== vinculoId) : [...cur, vinculoId]
-                                  };
-                                });
-                              }}
-                            />
-                            {c.name}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
                   {peladas && peladas.length > 0 && (
                     <div style={{marginTop: 6}}>
                       <div style={{fontSize: 10, fontWeight: 700, color: "#22b7d9", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4}}>Peladas</div>
@@ -7234,13 +5854,13 @@ function CRUDAtletas({
                       })}
                     </div>
                   )}
-                  {(!campeonatos || campeonatos.length === 0) && (!peladas || peladas.length === 0) && (
+                  {(!peladas || peladas.length === 0) && (
                     <div style={{fontSize: 12, color: t.textSec, fontStyle: "italic"}}>
                       Nenhuma Liga ou Pelada criada no sistema. Crie ao menos uma antes de cadastrar atletas.
                     </div>
                   )}
                 </div>
-                {(!campeonatos || campeonatos.length === 0) && (!peladas || peladas.length === 0) && (
+                {(!peladas || peladas.length === 0) && (
                   <div style={{fontSize:11, color:"#E24B4A", marginTop:4}}>
                     ⚠️ Impossível salvar: cadastre uma Liga ou Pelada primeiro.
                   </div>
@@ -7388,7 +6008,7 @@ function CRUDAtletas({
               <button 
                 onClick={salvar} 
                 style={S.btn("#1D9E75")}
-                disabled={(!campeonatos || campeonatos.length === 0) && (!peladas || peladas.length === 0)}
+                disabled={(!peladas || peladas.length === 0)}
               >
                 Salvar
               </button>
@@ -8133,7 +6753,7 @@ function AbaAtletasPelada({
               </div>
               <div>
                 <label style={S.label}>Habilidade</label>
-                <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setFormAtleta(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${formAtleta.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:formAtleta.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:formAtleta.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:formAtleta.habilidade===s?700:400}}>{"⭐".repeat(s)}</button>)}</div>
+                <div style={{display:"flex",gap:6}}>{[1,2,3,4,5].map(s=><button key={s} onClick={()=>setFormAtleta(v=>({...v,habilidade:s}))} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${formAtleta.habilidade===s?SKILL_COLORS[s-1]:t.inputBorder}`,background:formAtleta.habilidade===s?SKILL_COLORS[s-1]+"22":t.inputBg,cursor:"pointer",fontSize:12,color:formAtleta.habilidade===s?SKILL_COLORS[s-1]:t.textSec,fontWeight:formAtleta.habilidade===s?700:400}}>{Array.from({length: 5}, (_, i) => i < s ? <IconStarFilled key={i} size={10} color={form.habilidade===s?SKILL_COLORS[s-1]:t.textSec} style={{marginRight: 1}} /> : <IconStar key={i} size={10} color={t.textSec} style={{marginRight: 1}} />)}</button>)}</div>
               </div>
               <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
                 <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={formAtleta.goleiro} onChange={e=>setFormAtleta(v=>({...v,goleiro:e.target.checked}))}/>🧤 Goleiro</label>
@@ -8547,7 +7167,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const currentAba = aba || localAba;
   const currentSetAba = setAba || setLocalAba;
   const isDonoOuAdmin = auth.role === "adm" || (auth.role === "manager" && pelada.manager_id === auth.manager_id);
-  const ABAS=["datas","atletas","participações","jogos","placar","ranking"];
+  const ABAS=["datas","atletas","participações","configuracoes","jogos","placar","ranking"];
   if (isDonoOuAdmin) {
     ABAS.push("colaboradores");
   }
@@ -8870,6 +7490,60 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const [sobrasModalData, setSobrasModalData] = useState(null);
   const[repSortBy,setRepSortBy]=useState("pts");
   const[sumulaGols,setSumulaGols]=useState({});
+  const[sumulaAssists,setSumulaAssists]=useState({});
+  const [modalGol, setModalGol] = useState(null);
+  const [autorGolId, setAutorGolId] = useState("");
+  const [autorAssistenciaId, setAutorAssistenciaId] = useState("");
+
+  function getJogadoresEmCampo(teamLetter) {
+    const match = peladaState?.currentMatch;
+    if (!match) return [];
+    const teamName = teamLetter === 'A' ? match.teamA : match.teamB;
+    const players = peladaState.teams?.find(tm => tm.name === teamName)?.players || [];
+    const atrasadosIds = (match.jogadoresAtrasados || []).map(String);
+    return players.filter(p => !atrasadosIds.includes(String(p.id || p.atleta_id || p.idAtleta)));
+  }
+
+  function confirmarGolAssist() {
+    if (!autorGolId) return;
+    const currentGols = parseInt(sumulaGols[autorGolId]) || 0;
+    const newGols = { ...sumulaGols, [autorGolId]: currentGols + 1 };
+    setSumulaGols(newGols);
+
+    if (autorAssistenciaId) {
+      const currentAssists = parseInt(sumulaAssists[autorAssistenciaId]) || 0;
+      const newAssists = { ...sumulaAssists, [autorAssistenciaId]: currentAssists + 1 };
+      setSumulaAssists(newAssists);
+    }
+
+    if (modalGol === 'A') {
+      const newScore = (parseInt(scoreA) || 0) + 1;
+      setScoreA(String(newScore));
+      updateScoreAndPersist(String(newScore), 'A');
+    } else {
+      const newScore = (parseInt(scoreB) || 0) + 1;
+      setScoreB(String(newScore));
+      updateScoreAndPersist(String(newScore), 'B');
+    }
+
+    const ps = {
+      ...peladaState,
+      currentMatch: {
+        ...peladaState.currentMatch,
+        sumula: newGols,
+        assistencias: autorAssistenciaId 
+          ? { ...(peladaState.currentMatch.assistencias || {}), [autorAssistenciaId]: (parseInt(peladaState.currentMatch.assistencias?.[autorAssistenciaId]) || 0) + 1 }
+          : (peladaState.currentMatch.assistencias || {})
+      }
+    };
+    setPeladaStateLocal(ps);
+    saveDateState({ peladaState: ps });
+
+    setModalGol(null);
+    setAutorGolId("");
+    setAutorAssistenciaId("");
+  }
+
   const[editMatchId,setEditMatchId]=useState(null);
   const[editScoreA,setEditScoreA]=useState("");
   const[editScoreB,setEditScoreB]=useState("");
@@ -8975,10 +7649,13 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       setScoreA(match.scoreA !== undefined && match.scoreA !== null && match.scoreA !== "" ? String(match.scoreA) : "0");
       setScoreB(match.scoreB !== undefined && match.scoreB !== null && match.scoreB !== "" ? String(match.scoreB) : "0");
       setSumulaGols(match.sumula || {});
+      setSumulaAssists(match.assistencias || {});
     } else {
       setScoreA("0");
       setScoreB("0");
       setSumulaGols({});
+      setSumulaAssists({});
+      setSumulaAssists({});
     }
   }, [peladaState?.currentMatch?.id, selDataSorteio]);
   
@@ -9973,6 +8650,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           scoreB: finalScoreB,
           played:true,
           sumula:sumulaGols,
+          assistencias:sumulaAssists,
           empateVencedorManual: empateVencedorManual,
           tempoJogadoSecs
         }
@@ -10535,7 +9213,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
             }} 
             style={S.tab(currentAba===tb)}
           >
-            {tb === "placar" ? "Classificação" : tb.charAt(0).toUpperCase()+tb.slice(1)}
+            {tb === "placar" ? "Classificao" : tb === "configuracoes" ? "Configurações" : tb === "participaes" ? "Participações" : tb.charAt(0).toUpperCase()+tb.slice(1)}
           </button>
         ))}
       </div>
@@ -10577,17 +9255,21 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
           scope="pelada"
         />
       )}
-      {currentAba==="jogos"&&((() => {
+      
+      {currentAba==="configuracoes"&&((() => {
         try {
           if (String(selDataSorteio) === "todas") {
             return (
               <div style={{textAlign:"center",padding:40,color:t.textSec,background:t.card,borderRadius:8,border:`1px solid ${t.tabBorder}`}}>
-                Selecione uma data específica no seletor global "DIA DA PELADA" para gerenciar e registrar as partidas.
+                Selecione uma data específica no seletor global "DIA DA PELADA" para gerenciar as configurações.
               </div>
             );
           }
           return (
             <div>
+              <div style={{display:"flex", flexDirection:"column", gap: 20}}>
+                {/* ACOMPANHAMENTO DOS ATLETAS */}
+            {<>
             {/* Compartilhar Acompanhamento Público */}
             <div style={{...S.card, marginBottom: 16, padding: "14px 18px", background: t.card, border: `1px solid ${t.cardBorder}`, borderRadius: 12}}>
               <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12}}>
@@ -10626,6 +9308,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               </div>
             </div>
 
+            </>}
+                {/* CONFIGURAÇÕES DA RODADA */}
+            {<>
             {/* Seletor de Modo de Rodízio e Ajustes de Regra Unificado */}
             <div style={{...S.card, marginBottom: 16, padding: "14px 18px", background: t.card, border: `1px solid ${t.cardBorder}`, borderRadius: 12}}>
               <div 
@@ -10914,6 +9599,8 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
               </div>
             )}
 
+            </>}
+                {/* PAINEL DE SORTEIO */}
             {(!isRealizada || !drawnTeams) && (
               <div style={{
                 ...S.card, 
@@ -11105,38 +9792,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 )}
               </div>
             )}
-
-              <div>
-                {/* BOTÃO DESFAZER ÚLTIMA AÇÃO */}
-                {historicoEstados.length > 0 && !isRealizada && (
-                  <div style={{display: "flex", justifyContent: "flex-end", marginBottom: 16}}>
-                    <button
-                      onClick={() => {
-                        const estadoAnterior = historicoEstados[historicoEstados.length - 1];
-                        setHistoricoEstados(prev => prev.slice(0, -1));
-                        setPeladaStateLocalReal(estadoAnterior);
-                        setBenchState(estadoAnterior.bench || []);
-                        saveDateState({
-                          peladaState: estadoAnterior,
-                          initialBench: estadoAnterior.bench || []
-                        });
-                      }}
-                      style={{
-                        ...S.btnSm("#BA751722", "#BA7517"),
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontWeight: 700
-                      }}
-                    >
-                      ↩️ Desfazer Última Ação
-                    </button>
-                  </div>
-                )}
-
-
-
-
+                {/* EQUIPES FORMADAS */}
                 {/* GESTÃO GERAL DAS EQUIPES E REFAZER SORTEIO */}
                 {drawnTeams && (
                   <div style={{...S.card, marginBottom: 16, padding: "14px 18px", background: t.card, border: `1px solid ${t.cardBorder}`, borderRadius: 12}}>
@@ -11284,7 +9940,60 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     )}
                   </div>
                 )}
-                {peladaState?.currentMatch&&!peladaState.currentMatch.played&&String(peladaState.currentMatch.dataRealizacaoId)===String(selDataSorteio)&&(
+              </div>
+            </div>
+          );
+        } catch (err) {
+          console.error("Erro na aba Configurações:", err);
+          return (
+            <div style={{padding: 24, background: "#FFF5F5", border: "1px solid #E24B4A", borderRadius: 8, color: "#E24B4A", margin: "20px 0"}}>
+              <h3>⚠️ Ocorreu um erro ao carregar a aba Configurações</h3>
+              <p style={{fontWeight: 700}}>{err.message}</p>
+              <pre style={{fontSize: 11, overflow: "auto", background: "#FFEBEB", padding: 10, borderRadius: 4}}>{err.stack}</pre>
+            </div>
+          );
+        }
+      })())}
+{currentAba==="jogos"&&((() => {
+        try {
+          if (String(selDataSorteio) === "todas") {
+            return (
+              <div style={{textAlign:"center",padding:40,color:t.textSec,background:t.card,borderRadius:8,border:`1px solid ${t.tabBorder}`}}>
+                Selecione uma data específica no seletor global "DIA DA PELADA" para gerenciar e registrar as partidas.
+              </div>
+            );
+          }
+          return (
+            <div>
+              {/* BOTÃO DESFAZER ÚLTIMA AÇÃO */}
+                {/* BOTÃO DESFAZER ÚLTIMA AÇÃO */}
+                {historicoEstados.length > 0 && !isRealizada && (
+                  <div style={{display: "flex", justifyContent: "flex-end", marginBottom: 16}}>
+                    <button
+                      onClick={() => {
+                        const estadoAnterior = historicoEstados[historicoEstados.length - 1];
+                        setHistoricoEstados(prev => prev.slice(0, -1));
+                        setPeladaStateLocalReal(estadoAnterior);
+                        setBenchState(estadoAnterior.bench || []);
+                        saveDateState({
+                          peladaState: estadoAnterior,
+                          initialBench: estadoAnterior.bench || []
+                        });
+                      }}
+                      style={{
+                        ...S.btnSm("#BA751722", "#BA7517"),
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontWeight: 700
+                      }}
+                    >
+                      ↩️ Desfazer Última Ação
+                    </button>
+                  </div>
+                )}
+
+              {peladaState?.currentMatch&&!peladaState.currentMatch.played&&String(peladaState.currentMatch.dataRealizacaoId)===String(selDataSorteio)&&(
                   <div style={{...S.card,border:`2px solid ${isRealizada ? t.cardBorder : "#1D9E7555"}`,marginBottom:20}}>
                     <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16}}>
                       <div style={{fontSize:11,fontWeight:700,color:isRealizada ? t.textSec : "#1D9E75",textTransform:"uppercase",letterSpacing:1}}>
@@ -11330,19 +10039,109 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                       />
                     )}
 
-                    <div style={{display:"flex", justifyContent:"center", marginBottom:16}}>
-                      <div style={{textAlign:"center",padding:"0 2px",flexShrink:0}}>
-                        <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                          {isRealizada ? (
-                            <span style={{fontSize:20,fontWeight:850,color:t.text}}>{scoreA || "0"} × {scoreB || "0"}</span>
-                          ) : (
-                            <>
-                              <input type="number" min={0} max={99} value={scoreA} onChange={e=>updateScoreAndPersist(e.target.value, 'A')} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
-                              <span style={{fontWeight:700,color:t.textSec,fontSize:14}}>×</span>
-                              <input type="number" min={0} max={99} value={scoreB} onChange={e=>updateScoreAndPersist(e.target.value, 'B')} style={{...S.input,width:40,textAlign:"center",padding:"6px 2px",fontSize:16,fontWeight:800}}/>
-                            </>
-                          )}
-                        </div>
+                    <div style={{
+                      display: "flex", 
+                      alignItems: "center", 
+                      justifyContent: "center", 
+                      gap: 20, 
+                      background: "#0D0E12", 
+                      padding: "16px 24px", 
+                      borderRadius: 16, 
+                      border: "1px solid #1E293B",
+                      boxShadow: `0 0 20px ${t.accent}25, inset 0 0 12px ${t.accent}10`,
+                      marginBottom: 20,
+                      flexWrap: "wrap"
+                    }}>
+                      {/* Time A (Esquerda) */}
+                      <div style={{display: "flex", alignItems: "center", gap: 10}}>
+                        <div style={{width: 10, height: 10, borderRadius: "50%", background: colorOfTeam(peladaState.currentMatch.teamA)}}/>
+                        <span style={{fontWeight: 800, fontSize: 14, color: "#F8FAFC"}}>{peladaState.currentMatch.teamA}</span>
+                        
+                        {!isRealizada && (
+                          <button 
+                            onClick={() => { setModalGol('A'); setAutorGolId(""); setAutorAssistenciaId(""); }}
+                            style={{
+                              background: `linear-gradient(135deg, ${t.accent}, #22b7d9)`,
+                              border: "none",
+                              color: "#fff",
+                              fontWeight: 800,
+                              fontSize: 10,
+                              padding: "4px 10px",
+                              borderRadius: 20,
+                              cursor: "pointer",
+                              boxShadow: `0 0 10px ${t.accent}50`,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              transition: "transform 0.15s"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+                            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                          >
+                            <IconSoccer size={10} color="#fff" /> + GOL
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Placar Centralizado Neon */}
+                      <div style={{
+                        display: "flex", 
+                        alignItems: "center", 
+                        gap: 14, 
+                        background: "#1E293B33", 
+                        padding: "8px 20px", 
+                        borderRadius: 12,
+                        border: "1px solid #334155"
+                      }}>
+                        <span style={{
+                          fontSize: 32, 
+                          fontWeight: 900, 
+                          color: t.accent,
+                          fontFamily: "monospace",
+                          textShadow: `0 0 10px ${t.accent}`
+                        }}>
+                          {scoreA || "0"}
+                        </span>
+                        <span style={{fontSize: 16, color: "#64748B", fontWeight: 700}}>×</span>
+                        <span style={{
+                          fontSize: 32, 
+                          fontWeight: 900, 
+                          color: t.accent,
+                          fontFamily: "monospace",
+                          textShadow: `0 0 10px ${t.accent}`
+                        }}>
+                          {scoreB || "0"}
+                        </span>
+                      </div>
+
+                      {/* Time B (Direita) */}
+                      <div style={{display: "flex", alignItems: "center", gap: 10}}>
+                        {!isRealizada && (
+                          <button 
+                            onClick={() => { setModalGol('B'); setAutorGolId(""); setAutorAssistenciaId(""); }}
+                            style={{
+                              background: `linear-gradient(135deg, ${t.accent}, #22b7d9)`,
+                              border: "none",
+                              color: "#fff",
+                              fontWeight: 800,
+                              fontSize: 10,
+                              padding: "4px 10px",
+                              borderRadius: 20,
+                              cursor: "pointer",
+                              boxShadow: `0 0 10px ${t.accent}50`,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              transition: "transform 0.15s"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+                            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                          >
+                            <IconSoccer size={10} color="#fff" /> + GOL
+                          </button>
+                        )}
+                        <span style={{fontWeight: 800, fontSize: 14, color: "#F8FAFC"}}>{peladaState.currentMatch.teamB}</span>
+                        <div style={{width: 10, height: 10, borderRadius: "50%", background: colorOfTeam(peladaState.currentMatch.teamB)}}/>
                       </div>
                     </div>
 
@@ -11373,16 +10172,28 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamA)?.players
                             .filter(p => !(peladaState.currentMatch.jogadoresAtrasados || []).map(String).includes(String(p.id || p.atleta_id || p.idAtleta)))
                             .map((p,pi)=>(
-                            <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                            <div key={pi} style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                               <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis",flex:1,textAlign:"right"}}>{getPlayerName(p)}{getLoanTag(p, peladaState.currentMatch.teamA)}</span>
-                              {isRealizada ? (
-                                sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517",display:"inline-flex",alignItems:"center",gap:2}}><IconSoccer size={10} />({sumulaGols[p.id]})</span> : null
-                              ) : (
+                              
+                              {/* Badges de Gols e Assistências */}
+                              <div style={{display: "flex", gap: 6, alignItems: "center", marginRight: 4}}>
+                                {sumulaGols[p.id] ? (
+                                  <span style={{fontSize: 10, fontWeight: 700, color: "#1D9E75", display: "inline-flex", alignItems: "center", gap: 2}} title={`${sumulaGols[p.id]} Gols`}>
+                                    <IconSoccer size={10} color="#1D9E75" />({sumulaGols[p.id]})
+                                  </span>
+                                ) : null}
+                                {sumulaAssists[p.id] ? (
+                                  <span style={{fontSize: 10, fontWeight: 700, color: "#22b7d9", display: "inline-flex", alignItems: "center", gap: 2}} title={`${sumulaAssists[p.id]} Assistências`}>
+                                    <IconSoccer size={10} color="#22b7d9" />👟({sumulaAssists[p.id]})
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              {!isRealizada && (
                                 <>
                                   {(p.isTemporary || p.isEmprestado) && (
                                     <button onClick={() => desfazerEmprestimoAtleta(p.id, peladaState.currentMatch.teamA)} style={{border:"none",background:"transparent",color:"#FF9800",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Desfazer Empréstimo">❌</button>
                                   )}
-                                  <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'A')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",height:18}}/>
                                   <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir"><IconRefresh size={12} /></button>
                                   <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamA});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo"><IconX size={10} color="#E24B4A" /></button>
                                 </>
@@ -11458,17 +10269,27 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                           {peladaState.teams?.find(tm=>tm.name===peladaState.currentMatch.teamB)?.players
                             .filter(p => !(peladaState.currentMatch.jogadoresAtrasados || []).map(String).includes(String(p.id || p.atleta_id || p.idAtleta)))
                             .map((p,pi)=>(
-                            <div key={pi} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                            <div key={pi} style={{display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                               {!isRealizada && (p.isTemporary || p.isEmprestado) && (
                                 <button onClick={() => desfazerEmprestimoAtleta(p.id, peladaState.currentMatch.teamB)} style={{border:"none",background:"transparent",color:"#FF9800",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Desfazer Empréstimo">❌</button>
                               )}
                               {!isRealizada && <button onClick={()=>setSubModal(p.id)} style={{border:"none",background:"transparent",color:"#0095F6",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Substituir"><IconRefresh size={12} /></button>}
                               {!isRealizada && <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:peladaState.currentMatch.teamB});}} style={{border:"none",background:"transparent",color:"#E24B4A",cursor:"pointer",padding:"0 2px",fontSize:10}} title="Sair do jogo"><IconX size={10} color="#E24B4A" /></button>}
-                              {isRealizada ? (
-                                sumulaGols[p.id] ? <span style={{fontSize:10,fontWeight:600,color:"#BA7517",display:"inline-flex",alignItems:"center",gap:2}}><IconSoccer size={10} />({sumulaGols[p.id]})</span> : null
-                              ) : (
-                                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={sumulaGols[p.id]||""} onChange={e=>updateSumulaAndScore(p.id, e.target.value, 'B')} style={{...S.input,width:24,padding:"1px 2px",fontSize:10,textAlign:"center",marginRight:2,height:18}}/>
-                              )}
+                              
+                              {/* Badges de Gols e Assistências */}
+                              <div style={{display: "flex", gap: 6, alignItems: "center", marginLeft: 4, marginRight: 4}}>
+                                {sumulaGols[p.id] ? (
+                                  <span style={{fontSize: 10, fontWeight: 700, color: "#1D9E75", display: "inline-flex", alignItems: "center", gap: 2}} title={`${sumulaGols[p.id]} Gols`}>
+                                    <IconSoccer size={10} color="#1D9E75" />({sumulaGols[p.id]})
+                                  </span>
+                                ) : null}
+                                {sumulaAssists[p.id] ? (
+                                  <span style={{fontSize: 10, fontWeight: 700, color: "#22b7d9", display: "inline-flex", alignItems: "center", gap: 2}} title={`${sumulaAssists[p.id]} Assistências`}>
+                                    <IconSoccer size={10} color="#22b7d9" />👟({sumulaAssists[p.id]})
+                                  </span>
+                                ) : null}
+                              </div>
+                              
                               <span style={{fontWeight:500,color:t.text,overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(p)}{getLoanTag(p, peladaState.currentMatch.teamB)}</span>
                             </div>
                           ))}
@@ -11998,7 +10819,25 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                 )}
 
 
-                {/* HISTÓRICO DA DATA */}
+            </div>
+          );
+        } catch (err) {
+          console.error("Erro na aba Jogos:", err);
+          return (
+            <div style={{padding: 24, background: "#FFF5F5", border: "1px solid #E24B4A", borderRadius: 8, color: "#E24B4A", margin: "20px 0"}}>
+              <h3>⚠️ Ocorreu um erro ao carregar a aba Jogos</h3>
+              <p style={{fontWeight: 700}}>{err.message}</p>
+              <pre style={{fontSize: 11, overflow: "auto", background: "#FFEBEB", padding: 10, borderRadius: 4}}>{err.stack}</pre>
+            </div>
+          );
+        }
+      })())}
+{currentAba==="placar"&&(
+        <div>
+          <StandingsTable standings={peladaStandings()} teams={(String(selDataSorteio) === "todas" ? (consolidatedPeladaState?.teams || []) : (peladaState?.teams || [])).map(x=>x.name)} colorOf={colorOfTeam} accent="#22b7d9" t={t}/>
+          
+          <div style={{marginTop: 30}}>
+            {/* HISTÓRICO DA DATA */}
                 {(peladaState?.matchLog||[]).filter(m => String(m.dataRealizacaoId) === String(selDataSorteio)).length>0&&(
                   <div style={{marginTop:20}}>
                     <h3 style={{fontSize:14,fontWeight:700,margin:"0 0 10px 0",color:t.text}}><IconClipboard size={14} style={{marginRight: 4}} /> Histórico da Data</h3>
@@ -12073,21 +10912,9 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
-          );
-        } catch (err) {
-          console.error("Erro na aba Jogos:", err);
-          return (
-            <div style={{padding: 24, background: "#FFF5F5", border: "1px solid #E24B4A", borderRadius: 8, color: "#E24B4A", margin: "20px 0"}}>
-              <h3>⚠️ Ocorreu um erro ao carregar a aba Jogos</h3>
-              <p style={{fontWeight: 700}}>{err.message}</p>
-              <pre style={{fontSize: 11, overflow: "auto", background: "#FFEBEB", padding: 10, borderRadius: 4}}>{err.stack}</pre>
-            </div>
-          );
-        }
-      })())}
-      {currentAba==="placar"&&<StandingsTable standings={peladaStandings()} teams={(String(selDataSorteio) === "todas" ? (consolidatedPeladaState?.teams || []) : (peladaState?.teams || [])).map(x=>x.name)} colorOf={colorOfTeam} accent="#22b7d9" t={t}/>}
+          </div>
+        </div>
+      )}
       {currentAba==="ranking"&&<AbaRelatorioPelada peladaState={consolidatedPeladaState} datas={datas} atletas={atletas} selDataSorteio={selDataSorteio} repSortBy={repSortBy} setRepSortBy={setRepSortBy} formatarData={formatarData} t={t} />}
 
       {subModal && (
@@ -12559,6 +11386,71 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
         </div>
       )}
 
+      {modalGol && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100,padding:16}}>
+          <div style={{...S.card, width:"100%", maxWidth:320, background: "#1E293B", border: `1px solid ${t.accent}33`, boxShadow: `0 0 20px ${t.accent}20`}}>
+            <div style={{fontWeight:800, fontSize:15, color:"#F8FAFC", marginBottom:16, display: "flex", alignItems: "center", gap: 6}}>
+              <IconSoccer size={16} color={t.accent} /> Registrar Gol: {modalGol === 'A' ? peladaState.currentMatch.teamA : peladaState.currentMatch.teamB}
+            </div>
+            
+            <div style={{display:"flex", flexDirection:"column", gap:12, marginBottom:20}}>
+              {/* Autor do Gol */}
+              <div>
+                <label style={{display:"block", fontSize:11, fontWeight:700, color:"#94A3B8", marginBottom:4}}>Autor do Gol</label>
+                <select 
+                  value={autorGolId} 
+                  onChange={e => setAutorGolId(e.target.value)} 
+                  style={{...S.select, width: "100%", background: "#0F172A", color: "#F8FAFC", border: "1px solid #334155", outline: "none"}}
+                >
+                  <option value="">Selecione o jogador...</option>
+                  {getJogadoresEmCampo(modalGol).map(p => (
+                    <option key={p.id} value={p.id}>{getPlayerName(p)}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assistência */}
+              <div>
+                <label style={{display:"block", fontSize:11, fontWeight:700, color:"#94A3B8", marginBottom:4}}>Assistência (Opcional)</label>
+                <select 
+                  value={autorAssistenciaId} 
+                  onChange={e => setAutorAssistenciaId(e.target.value)} 
+                  style={{...S.select, width: "100%", background: "#0F172A", color: "#F8FAFC", border: "1px solid #334155", outline: "none"}}
+                >
+                  <option value="">Sem assistência</option>
+                  {getJogadoresEmCampo(modalGol).filter(p => String(p.id) !== String(autorGolId)).map(p => (
+                    <option key={p.id} value={p.id}>{getPlayerName(p)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{display:"flex", gap:8}}>
+              <button 
+                onClick={confirmarGolAssist}
+                disabled={!autorGolId}
+                style={{
+                  ...S.btn("#10B98122", "#10B981"), 
+                  flex: 1, 
+                  justifyContent: "center", 
+                  fontWeight: 700, 
+                  opacity: autorGolId ? 1 : 0.5,
+                  cursor: autorGolId ? "pointer" : "default"
+                }}
+              >
+                Confirmar
+              </button>
+              <button 
+                onClick={() => setModalGol(null)} 
+                style={{...S.btn("#334155", "#94A3B8"), flex: 1, justifyContent: "center", fontWeight: 700}}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modalConfirmacaoNavegacao && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100,padding:16}}>
           <div style={{...S.card,width:"100%",maxWidth:400,textAlign:"center"}}>
@@ -12673,3551 +11565,6 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
 
 
 /* ─────────────────────────── ABA COLABORADORES ITEM ───────────────── */
-function AbaColaboradoresItem({ collaborators, onSaveCollaborators, auth, managers, assegurarManagerColaborador, t, scope = "campeonato" }) {
-  const S = makeStyles(t);
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-
-  const handleAdicionar = (e) => {
-    e.preventDefault();
-    if (!nome.trim() || !email.trim()) {
-      alert("Por favor, preencha o nome e o e-mail do colaborador.");
-      return;
-    }
-    const trimmedEmail = email.toLowerCase().trim();
-    if (trimmedEmail === "lucas7s7@gmail.com") {
-      alert("Não é possível adicionar o e-mail do administrador padrão como colaborador.");
-      return;
-    }
-    if (collaborators.some(c => String(c.email || "").toLowerCase().trim() === trimmedEmail)) {
-      alert("Este colaborador já está cadastrado nesta modalidade.");
-      return;
-    }
-
-    // Busca se esse colaborador já existe no managers global para ver se precisamos de senha
-    const globalManager = (managers || []).find(m => String(m.email || "").toLowerCase().trim() === trimmedEmail);
-    if (!globalManager && !senha.trim()) {
-      alert("Este é um novo colaborador no sistema. Por favor, forneça uma senha de acesso para ele.");
-      return;
-    }
-
-    // Cria/assegura no managers global
-    const senhaFinal = senha.trim() || (globalManager ? globalManager.password : "");
-    assegurarManagerColaborador(nome.trim(), trimmedEmail, senhaFinal, scope);
-
-    // Salva na modalidade local
-    const novo = { id: Date.now(), name: nome.trim(), email: trimmedEmail };
-    const novaLista = [...collaborators, novo];
-    onSaveCollaborators(novaLista);
-
-    // Limpa os campos
-    setNome("");
-    setEmail("");
-    setSenha("");
-    alert("Colaborador cadastrado com sucesso!");
-  };
-
-  const handleRemover = (id) => {
-    if (confirm("Tem certeza que deseja remover o acesso deste colaborador?")) {
-      const novaLista = collaborators.filter(c => c.id !== id);
-      onSaveCollaborators(novaLista);
-    }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={S.card}>
-        <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 10px 0", color: t.text }}>➕ Cadastrar Colaborador</h3>
-        <p style={{ fontSize: 12, color: t.textSec, marginBottom: 16 }}>
-          Cadastre um colaborador para ajudar na gestão desta modalidade. Se o e-mail já possuir cadastro no sistema, ele usará a mesma conta para acumular os acessos.
-        </p>
-        <form onSubmit={handleAdicionar} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={S.label}>Nome Completo:</label>
-            <input 
-              type="text" 
-              placeholder="Ex: João Silva" 
-              value={nome} 
-              onChange={e => setNome(e.target.value)} 
-              style={S.input} 
-              required
-            />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={S.label}>E-mail de Acesso:</label>
-            <input 
-              type="email" 
-              placeholder="Ex: joao@email.com" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-              style={S.input} 
-              required
-            />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={S.label}>Senha de Acesso:</label>
-            <input 
-              type="password" 
-              placeholder="Senha (deixe em branco se o colaborador já possui conta)" 
-              value={senha} 
-              onChange={e => setSenha(e.target.value)} 
-              style={S.input} 
-            />
-            <span style={{ fontSize: 10, color: t.textSec }}>
-              * Se o e-mail já for de um usuário cadastrado no sistema, ele poderá fazer login com a senha atual dele.
-            </span>
-          </div>
-          <button type="submit" style={{ ...S.btn("#1D9E75"), marginTop: 6, justifyContent: "center" }}>
-            ✓ Adicionar Colaborador
-          </button>
-        </form>
-      </div>
-
-      <div style={S.card}>
-        <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 10px 0", color: t.text }}>👥 Colaboradores Cadastrados ({collaborators.length})</h3>
-        {collaborators.length === 0 ? (
-          <p style={{ fontSize: 13, color: t.textSec, textAlign: "center", margin: "20px 0" }}>Nenhum colaborador cadastrado para esta modalidade.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {collaborators.map(colab => (
-              <div key={colab.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", border: `1px solid ${t.cardBorder}`, borderRadius: 8, background: t.inputBg }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <span style={{ fontWeight: 600, fontSize: 13, color: t.text }}>{colab.name}</span>
-                  <span style={{ fontSize: 11, color: t.textSec }}>{colab.email}</span>
-                </div>
-                <button 
-                  onClick={() => handleRemover(colab.id)} 
-                  style={{ ...S.btnSm("#E24B4A22", "#E24B4A"), padding: "6px 10px" }}
-                  title="Remover Acesso"
-                >
-                  <IconTrash size={12} />️ Remover
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-/* ─────────────────────────── MURAL ORGANIZADOR ───────────────────── */
-function AbaMuralOrganizador({ c, onUpdate, t }) {
-  const S = makeStyles(t);
-  const mural = (c.mural || []).filter(item => item.type === "noticia");
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [type, setType] = useState("noticia");
-  const [mediaUrl, setMediaUrl] = useState("");
-  const [showAddPost, setShowAddPost] = useState(false);
-
-  // Estados para Edição de Publicação
-  const [editingPostId, setEditingPostId] = useState(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editContent, setEditContent] = useState("");
-  const [editType, setEditType] = useState("noticia");
-  const [editMediaUrl, setEditMediaUrl] = useState("");
-
-  const handleStartEdit = (post) => {
-    setEditingPostId(post.id);
-    setEditTitle(post.title || "");
-    setEditContent(post.content || "");
-    setEditType(post.type || "noticia");
-    setEditMediaUrl(post.mediaUrl || "");
-  };
-
-  const handleSaveEdit = (id) => {
-    try {
-      if (!editTitle.trim() || !editContent.trim()) {
-        alert("Por favor, preencha o título e o conteúdo.");
-        return;
-      }
-      const tc = deepClone(c);
-      tc.mural = (tc.mural || []).map(post => {
-        if (post.id === id) {
-          return {
-            ...post,
-            title: editTitle.trim(),
-            content: editContent.trim(),
-            type: editType,
-            mediaUrl: editMediaUrl.trim()
-          };
-        }
-        return post;
-      });
-      onUpdate(tc);
-      setEditingPostId(null);
-      alert("Publicação atualizada com sucesso!");
-    } catch (err) {
-      console.error("Erro fatal ao editar post do mural:", err);
-      alert("Ocorreu um erro ao salvar as alterações: " + err.message);
-    }
-  };
-
-  const handleSavePost = () => {
-    console.log("Iniciando handleSavePost...");
-    try {
-      if (!title.trim() || !content.trim()) {
-        alert("Por favor, preencha o título e o conteúdo.");
-        return;
-      }
-      console.log("Validações de título e conteúdo passaram com sucesso. Título:", title);
-      const tc = deepClone(c);
-      tc.mural = tc.mural || [];
-      const newPost = {
-        id: Date.now(),
-        title: title.trim(),
-        content: content.trim(),
-        type,
-        mediaUrl: mediaUrl.trim(),
-        date: todayStr()
-      };
-      tc.mural.push(newPost);
-      console.log("Novo post criado:", newPost);
-      
-      console.log("Chamando prop onUpdate...");
-      onUpdate(tc);
-      console.log("onUpdate executada com sucesso!");
-      
-      setTitle("");
-      setContent("");
-      setMediaUrl("");
-      setShowAddPost(false);
-      alert("Publicado no mural!");
-    } catch (err) {
-      console.error("Erro fatal ao salvar post no mural:", err);
-      alert("Ocorreu um erro ao salvar o post: " + err.message);
-    }
-  };
-
-  const handleDeletePost = (id) => {
-    console.log("Iniciando handleDeletePost para o ID:", id);
-    try {
-      if (!window.confirm("Deseja excluir esta publicação?")) return;
-      const tc = deepClone(c);
-      tc.mural = (tc.mural || []).filter(item => item.id !== id);
-      console.log("Lista filtrada de mural após exclusão do post:", tc.mural);
-      
-      console.log("Chamando prop onUpdate...");
-      onUpdate(tc);
-      console.log("onUpdate executada com sucesso!");
-      
-      alert("Publicação excluída.");
-    } catch (err) {
-      console.error("Erro fatal ao excluir post do mural:", err);
-      alert("Ocorreu um erro ao excluir o post: " + err.message);
-    }
-  };
-
-  const getEmbedUrl = (url) => {
-    if (!url) return null;
-    let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    let match = url.match(regExp);
-    if (match && match[2].length === 11) {
-      return `https://www.youtube.com/embed/${match[2]}`;
-    }
-    return null;
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ ...S.card, borderColor: "#22b7d955", background: t.inputBg }}>
-        <button 
-          onClick={() => setShowAddPost(!showAddPost)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#22b7d9",
-            fontWeight: 800,
-            fontSize: 14,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: 0,
-            width: "100%",
-            textAlign: "left"
-          }}
-        >
-          {showAddPost ? "▼ Fechar Novo Post" : "📣 Publicar no Mural (Notícias/Fotos/Vídeos)"}
-        </button>
-
-        {showAddPost && (
-          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <label style={S.label}>Tipo de Publicação</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={()=>setType("noticia")} style={{ ...S.btnSm(type === "noticia" ? "#22b7d9" : "transparent", type === "noticia" ? "#fff" : t.textSec), border: `1px solid ${type === "noticia" ? "#22b7d9" : t.cardBorder}`, flex: 1 }}>Notícia / Comunicado</button>
-                <button onClick={()=>setType("midia")} style={{ ...S.btnSm(type === "midia" ? "#1D9E75" : "transparent", type === "midia" ? "#fff" : t.textSec), border: `1px solid ${type === "midia" ? "#1D9E75" : t.cardBorder}`, flex: 1 }}>Foto / Vídeo / Youtube</button>
-              </div>
-            </div>
-
-            <div>
-              <label style={S.label}>Título</label>
-              <input style={S.input} placeholder="Título do post" value={title} onChange={e=>setTitle(e.target.value)} />
-            </div>
-
-            <div>
-              <label style={S.label}>Conteúdo</label>
-              <textarea style={{ ...S.input, height: 100, resize: "vertical" }} placeholder="Conteúdo..." value={content} onChange={e=>setContent(e.target.value)} />
-            </div>
-
-            <div>
-              <label style={S.label}>
-                {type === "noticia" ? "Link da Imagem de Capa (Opcional)" : "Link da Mídia (YouTube, imagem, etc.)"}
-              </label>
-              <input style={S.input} placeholder="https://..." value={mediaUrl} onChange={e=>setMediaUrl(e.target.value)} />
-            </div>
-
-            <button onClick={handleSavePost} style={S.btn(type === "noticia" ? "#22b7d9" : "#1D9E75")}>🚀 Publicar</button>
-          </div>
-        )}
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        {/* Estilos CSS do Mural Editorial inseridos dinamicamente */}
-        <style>{`
-          .mural-card {
-            background: ${t.card};
-            border-radius: 20px;
-            border: 1px solid ${t.cardBorder};
-            padding: 22px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            overflow: hidden;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
-            position: relative;
-          }
-          .mural-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.07);
-            border-color: #22b7d955;
-          }
-          .mural-layout {
-            display: flex;
-            flex-direction: row;
-            gap: 20px;
-            align-items: stretch;
-          }
-          @media (max-width: 600px) {
-            .mural-layout {
-              flex-direction: column;
-            }
-          }
-          .mural-img-container {
-            width: 260px;
-            height: 175px;
-            border-radius: 14px;
-            overflow: hidden;
-            position: relative;
-            flex-shrink: 0;
-            border: 1px solid ${t.cardBorder};
-            background: #00000008;
-          }
-          @media (max-width: 600px) {
-            .mural-img-container {
-              width: 100%;
-              height: 200px;
-            }
-          }
-          .mural-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-            display: block;
-          }
-          .mural-card:hover .mural-img {
-            transform: scale(1.05);
-          }
-          .mural-video-container {
-            width: 260px;
-            height: 175px;
-            border-radius: 14px;
-            overflow: hidden;
-            position: relative;
-            flex-shrink: 0;
-            border: 1px solid ${t.cardBorder};
-          }
-          @media (max-width: 600px) {
-            .mural-video-container {
-              width: 100%;
-              height: 0;
-              padding-bottom: 56.25%;
-            }
-          }
-          .mural-content {
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            flex-grow: 1;
-            gap: 8px;
-          }
-          .mural-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-          .mural-badge {
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            padding: 3px 10px;
-            border-radius: 8px;
-            letter-spacing: 0.5px;
-          }
-          .mural-title {
-            font-size: 18px;
-            font-weight: 850;
-            color: ${t.text};
-            margin: 0;
-            line-height: 1.3;
-            letter-spacing: -0.3px;
-          }
-          .mural-text {
-            font-size: 13.5px;
-            color: ${t.textSec};
-            line-height: 1.6;
-            white-space: pre-wrap;
-            margin: 0;
-          }
-          .mural-link {
-            font-size: 12px;
-            color: #22b7d9;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            cursor: pointer;
-            font-weight: 700;
-            margin-top: auto;
-            padding-top: 8px;
-          }
-          .mural-link:hover {
-            color: #1D9E75;
-          }
-        `}</style>
-
-        {mural.length === 0 ? (
-          <div style={{ ...S.card, textAlign: "center", padding: 24, color: t.textSec }}>
-            Nenhuma publicação no mural.
-          </div>
-        ) : (
-          [...mural].reverse().map((item, idx) => (
-            <MuralPostCard 
-              key={item.id || idx}
-              item={item}
-              isAdmin={true}
-              onStartEdit={handleStartEdit}
-              onDelete={handleDeletePost}
-              t={t}
-              editingPostId={editingPostId}
-              setEditingPostId={setEditingPostId}
-              editTitle={editTitle}
-              setEditTitle={setEditTitle}
-              editContent={editContent}
-              setEditContent={setEditContent}
-              editType={editType}
-              setEditType={setEditType}
-              editMediaUrl={editMediaUrl}
-              setEditMediaUrl={setEditMediaUrl}
-              onSaveEdit={handleSaveEdit}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
-const getCampeonatoMatchesLinear = (c) => {
-  const list = [];
-  if (c.groups) {
-    c.groups.forEach((g, gi) => {
-      if (g.rounds) {
-        g.rounds.forEach((r, ri) => {
-          if (r.matches) {
-            r.matches.forEach((m, mi) => {
-              list.push({ ...m, key: `gr-${gi}-${ri}-${mi}`, originalMatch: m });
-            });
-          }
-        });
-      }
-    });
-  }
-  if (c.rounds) {
-    c.rounds.forEach((r, ri) => {
-      if (r.matches) {
-        r.matches.forEach((m, mi) => {
-          list.push({ ...m, key: `rr-${ri}-${mi}`, originalMatch: m });
-        });
-      }
-    });
-  }
-  if (c.knockout) {
-    c.knockout.forEach((ph, pi) => {
-      if (ph.matches) {
-        ph.matches.forEach((m, mi) => {
-          list.push({ ...m, key: `ko-${pi}-${mi}`, originalMatch: m });
-        });
-      }
-    });
-  }
-  return list;
-};
-
-const getSuspendedPlayersForMatch = (c, targetKey) => {
-  const matches = getCampeonatoMatchesLinear(c);
-  const targetIndex = matches.findIndex(m => m.key === targetKey);
-  if (targetIndex === -1) return {};
-  const playerStats = {};
-  const prevMatches = matches.slice(0, targetIndex);
-  prevMatches.forEach(m => {
-    Object.keys(playerStats).forEach(aid => {
-      const stats = playerStats[aid];
-      if (stats.suspensoProximoJogo) {
-        if (stats.motivoSuspensao === "amarelos") {
-          stats.amarelosAcumulados = 0;
-        }
-        stats.suspensoProximoJogo = false;
-        stats.motivoSuspensao = "";
-      }
-    });
-    const events = m.events || [];
-    const athleteEvents = {};
-    events.forEach(e => {
-      if (!athleteEvents[e.atletaId]) athleteEvents[e.atletaId] = [];
-      athleteEvents[e.atletaId].push(e.type);
-    });
-    Object.keys(athleteEvents).forEach(aid => {
-      const types = athleteEvents[aid];
-      const yellows = types.filter(t => t === "amarelo").length;
-      const reds = types.filter(t => t === "vermelho").length;
-      if (!playerStats[aid]) {
-        playerStats[aid] = { amarelosAcumulados: 0, suspensoProximoJogo: false, motivoSuspensao: "" };
-      }
-      const stats = playerStats[aid];
-      if (reds > 0 || yellows >= 2) {
-        stats.suspensoProximoJogo = true;
-        stats.motivoSuspensao = "vermelho";
-      } else if (yellows === 1) {
-        stats.amarelosAcumulados++;
-        if (stats.amarelosAcumulados >= 3) {
-          stats.suspensoProximoJogo = true;
-          stats.motivoSuspensao = "amarelos";
-        }
-      }
-    });
-  });
-  const suspended = {};
-  Object.keys(playerStats).forEach(aid => {
-    const stats = playerStats[aid];
-    if (stats.suspensoProximoJogo) {
-      suspended[aid] = stats.motivoSuspensao === "vermelho" ? "Vermelho 🟥" : "3 Amarelos 🟨";
-    }
-  });
-  return suspended;
-};
-
-/* ─────────────────────────── CAMPEONATO ─────────────────────────── */
-function CampeonatoScreen({champ,atletas,onUpdate,onDelete,onBack,setFinanceiro,onAddAtleta,onUpdateAtleta,cloudLoading,publicarNaNuvem,t,tab,setTab,isMobile,auth,managers,assegurarManagerColaborador}){
-  const S=makeStyles(t);
-  const c = champ;
-  const atletasDoCampeonato = atletas.filter(a => Array.isArray(a.vinculos) && a.vinculos.includes("campeonato_" + c.id));
-  const isDonoOuAdmin = auth?.role === "adm" || !c.manager_id || c.manager_id === auth?.manager_id;
-  const champTabs = [
-    "elencos",
-    ...(c.type === "pontos" ? ["tabela", "jogos"] : c.type === "mata" ? ["chave", "jogos"] : ["tabela", "chave", "jogos"]),
-    "estatísticas"
-  ];
-  if (c.allowOnlineReg) {
-    champTabs.push("solicitações");
-  }
-  if (isDonoOuAdmin) {
-    champTabs.push("colaboradores");
-  }
-  champTabs.push("mural", "galeria", "configurações", "nuvem");
-  const rosters = c.rosters || {};
-  const colorOf = (n,teams) => COLORS[(teams||[]).indexOf(n)%COLORS.length];
-  const getRosterByTeamName = (teamName) => {
-    if (!teamName || !rosters) return [];
-    if (rosters[teamName] && rosters[teamName].length > 0) {
-      return rosters[teamName];
-    }
-    const key = Object.keys(rosters).find(k => k.trim().toLowerCase() === teamName.trim().toLowerCase());
-    if (key && rosters[key] && rosters[key].length > 0) {
-      return rosters[key];
-    }
-    return [];
-  };
-  const [editingTeams,setEditingTeams] = useState(false);
-  const [teamsDraft,setTeamsDraft] = useState(Array.isArray(champ.teams)?[...champ.teams]:[]);
-  const [localTab, setLocalTab] = useState("jogos");
-  const currentTab = tab || localTab;
-  const currentSetTab = setTab || setLocalTab;
-  const[editing,setEditing]=useState(null);
-  const[sumulaModal,setSumulaModal]=useState(null); // {match, eKey, onSaveSumula, home, away}
-  const[sumulaSelection,setSumulaSelection]=useState({home:"",away:""});
-  const[selTeamElenco,setSelTeamElenco]=useState(champ.teams[0]||"");
-  const [showCelebration, setShowCelebration] = useState(false);
-
-  // ── Função para salvar fotos de uma partida específica ────────
-  const saveMatchPhoto = (eKey, photoBase64) => {
-    try {
-      const tc = deepClone(c);
-      // Helper para atualizar um match em qualquer estrutura
-      const addPhoto = (matches) => matches.map(m => {
-        const key = `${m.home}-${m.away}`;
-        if (eKey.includes(key) || m._eKey === eKey) {
-          return { ...m, photos: [...(m.photos || []), { id: Date.now(), data: photoBase64, date: todayStr() }] };
-        }
-        return m;
-      });
-      // Identificar o match pelo eKey e atualizar
-      if (eKey.startsWith('rr-') && tc.rounds) {
-        const parts = eKey.replace('rr-','').split('-');
-        const ri = Number(parts[0]), mi = Number(parts[1]);
-        if (tc.rounds[ri] && tc.rounds[ri].matches[mi]) {
-          const m = tc.rounds[ri].matches[mi];
-          tc.rounds[ri].matches[mi] = { ...m, photos: [...(m.photos||[]), { id: Date.now(), data: photoBase64, date: todayStr() }] };
-        }
-      } else if (eKey.startsWith('ko-') && tc.knockout) {
-        const parts = eKey.replace('ko-','').split('-');
-        const pi = Number(parts[0]), mi = Number(parts[1]);
-        if (tc.knockout[pi] && tc.knockout[pi].matches[mi]) {
-          const m = tc.knockout[pi].matches[mi];
-          tc.knockout[pi].matches[mi] = { ...m, photos: [...(m.photos||[]), { id: Date.now(), data: photoBase64, date: todayStr() }] };
-        }
-      } else if (eKey.startsWith('gr-') && tc.groups) {
-        const parts = eKey.replace('gr-','').split('-');
-        const gi = Number(parts[0]), ri = Number(parts[1]), mi = Number(parts[2]);
-        if (tc.groups[gi] && tc.groups[gi].rounds[ri] && tc.groups[gi].rounds[ri].matches[mi]) {
-          const m = tc.groups[gi].rounds[ri].matches[mi];
-          tc.groups[gi].rounds[ri].matches[mi] = { ...m, photos: [...(m.photos||[]), { id: Date.now(), data: photoBase64, date: todayStr() }] };
-        }
-      }
-      onUpdate(tc);
-    } catch(err) { console.error('Erro ao salvar foto da partida:', err); }
-  };
-
-  const removeMatchPhoto = (eKey, photoId) => {
-    try {
-      const tc = deepClone(c);
-      const removePhoto = (m) => ({ ...m, photos: (m.photos||[]).filter(p => p.id !== photoId) });
-      if (eKey.startsWith('rr-') && tc.rounds) {
-        const parts = eKey.replace('rr-','').split('-');
-        const ri = Number(parts[0]), mi = Number(parts[1]);
-        if (tc.rounds[ri]?.matches[mi]) tc.rounds[ri].matches[mi] = removePhoto(tc.rounds[ri].matches[mi]);
-      } else if (eKey.startsWith('ko-') && tc.knockout) {
-        const parts = eKey.replace('ko-','').split('-');
-        const pi = Number(parts[0]), mi = Number(parts[1]);
-        if (tc.knockout[pi]?.matches[mi]) tc.knockout[pi].matches[mi] = removePhoto(tc.knockout[pi].matches[mi]);
-      } else if (eKey.startsWith('gr-') && tc.groups) {
-        const parts = eKey.replace('gr-','').split('-');
-        const gi = Number(parts[0]), ri = Number(parts[1]), mi = Number(parts[2]);
-        if (tc.groups[gi]?.rounds[ri]?.matches[mi]) tc.groups[gi].rounds[ri].matches[mi] = removePhoto(tc.groups[gi].rounds[ri].matches[mi]);
-      }
-      onUpdate(tc);
-    } catch(err) { console.error('Erro ao remover foto:', err); }
-  };
-
-  const [filtroElenco, setFiltroElenco] = useState("");
-  const [filtroGrupoElenco, setFiltroGrupoElenco] = useState("");
-  const [modalNovoAtleta, setModalNovoAtleta] = useState(false);
-  const [editAtletaId, setEditAtletaId] = useState(null);
-  const [formAtleta, setFormAtleta] = useState({
-    nome: "",
-    apelido: "",
-    foto: "",
-    habilidade: 3,
-    goleiro: false,
-    ativo: true,
-    documento: "",
-    dataNascimento: "",
-    numeroCamisa: "",
-    modalidades: [],
-    vinculos: [],
-    customFields: {}
-  });
-
-  const [showQuickRegister, setShowQuickRegister] = useState(false);
-  const [quickTeamName, setQuickTeamName] = useState("");
-  const [quickPlayersText, setQuickPlayersText] = useState("");
-  const [showXlsMenuElenco, setShowXlsMenuElenco] = useState(false);
-
-  // --- XLS Elenco: Modelo, Import, Export ---
-  const ELENCO_HEADERS = ["nome","apelido","numeroCamisa","documento","dataNascimento","celular1","email","tipoAtleta","igrejaMembro","modalidades","time","logradouro","nomeVia","bairro","cep","nomeMae","ativo","goleiro"];
-
-  const downloadModeloElenco = () => {
-    const sample = {
-      nome: "João da Silva", apelido: "Joãozinho", numeroCamisa: "10",
-      documento: "12.345.678-9", dataNascimento: "1995-06-15", celular1: "(11) 91234-5678",
-      email: "joao@email.com", tipoAtleta: "Adventista", igrejaMembro: "Igreja Central",
-      modalidades: "Futsal,Vôlei",
-      time: "Time A", logradouro: "Rua", nomeVia: "das Flores", bairro: "Centro",
-      cep: "01234-567", nomeMae: "Maria da Silva", ativo: "true", goleiro: "false"
-    };
-    downloadXls(`modelo-atletas-campeonato.xls`, ELENCO_HEADERS, [sample]);
-  };
-
-  const exportarElenco = () => {
-    const allRosteredIds = Object.values(c.rosters || {}).flat();
-    const atletasCamp = atletas.filter(a => allRosteredIds.includes(a.id));
-    if (atletasCamp.length === 0) { alert("Nenhum atleta escalado para exportar."); return; }
-    const rows = atletasCamp.map(a => {
-      const obj = {};
-      ELENCO_HEADERS.forEach(h => {
-        if (h === "modalidades" && Array.isArray(a[h])) {
-          obj[h] = a[h].join(",");
-        } else if (h === "time") {
-          obj[h] = a.grupo ?? "";
-        } else {
-          obj[h] = a[h] ?? "";
-        }
-      });
-      return obj;
-    });
-    downloadXls(`elencos-${(c.name||"campeonato").replace(/\s+/g,"-")}-${todayStr()}.xls`, ELENCO_HEADERS, rows);
-  };
-
-  const importarElenco = async (event) => {
-    const file = event.target?.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      // Suporta CSV (novo formato) e HTML-XLS (formato legado)
-      let allRows;
-      if (file.name.endsWith('.csv') || !text.trimStart().startsWith('<')) {
-        // Parsing CSV
-        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
-        allRows = lines.map(line => line.split(',').map(cell => cell.startsWith('"') && cell.endsWith('"') ? cell.slice(1,-1).replace(/""/g,'"') : cell));
-      } else {
-        // Parsing HTML-XLS legado
-        const parser = new DOMParser();
-        const doc2 = parser.parseFromString(text, "text/html");
-        const table = doc2.querySelector("table");
-        if (!table) throw new Error("Arquivo não contém tabela válida. Use o modelo CSV.");
-        allRows = Array.from(table.querySelectorAll("tr")).map(row =>
-          Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || "")
-        );
-      }
-      if (allRows.length < 2) throw new Error("A planilha de elenco não contém dados de atletas.");
-      const headers = allRows[0].map(h => String(h).trim());
-      const dataRows = allRows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
-
-      let adicionados = 0;
-      let atualizados = 0;
-      const tc = deepClone(c);
-      tc.rosters = tc.rosters || {};
-
-      dataRows.forEach((cells, idx) => {
-        const item = {};
-        cells.forEach((value, i) => {
-          const key = headers[i];
-          if (key) {
-            if (key === "time") {
-              item.grupo = String(value).trim();
-            } else {
-              item[key] = String(value).trim();
-            }
-          }
-        });
-
-        if (!item.nome) return;
-
-        const modsArray = item.modalidades ? item.modalidades.split(",").map(m => m.trim()).filter(Boolean) : [];
-
-        const existingIdx = atletas.findIndex(a =>
-          a.nome.toLowerCase() === item.nome.toLowerCase() ||
-          (item.apelido && a.apelido && a.apelido.toLowerCase() === item.apelido.toLowerCase())
-        );
-
-        let atletaId;
-        if (existingIdx >= 0) {
-          atletaId = atletas[existingIdx].id;
-          const aExistente = atletas[existingIdx];
-          const vinculos = Array.isArray(aExistente.vinculos) ? [...aExistente.vinculos] : [];
-          if (!vinculos.includes("campeonato_" + c.id)) {
-            vinculos.push("campeonato_" + c.id);
-          }
-          onUpdateAtleta(atletaId, {
-            ...aExistente,
-            ...item,
-            vinculos,
-            modalidades: modsArray,
-            ativo: item.ativo !== "false",
-            goleiro: item.goleiro === "true",
-          });
-          atualizados++;
-        } else {
-          atletaId = Date.now() + Math.floor(Math.random() * 100000) + idx;
-          onAddAtleta({
-            id: atletaId,
-            ...item,
-            vinculos: ["campeonato_" + c.id],
-            modalidades: modsArray,
-            ativo: item.ativo !== "false",
-            goleiro: item.goleiro === "true",
-            habilidade: 3,
-            foto: "",
-            docFoto: "",
-            customFields: {},
-          });
-          adicionados++;
-        }
-
-        // Escalar no time selecionado ou no time vindo da planilha
-        const timePlanilha = item.grupo || "";
-        const timeFinal = selTeamElenco || timePlanilha;
-        if (timeFinal) {
-          tc.rosters[timeFinal] = tc.rosters[timeFinal] || [];
-          if (!tc.rosters[timeFinal].includes(atletaId)) {
-            tc.rosters[timeFinal].push(atletaId);
-          }
-        }
-      });
-
-      onUpdate(tc);
-      alert(`Importação concluída! ${adicionados} atletas adicionados, ${atualizados} atualizados.`);
-    } catch (err) {
-      alert("Erro ao importar planilha: " + (err.message || err));
-    } finally {
-      if (event.target) event.target.value = "";
-      setShowXlsMenuElenco(false);
-    }
-  };
-
-  const renderPrintableSumula = () => {
-    if (!sumulaModal) return null;
-    const m = sumulaModal.m;
-    const tmHome = m.home;
-    const tmAway = m.away;
-    const rosterHome = getRosterByTeamName(tmHome);
-    const rosterAway = getRosterByTeamName(tmAway);
-
-    const maxLength = Math.max(15, rosterHome.length, rosterAway.length);
-    const rows = Array.from({ length: maxLength });
-
-    return (
-      <div id="printable-sumula" style={{ display: "none" }}>
-        <style>{`
-          @media print {
-            #printable-sumula {
-              display: block !important;
-              font-family: Arial, sans-serif;
-              color: #000;
-              background: #fff;
-              padding: 10px;
-              width: 100%;
-              box-sizing: border-box;
-            }
-            body * {
-              visibility: hidden;
-            }
-            #printable-sumula, #printable-sumula * {
-              visibility: visible;
-            }
-            #printable-sumula {
-              position: absolute;
-              left: 0;
-              top: 0;
-            }
-          }
-          .sumula-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 8px;
-            font-size: 11px;
-          }
-          .sumula-table th, .sumula-table td {
-            border: 1px solid #000;
-            padding: 5px;
-            text-align: left;
-          }
-          .sumula-table th {
-            background-color: #f2f2f2 !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-        `}</style>
-
-        {/* Cabeçalho */}
-        <div style={{ border: "2px solid #000", padding: "24px", borderRadius: "8px", marginBottom: "15px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <h1 style={{ fontSize: "20px", margin: 0, fontWeight: "bold", letterSpacing: "1px" }}>🏆 THORNEIOS</h1>
-              <div style={{ fontSize: "12px", marginTop: "2px", fontWeight: "bold" }}>SÚMULA OFICIAL DE PARTIDA</div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "12px", fontWeight: "bold" }}>{c.name.toUpperCase()}</div>
-              <div style={{ fontSize: "11px", color: "#333", marginTop: "2px" }}>Futebol Manager</div>
-            </div>
-          </div>
-
-          <hr style={{ border: "0", borderTop: "1px solid #000", margin: "10px 0" }} />
-
-          {/* Placar e Confronto */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "10px 0" }}>
-            <div style={{ flex: 1, fontSize: "16px", fontWeight: "bold", textAlign: "right", paddingRight: "15px" }}>{tmHome}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ border: "2px solid #000", width: "40px", height: "40px", fontSize: "24px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center" }}>{m.played ? m.homeScore : ""}</div>
-              <span style={{ fontSize: "20px", fontWeight: "bold" }}>X</span>
-              <div style={{ border: "2px solid #000", width: "40px", height: "40px", fontSize: "24px", fontWeight: "bold", display: "flex", alignItems: "center", justifyContent: "center" }}>{m.played ? m.awayScore : ""}</div>
-            </div>
-            <div style={{ flex: 1, fontSize: "16px", fontWeight: "bold", paddingLeft: "15px" }}>{tmAway}</div>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginTop: "10px", background: "#f9f9f9", padding: "5px", border: "1px solid #ccc" }}>
-            <div><strong>RODADA:</strong> {m.round || sumulaModal.round || "—"}</div>
-            <div><strong>DATA:</strong> {m.date ? fmtDate(m.date) : "___/___/_____"}</div>
-            <div><strong>LOCAL:</strong> _________________________</div>
-          </div>
-        </div>
-
-        {/* Tabelas de Elenco Lado a Lado */}
-        <div style={{ display: "flex", gap: "15px" }}>
-          {/* Mandante */}
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "12px", fontWeight: "bold", paddingBottom: "4px", borderBottom: "2px solid #000" }}>⚽ {tmHome} (MANDANTE)</div>
-            <table className="sumula-table">
-              <thead>
-                <tr>
-                  <th style={{ width: "25px", textAlign: "center" }}>Nº</th>
-                  <th>NOME DO ATLETA</th>
-                  <th style={{ width: "50px", textAlign: "center" }}>GOLS</th>
-                  <th style={{ width: "40px", textAlign: "center" }}>CART.</th>
-                  <th style={{ width: "80px" }}>ASSINATURA</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((_, idx) => {
-                  const aid = rosterHome[idx];
-                  const a = aid ? atletas.find(x => String(x.id) === String(aid)) : null;
-                  return (
-                    <tr key={`h-${idx}`} style={{ height: "24px" }}>
-                      <td style={{ textAlign: "center", fontWeight: "bold" }}>{a?.numeroCamisa || "—"}</td>
-                      <td style={{ fontWeight: a ? "bold" : "normal", color: a ? "#000" : "#888" }}>
-                        <span style={{ marginRight: 6, color: "#888", fontSize: "10px" }}>{String(idx + 1).padStart(2, '0')}.</span>
-                        {a ? getPlayerName(a) : "...................................................................................................."}
-                      </td>
-                      <td style={{ textAlign: "center" }}></td>
-                      <td style={{ textAlign: "center", fontSize: "9px" }}>🟨 🟥</td>
-                      <td></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Visitante */}
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: "12px", fontWeight: "bold", paddingBottom: "4px", borderBottom: "2px solid #000" }}>⚽ {tmAway} (VISITANTE)</div>
-            <table className="sumula-table">
-              <thead>
-                <tr>
-                  <th style={{ width: "25px", textAlign: "center" }}>Nº</th>
-                  <th>NOME DO ATLETA</th>
-                  <th style={{ width: "50px", textAlign: "center" }}>GOLS</th>
-                  <th style={{ width: "40px", textAlign: "center" }}>CART.</th>
-                  <th style={{ width: "80px" }}>ASSINATURA</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((_, idx) => {
-                  const aid = rosterAway[idx];
-                  const a = aid ? atletas.find(x => String(x.id) === String(aid)) : null;
-                  return (
-                    <tr key={`a-${idx}`} style={{ height: "24px" }}>
-                      <td style={{ textAlign: "center", fontWeight: "bold" }}>{a?.numeroCamisa || "—"}</td>
-                      <td style={{ fontWeight: a ? "bold" : "normal", color: a ? "#000" : "#888" }}>
-                        <span style={{ marginRight: 6, color: "#888", fontSize: "10px" }}>{String(idx + 1).padStart(2, '0')}.</span>
-                        {a ? getPlayerName(a) : "...................................................................................................."}
-                      </td>
-                      <td style={{ textAlign: "center" }}></td>
-                      <td style={{ textAlign: "center", fontSize: "9px" }}>🟨 🟥</td>
-                      <td></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Rodapé e Observações */}
-        <div style={{ marginTop: "15px", border: "1px solid #000", padding: "8px", borderRadius: "6px" }}>
-          <div style={{ fontSize: "10px", fontWeight: "bold", marginBottom: "4px" }}>✍️ OCORRÊNCIAS / OBSERVAÇÕES DA PARTIDA:</div>
-          {m.observations && m.observations.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "10px" }}>
-              {m.observations.map((obs, oIdx) => {
-                const homeNames = (obs.homeAthletes || []).map(id => {
-                  const at = atletas.find(x => String(x.id) === String(id));
-                  return at ? (at.apelido || at.nome) : `Atleta #${id}`;
-                });
-                const awayNames = (obs.awayAthletes || []).map(id => {
-                  const at = atletas.find(x => String(x.id) === String(id));
-                  return at ? (at.apelido || at.nome) : `Atleta #${id}`;
-                });
-                const athletesStr = [];
-                if (homeNames.length > 0) athletesStr.push(`${tmHome}: ${homeNames.join(", ")}`);
-                if (awayNames.length > 0) athletesStr.push(`${tmAway}: ${awayNames.join(", ")}`);
-
-                return (
-                  <div key={obs.id} style={{ borderBottom: oIdx < m.observations.length - 1 ? "1px dashed #ccc" : "none", paddingBottom: "4px", marginBottom: "4px" }}>
-                    <strong>[{obs.type.toUpperCase()}]</strong> {obs.text}
-                    {athletesStr.length > 0 && (
-                      <span style={{ fontSize: "9px", color: "#444", marginLeft: "6px" }}>
-                        ({athletesStr.join(" | ")})
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={{ height: "55px", border: "1px dashed #ccc" }}></div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "30px", fontSize: "10px" }}>
-          <div style={{ textAlign: "center", width: "30%" }}>
-            <div style={{ borderTop: "1px solid #000", paddingTop: "5px" }}>ASSINATURA DO ÁRBITRO</div>
-          </div>
-          <div style={{ textAlign: "center", width: "30%" }}>
-            <div style={{ borderTop: "1px solid #000", paddingTop: "5px", textTransform: "uppercase" }}>
-              {m.homeRepresentative ? `REP.: ${m.homeRepresentative}` : "REPRESENTANTE MANDANTE"}
-            </div>
-          </div>
-          <div style={{ textAlign: "center", width: "30%" }}>
-            <div style={{ borderTop: "1px solid #000", paddingTop: "5px", textTransform: "uppercase" }}>
-              {m.awayRepresentative ? `REP.: ${m.awayRepresentative}` : "REPRESENTANTE VISITANTE"}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-    function abrirNovoAtletaCamp() {
-    setEditAtletaId(null);
-    setFormAtleta({
-      nome: filtroElenco.trim(),
-      apelido: "",
-      foto: "",
-      habilidade: 3,
-      goleiro: false,
-      ativo: true,
-      documento: "", // RG
-      dataNascimento: "",
-      numeroCamisa: "",
-      celular1: "",
-      celular2: "",
-      foneResidencial: "",
-      email: "",
-      tipoAtleta: "Adventista",
-      igrejaMembro: "",
-      modalidades: c.modalidade ? [c.modalidade] : [],
-      logradouro: "Rua",
-      nomeVia: "",
-      cep: "",
-      complemento: "",
-      bairro: "",
-      nomeMae: "",
-      docFoto: "",
-      vinculos: ["campeonato_" + c.id],
-      customFields: {}
-    });
-    setModalNovoAtleta(true);
-  }
-
-  function abrirEditarAtletaCamp(a) {
-    setEditAtletaId(a.id);
-    setFormAtleta({
-      nome: a.nome,
-      apelido: a.apelido || "",
-      foto: a.foto || "",
-      habilidade: a.habilidade || 3,
-      goleiro: a.goleiro || false,
-      ativo: a.ativo !== false,
-      documento: a.documento || "",
-      dataNascimento: a.dataNascimento || "",
-      numeroCamisa: a.numeroCamisa || "",
-      celular1: a.celular1 || "",
-      celular2: a.celular2 || "",
-      foneResidencial: a.foneResidencial || "",
-      email: a.email || "",
-      tipoAtleta: a.tipoAtleta || "Adventista",
-      igrejaMembro: a.igrejaMembro || "",
-      modalidades: a.modalidades || [],
-      logradouro: a.logradouro || "Rua",
-      nomeVia: a.nomeVia || "",
-      cep: a.cep || "",
-      complemento: a.complemento || "",
-      bairro: a.bairro || "",
-      nomeMae: a.nomeMae || "",
-      docFoto: a.docFoto || "",
-      vinculos: Array.isArray(a.vinculos) ? a.vinculos : [],
-      customFields: a.customFields || {}
-    });
-    setModalNovoAtleta(true);
-  }
-
-  function salvarNovoAtletaCamp() {
-    if(!formAtleta.nome.trim()) return;
-    
-    if (editAtletaId) {
-      if (onUpdateAtleta) {
-        onUpdateAtleta(editAtletaId, formAtleta);
-      }
-      alert("Cadastro do atleta atualizado com sucesso!");
-    } else {
-      const novoId = Date.now();
-      const novoAtleta = {
-        id: novoId, 
-        ...formAtleta,
-        vinculos: ["campeonato_" + c.id]
-      };
-      onAddAtleta(novoAtleta);
-      
-      const tc = deepClone(c);
-      tc.rosters = tc.rosters || {};
-      tc.rosters[selTeamElenco] = [...(tc.rosters[selTeamElenco] || []), novoId];
-      onUpdate(tc);
-    }
-
-    setModalNovoAtleta(false);
-    setEditAtletaId(null);
-    setFiltroElenco("");
-  }
-
-  function saveRR(ri, mi, hs, as2, dt, newHome, newAway, newRound) {
-    const tc = deepClone(c);
-    const m = tc.rounds[ri].matches[mi];
-    m.homeScore = hs;
-    m.awayScore = as2;
-    m.played = hs !== "" && as2 !== "";
-    if (dt) m.date = dt;
-    if (!m.played) {
-      if (newHome) m.home = newHome;
-      if (newAway) m.away = newAway;
-    }
-    if (newRound !== undefined && Number(newRound) !== tc.rounds[ri].round) {
-      tc.rounds[ri].matches.splice(mi, 1);
-      const targetRound = tc.rounds.find(r => r.round === Number(newRound));
-      if (targetRound) targetRound.matches.push(m);
-    }
-    tc.standings = recalcStandings(tc.teams, tc.rounds);
-    onUpdate(tc);
-    setEditing(null);
-  }
-  function saveGroup(gi, ri, mi, hs, as2, dt, newHome, newAway, newRound) {
-    const tc = deepClone(c);
-    const m = tc.groups[gi].rounds[ri].matches[mi];
-    m.homeScore = hs;
-    m.awayScore = as2;
-    m.played = hs !== "" && as2 !== "";
-    if (dt) m.date = dt;
-    if (!m.played) {
-      if (newHome) m.home = newHome;
-      if (newAway) m.away = newAway;
-    }
-    if (newRound !== undefined && Number(newRound) !== tc.groups[gi].rounds[ri].round) {
-      tc.groups[gi].rounds[ri].matches.splice(mi, 1);
-      const targetRound = tc.groups[gi].rounds.find(r => r.round === Number(newRound));
-      if (targetRound) targetRound.matches.push(m);
-    }
-    tc.groups[gi].standings = recalcStandings(tc.groups[gi].teams, tc.groups[gi].rounds);
-    onUpdate(tc);
-    setEditing(null);
-  }
-  function saveKO(pi, mi, hs, as2, dt, newHome, newAway) {
-    if (hs !== "" && as2 !== "" && parseInt(hs) === parseInt(as2)) {
-      alert("Sem empate no mata-mata!");
-      return;
-    }
-    const tc = deepClone(c);
-    const ph = tc.knockout[pi];
-    const m = ph.matches[mi];
-    m.homeScore = hs;
-    m.awayScore = as2;
-    m.played = hs !== "" && as2 !== "";
-    if (m.played) {
-      m.winner = parseInt(hs) > parseInt(as2) ? m.home : m.away;
-    } else {
-      m.winner = null;
-    }
-    if (dt) m.date = dt;
-    if (!m.played) {
-      if (newHome) m.home = newHome;
-      if (newAway) m.away = newAway;
-    }
-    if (ph.matches.every(x => x.played)) {
-      ph.advancers = ph.matches.map(x => x.winner);
-      if (tc.knockout[pi + 1]) {
-        const adv = ph.advancers;
-        tc.knockout[pi + 1].matches = [];
-        for (let i = 0; i < adv.length; i += 2) {
-          if (adv[i + 1]) {
-            tc.knockout[pi + 1].matches.push({
-              home: adv[i],
-              away: adv[i + 1],
-              homeScore: "",
-              awayScore: "",
-              played: false,
-              winner: null,
-              date: ""
-            });
-          }
-        }
-      }
-    }
-    onUpdate(tc);
-    setEditing(null);
-  }
-    function advanceMixed(){
-    const tc=deepClone(c);
-    const q=[];
-    if (tc.type === "liga") {
-      const numGroups = tc.groups.length;
-      for (let i = 0; i < numGroups; i++) {
-        const firstTeam = tc.groups[i].standings[0]?.name || null;
-        const secondTeam = tc.groups[numGroups - 1 - i].standings[1]?.name || null;
-        q.push(firstTeam);
-        q.push(secondTeam);
-      }
-      tc.knockout=generateKO(q, true);
-    } else {
-      tc.groups.forEach(g=>{
-        if(g.standings[0])q.push(g.standings[0].name);
-        if(g.standings[1])q.push(g.standings[1].name);
-      });
-      tc.knockout=generateKO(q);
-    }
-    tc.mixedPhase="knockout";
-    onUpdate(tc);
-  }
-  const lastPhase=c.knockout?.length>0?c.knockout[c.knockout.length-1]:null;
-  const champion=(c.type==="mata"||((c.type==="misto"||c.type==="liga")&&c.mixedPhase==="knockout"))&&lastPhase?.matches?.[0]?.winner||(c.type==="pontos"&&c.rounds?.every(r=>r.matches.every(m=>m.played))&&c.standings?.[0]?.name)||null;
-  const tabs = [
-    "elencos",
-    ...(c.type==="pontos"?["tabela","jogos"]:c.type==="mata"?["chave","jogos"]:["tabela","chave","jogos"]),
-    "estatísticas"
-  ];
-  if (c.allowOnlineReg) {
-    tabs.push("solicitações");
-  }
-  tabs.push("mural", "galeria");
-  if (isDonoOuAdmin) {
-    tabs.push("colaboradores");
-  }
-  tabs.push("configurações", "nuvem");
-
-  const getArtilheiro = () => {
-    const evts = [];
-    if(c.rounds) c.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>evts.push(e))));
-    if(c.groups) c.groups.forEach(g=>g.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>evts.push(e)))));
-    if(c.knockout) c.knockout.forEach(p=>p.matches.forEach(m=>m.events?.forEach(e=>evts.push(e))));
-
-    const stats = {};
-    evts.forEach(e => {
-       if(e.type==="gol") {
-          if(!stats[e.atletaId]) stats[e.atletaId] = {gols:0, teamName: e.teamName};
-          stats[e.atletaId].gols++;
-       }
-    });
-
-    const arr = Object.keys(stats).map(aid => ({ atleta: atletas.find(x=>String(x.id)===String(aid)), ...stats[aid] })).filter(x=>x.atleta);
-    const sorted = [...arr].sort((a,b)=>b.gols-a.gols);
-    return sorted[0] || null;
-  };
-  const artilheiro = getArtilheiro();
-
-  useEffect(() => {
-    if (champion) {
-      const key = `celeb_visto_${c.id}`;
-      if (!localStorage.getItem(key)) {
-        setShowCelebration(true);
-        localStorage.setItem(key, "true");
-      }
-    }
-  }, [champion, c.id]);
-
-  function handleSaveSumula(m, events) {
-     const tc=deepClone(c);
-     
-     let golsHome = events.filter(e => e.type === "gol" && e.teamName === m.home).length;
-     let golsAway = events.filter(e => e.type === "gol" && e.teamName === m.away).length;
-     const hs = String(golsHome);
-     const as2 = String(golsAway);
-
-     let found = false;
-
-     // 1. Pontos Corridos
-     if(tc.rounds) {
-       for(let ri=0; ri<tc.rounds.length; ri++){ 
-         const r = tc.rounds[ri];
-         const mi = r.matches.findIndex(x=>x.home===m.home&&x.away===m.away); 
-         if(mi > -1){ 
-           const mr = r.matches[mi];
-           mr.events = events; 
-           mr.homeScore = hs;
-           mr.awayScore = as2;
-           mr.played = true;
-           if (!mr.date) mr.date = todayStr();
-           mr.homeRepresentative = m.homeRepresentative || "";
-           mr.awayRepresentative = m.awayRepresentative || "";
-           mr.observations = m.observations || [];
-           tc.standings = recalcStandings(tc.teams, tc.rounds);
-           found = true; 
-           break; 
-         } 
-       }
-     }
-
-     // 2. Misto (Fase de Grupos)
-     if(!found && tc.groups) {
-       for(let gi=0; gi<tc.groups.length; gi++){ 
-         const g = tc.groups[gi];
-         for(let ri=0; ri<g.rounds.length; ri++){ 
-           const r = g.rounds[ri];
-           const mi = r.matches.findIndex(x=>x.home===m.home&&x.away===m.away); 
-           if(mi > -1){ 
-             const mr = r.matches[mi];
-             mr.events = events; 
-             mr.homeScore = hs;
-             mr.awayScore = as2;
-             mr.played = true;
-             if (!mr.date) mr.date = todayStr();
-             mr.homeRepresentative = m.homeRepresentative || "";
-             mr.awayRepresentative = m.awayRepresentative || "";
-             mr.observations = m.observations || [];
-             g.standings = recalcStandings(g.teams, g.rounds);
-             found = true; 
-             break; 
-           } 
-         }
-         if (found) break;
-       }
-     }
-
-     // 3. Mata-Mata
-     if(!found && tc.knockout) {
-       for(let pi=0; pi<tc.knockout.length; pi++){ 
-         const ph = tc.knockout[pi];
-         const mi = ph.matches.findIndex(x=>x.home===m.home&&x.away===m.away); 
-         if(mi > -1){ 
-           if (parseInt(hs) === parseInt(as2)) {
-             alert("Sem empate no mata-mata da súmula! Por favor, adicione o desempate/pênaltis na súmula.");
-             return;
-           }
-           const mr = ph.matches[mi];
-           mr.events = events; 
-           mr.homeScore = hs;
-           mr.awayScore = as2;
-           mr.played = true;
-           mr.winner = parseInt(hs) > parseInt(as2) ? mr.home : mr.away;
-           if (!mr.date) mr.date = todayStr();
-           mr.homeRepresentative = m.homeRepresentative || "";
-           mr.awayRepresentative = m.awayRepresentative || "";
-           mr.observations = m.observations || [];
-
-           if (ph.matches.every(x => x.played)) {
-             ph.advancers = ph.matches.map(x => x.winner);
-             if (tc.knockout[pi + 1]) {
-               const adv = ph.advancers;
-               tc.knockout[pi + 1].matches = [];
-               for (let i = 0; i < adv.length; i += 2) {
-                 if (adv[i + 1]) {
-                   tc.knockout[pi + 1].matches.push({
-                     home: adv[i],
-                     away: adv[i + 1],
-                     homeScore: "",
-                     awayScore: "",
-                     played: false,
-                     winner: null,
-                     date: ""
-                   });
-                 }
-               }
-             }
-           }
-           found = true; 
-           break; 
-         } 
-       }
-     }
-
-     onUpdate(tc);
-     setSumulaModal(null);
-  }
-
-  function renderEstatisticas() {
-    const evts = [];
-    if(c.rounds) c.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>evts.push(e))));
-    if(c.groups) c.groups.forEach(g=>g.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>evts.push(e)))));
-    if(c.knockout) c.knockout.forEach(p=>p.matches.forEach(m=>m.events?.forEach(e=>evts.push(e))));
-
-    const stats = {}; // aid -> {gols:0, am:0, vm:0, teamName: ""}
-    evts.forEach(e => {
-       if(!stats[e.atletaId]) stats[e.atletaId] = {gols:0, am:0, vm:0, teamName: e.teamName};
-       if(e.type==="gol") stats[e.atletaId].gols++;
-       if(e.type==="amarelo") stats[e.atletaId].am++;
-       if(e.type==="vermelho") stats[e.atletaId].vm++;
-    });
-
-    const arr = Object.keys(stats).map(aid => ({ atleta: atletas.find(x=>String(x.id)===String(aid)), ...stats[aid] })).filter(x=>x.atleta);
-    
-    const rankGols = [...arr].filter(x=>x.gols>0).sort((a,b)=>b.gols-a.gols);
-    const rankAm = [...arr].filter(x=>x.am>0).sort((a,b)=>b.am-a.am);
-    const rankVm = [...arr].filter(x=>x.vm>0).sort((a,b)=>b.vm-a.vm);
-
-    return (
-      <div style={{display:"flex",flexDirection:"column",gap:20}}>
-        <div style={S.card}>
-          <h3 style={{fontSize:14,fontWeight:800,color:t.text,marginBottom:16}}>Artilharia</h3>
-          {rankGols.length===0 && <div style={{fontSize:12,color:t.textSec}}>Nenhum gol registrado.</div>}
-          {rankGols.map((x,i)=><div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${t.cardBorder}`}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontWeight:700,color:"#22b7d9",width:20}}>{i+1}º</span><PlayerAvatar atleta={x.atleta} size={24}/><div style={{display:"flex",flexDirection:"column"}}><span style={{fontSize:13,fontWeight:600,color:t.text}}>{getPlayerName(x.atleta)}</span><span style={{fontSize:11,color:t.textSec}}>{x.teamName}</span></div></div><div style={{fontWeight:800,color:"#22b7d9"}}>{x.gols}</div></div>)}
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <div style={S.card}>
-            <h3 style={{fontSize:14,fontWeight:800,color:t.text,marginBottom:16}}>🟨 Cartões Amarelos</h3>
-            {rankAm.length===0 && <div style={{fontSize:12,color:t.textSec}}>Nenhum cartão.</div>}
-            {rankAm.map((x,i)=><div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${t.cardBorder}`}}><div style={{display:"flex",alignItems:"center",gap:6}}><div style={{display:"flex",flexDirection:"column"}}><span style={{fontSize:12,fontWeight:600,color:t.text}}>{getPlayerName(x.atleta)}</span><span style={{fontSize:10,color:t.textSec}}>{x.teamName}</span></div></div><div style={{fontWeight:700,color:"#BA7517"}}>{x.am}</div></div>)}
-          </div>
-          <div style={S.card}>
-            <h3 style={{fontSize:14,fontWeight:800,color:t.text,marginBottom:16}}>🟥 Cartões Vermelhos</h3>
-            {rankVm.length===0 && <div style={{fontSize:12,color:t.textSec}}>Nenhum cartão.</div>}
-            {rankVm.map((x,i)=><div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${t.cardBorder}`}}><div style={{display:"flex",alignItems:"center",gap:6}}><div style={{display:"flex",flexDirection:"column"}}><span style={{fontSize:12,fontWeight:600,color:t.text}}>{getPlayerName(x.atleta)}</span><span style={{fontSize:10,color:t.textSec}}>{x.teamName}</span></div></div><div style={{fontWeight:700,color:"#E24B4A"}}>{x.vm}</div></div>)}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function renderKnockout() {
-    if (!c.knockout || c.knockout.length === 0) {
-      return (
-        <div style={{...S.card, textAlign: "center", padding: 24, color: t.textSec}}>
-          Nenhuma chave de mata-mata foi gerada ainda. Finalize os jogos da fase de grupos e avance para gerar o mata-mata.
-        </div>
-      );
-    }
-    return (
-      <div style={{overflowX:"auto"}}>
-        <div style={{display:"flex",gap:14,minWidth:"fit-content",paddingBottom:8}}>
-          {(c.knockout || []).map((phase,pi)=>(
-            <div key={pi} style={{minWidth:200}}>
-              <div style={{fontSize:11,fontWeight:700,color:t.textSec,textAlign:"center",textTransform:"uppercase",letterSpacing:1,marginBottom:16}}>{phase.name}</div>
-              <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                {(phase.matches || []).map((m,mi)=>(
-                  <div key={mi} style={{border:`1px solid ${t.cardBorder}`,borderRadius:12,overflow:"hidden",background:t.card}}>
-                    {[{tm:m.home,s:m.homeScore,w:m.winner===m.home},{tm:m.away,s:m.awayScore,w:m.winner===m.away}].map((side,si)=>(
-                      <div key={si} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",borderBottom:si===0?`1px solid ${t.cardBorder}`:"none",background:side.w?"#1D9E7514":"transparent"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={side.tm||"?"} color={colorOf(side.tm,c.teams)} size={26} src={c.emblems?.[side.tm]}/><span style={{fontSize:13,fontWeight:700,color:t.text}}>{side.tm||"—"}</span></div>
-                        <span style={{fontWeight:800,color:side.w?"#1D9E75":t.text,fontSize:14}}>{m.played?side.s:"—"}</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  function renderJogos() {
-    return (
-      <>
-        {currentTab==="jogos"&&c.type==="pontos"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{(c.rounds || []).map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{(rd.matches || []).map((m,mi)=><MatchRow key={mi} m={m} eKey={"rr-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveRR(ri,mi,hs,as2,dt,nh,na,nr)} roundsList={(c.rounds || []).map(r=>r.round)} currentRound={rd.round} teamsList={c.teams || []}/>)}</div></Sec>)}</div>}
-        {currentTab==="jogos"&&c.type==="mata"&&<div style={{display:"flex",flexDirection:"column",gap:18}}>{(c.knockout || []).map((phase,pi)=><Sec key={pi} title={phase.name} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{(phase.matches || []).map((m,mi)=><MatchRow key={mi} m={m} eKey={"ko-"+pi+"-"+mi} onSave={(hs,as2,dt,nh,na)=>saveKO(pi,mi,hs,as2,dt,nh,na)} teamsList={c.teams || []}/>)}</div></Sec>)}</div>}
-        {currentTab==="jogos"&&(c.type==="misto"||c.type==="liga")&&<div style={{display:"flex",flexDirection:"column",gap:24}}>{(c.groups || []).map((g,gi)=><div key={gi}><h3 style={{fontSize:14,fontWeight:700,marginBottom:16,color:t.text}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3>{(g.rounds || []).map((rd,ri)=><Sec key={ri} title={"Rodada "+rd.round} t={t}><div style={{display:"flex",flexDirection:"column",gap:8}}>{(rd.matches || []).map((m,mi)=><MatchRow key={mi} m={m} eKey={"gr-"+gi+"-"+ri+"-"+mi} onSave={(hs,as2,dt,nh,na,nr)=>saveGroup(gi,ri,mi,hs,as2,dt,nh,na,nr)} roundsList={(g.rounds || []).map(r=>r.round)} currentRound={rd.round} teamsList={g.teams || []} quadra={g.quadra||""}/>)}</div></Sec>)}</div>)}</div>}
-      </>
-    );
-  }
-
-  function ResumoArtilharia() {
-    const evts = [];
-    if(c.rounds) c.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>evts.push(e))));
-    if(c.groups) c.groups.forEach(g=>g.rounds.forEach(r=>r.matches.forEach(m=>m.events?.forEach(e=>evts.push(e)))));
-    if(c.knockout) c.knockout.forEach(p=>p.matches.forEach(m=>m.events?.forEach(e=>evts.push(e))));
-
-    const stats = {};
-    evts.forEach(e => {
-       if(e.type==="gol") {
-          if(!stats[e.atletaId]) stats[e.atletaId] = {gols:0, teamName: e.teamName};
-          stats[e.atletaId].gols++;
-       }
-    });
-
-    const arr = Object.keys(stats).map(aid => ({ atleta: atletas.find(x=>String(x.id)===String(aid)), ...stats[aid] })).filter(x=>x.atleta);
-    const rankGols = [...arr].sort((a,b)=>b.gols-a.gols).slice(0, 3);
-
-    if(rankGols.length === 0) return null;
-
-    return (
-      <div style={{...S.card, marginTop:20}}>
-        <h3 style={{fontSize:14,fontWeight:800,color:t.text,marginBottom:16}}>⚽ Top Artilheiros</h3>
-        {rankGols.map((x,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:i!==rankGols.length-1?`1px solid ${t.cardBorder}`:"none"}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontWeight:700,color:"#22b7d9",width:20}}>{i+1}º</span>
-              <PlayerAvatar atleta={x.atleta} size={24}/>
-              <div style={{display:"flex",flexDirection:"column"}}>
-                 <span style={{fontSize:13,fontWeight:600,color:t.text}}>{getPlayerName(x.atleta)}</span>
-                 <span style={{fontSize:11,color:t.textSec}}>{x.teamName}</span>
-              </div>
-            </div>
-            <div style={{fontWeight:800,color:"#22b7d9"}}>{x.gols}</div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  function AbaElencos() {
-    if(!selTeamElenco && c.teams.length > 0) {
-      setSelTeamElenco(c.teams[0]);
-    }
-    const teamRoster = selTeamElenco ? (rosters[selTeamElenco] || []) : [];
-    const allRosteredIds = Object.values(rosters).flat();
-    const notInTeam = atletasDoCampeonato.filter(a => !allRosteredIds.includes(a.id));
-    const gruposUnicos = Array.from(new Set(atletasDoCampeonato.map(a => a.grupo).filter(Boolean)));
-    const dispFiltrados = notInTeam.filter(a => {
-      const matchesNome = a.nome.toLowerCase().includes(filtroElenco.toLowerCase()) || (a.apelido && a.apelido.toLowerCase().includes(filtroElenco.toLowerCase()));
-      const matchesGrupo = !filtroGrupoElenco || a.grupo === filtroGrupoElenco;
-      return matchesNome && matchesGrupo;
-    });
-
-    const handleQuickRegister = () => {
-      const nomeTime = quickTeamName.trim();
-      if (!nomeTime) {
-        alert("Por favor, informe o nome do time.");
-        return;
-      }
-      const listaNomes = quickPlayersText
-        .split("\n")
-        .map(n => n.trim())
-        .filter(Boolean);
-      
-      if (listaNomes.length === 0) {
-        alert("Por favor, adicione pelo menos um nome de atleta.");
-        return;
-      }
-
-      const tc = deepClone(c);
-      tc.rosters = tc.rosters || {};
-      
-      // 1. Garantir time cadastrado
-      if (!tc.teams.includes(nomeTime)) {
-        tc.teams.push(nomeTime);
-      }
-      tc.rosters[nomeTime] = tc.rosters[nomeTime] || [];
-
-      // 2. Processar atletas
-      let novosCadastrados = 0;
-      
-      listaNomes.forEach((nome, idx) => {
-        let a = atletas.find(x => x.nome.toLowerCase() === nome.toLowerCase() || (x.apelido && x.apelido.toLowerCase() === nome.toLowerCase()));
-        
-        if (!a) {
-          const novoId = Date.now() + Math.floor(Math.random() * 100000) + idx;
-          a = {
-            id: novoId,
-            nome: nome,
-            apelido: "",
-            foto: "",
-            habilidade: 3,
-            goleiro: false,
-            ativo: true,
-            vinculos: ["campeonato_" + c.id]
-          };
-          onAddAtleta(a);
-          novosCadastrados++;
-        } else {
-          const vinculos = Array.isArray(a.vinculos) ? [...a.vinculos] : [];
-          if (!vinculos.includes("campeonato_" + c.id)) {
-            a.vinculos = [...vinculos, "campeonato_" + c.id];
-            onUpdateAtleta(a.id, a);
-          }
-        }
-        
-        if (!tc.rosters[nomeTime].includes(a.id)) {
-          tc.rosters[nomeTime].push(a.id);
-        }
-      });
-
-      onUpdate(tc);
-      setSelTeamElenco(nomeTime);
-      setQuickTeamName("");
-      setQuickPlayersText("");
-      setShowQuickRegister(false);
-
-      alert(`Sucesso! Time "${nomeTime}" inscrito. ${listaNomes.length} jogadores processados (${novosCadastrados} novos cadastrados adicionados ao banco global).`);
-    };
-
-    return (
-      <div>
-        {/* Menu de Importar/Exportar Planilha de Atletas */}
-        <div style={{...S.card, marginBottom: 16, borderColor: "#1D9E7555", background: t.inputBg}}>
-          <button
-            onClick={() => setShowXlsMenuElenco(!showXlsMenuElenco)}
-            style={{
-              background: "none", border: "none", color: "#1D9E75", fontWeight: 800,
-              fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center",
-              gap: 6, padding: 0, width: "100%", textAlign: "left"
-            }}
-          >
-            {showXlsMenuElenco ? "▼ Fechar Planilha" : "📊 Importar / Exportar Atletas por Planilha (XLS)"}
-          </button>
-
-          {showXlsMenuElenco && (
-            <div style={{marginTop: 12, display: "flex", flexDirection: "column", gap: 0, border: `1px solid ${t.cardBorder}`, borderRadius: 10, overflow: "hidden"}}>
-              <button
-                onClick={() => { downloadModeloElenco(); setShowXlsMenuElenco(false); }}
-                style={{textAlign:"left",padding:"24px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}}
-                onMouseEnter={e => e.currentTarget.style.background = t.card}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-              >
-                <span>📄</span>
-                <div>
-                  <div style={{fontWeight:600}}>Baixar Modelo de Planilha</div>
-                  <div style={{fontSize:11,color:t.textSec}}>Planilha em branco com todos os campos para preenchimento</div>
-                </div>
-              </button>
-
-              <label
-                style={{textAlign:"left",padding:"24px",border:"none",background:"transparent",color:t.text,cursor:"pointer",borderBottom:`1px solid ${t.cardBorder}`,display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s",margin:0}}
-                onMouseEnter={e => e.currentTarget.style.background = t.card}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-              >
-                <span>📥</span>
-                <div>
-                  <div style={{fontWeight:600}}>Importar Atletas da Planilha</div>
-                  <div style={{fontSize:11,color:t.textSec}}>
-                    Carrega atletas da planilha XLS{selTeamElenco ? ` e escalona automaticamente em "${selTeamElenco}"` : ""}
-                  </div>
-                </div>
-                <input type="file" accept=".csv,.xls,.xlsx" style={{display:"none"}} onChange={importarElenco} />
-              </label>
-
-              <button
-                onClick={() => { exportarElenco(); setShowXlsMenuElenco(false); }}
-                style={{textAlign:"left",padding:"24px",border:"none",background:"transparent",color:t.text,cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:13,fontWeight:500,transition:"background 0.2s"}}
-                onMouseEnter={e => e.currentTarget.style.background = t.card}
-                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-              >
-                <span>📤</span>
-                <div>
-                  <div style={{fontWeight:600}}>Exportar Elencos Atuais</div>
-                  <div style={{fontSize:11,color:t.textSec}}>Baixar lista de todos os atletas escalados em XLS</div>
-                </div>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Formulário de Inscrição Rápida de Elenco em Lote */}
-        <div style={{...S.card, marginBottom: 16, borderColor: "#22b7d955", background: t.inputBg}}>
-          <button 
-            onClick={() => setShowQuickRegister(!showQuickRegister)} 
-            style={{
-              background: "none",
-              border: "none",
-              color: "#22b7d9",
-              fontWeight: 800,
-              fontSize: 14,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: 0,
-              width: "100%",
-              textAlign: "left"
-            }}
-          >
-            {showQuickRegister ? "▼ Fechar Inscrição Rápida" : "📥 Inscrição Rápida de Time e Atletas (Lote)"}
-          </button>
-          
-          {showQuickRegister && (
-            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-              <div>
-                <label style={S.label}>Nome do Time</label>
-                <input 
-                  style={S.input} 
-                  placeholder="Ex: Real Madrid, Barcelona..." 
-                  value={quickTeamName} 
-                  onChange={e => setQuickTeamName(e.target.value)}
-                />
-              </div>
-              <div>
-                <label style={S.label}>Lista de Atletas (um nome por linha)</label>
-                <textarea 
-                  style={{
-                    ...S.input,
-                    height: 120,
-                    fontFamily: "inherit",
-                    resize: "vertical",
-                    padding: "8px 12px"
-                  }} 
-                  placeholder="Ex:&#10;Cristiano Ronaldo&#10;Karim Benzema&#10;Luka Modric"
-                  value={quickPlayersText}
-                  onChange={e => setQuickPlayersText(e.target.value)}
-                />
-                <span style={{ fontSize: 10, color: t.textSec, marginTop: 4, display: "block" }}>
-                  <IconInfo size={14} /> O sistema criará o time e cadastrará/escalará cada jogador da lista de forma 100% automática.
-                </span>
-              </div>
-              <button 
-                onClick={handleQuickRegister} 
-                style={{ ...S.btn("#22b7d9"), justifyContent: "center", marginTop: 4 }}
-              >
-                📥 Inscrever Time e Elenco
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:16}}>
-          <button onClick={()=>{setEditingTeams(e=>!e); setTeamsDraft(Array.isArray(champ.teams)?[...champ.teams]:[]);}} style={S.btnSm(editingTeams?"#BA7517":"#22b7d9")}>{editingTeams?"Cancelar edição":"Editar Times"}</button>
-          {editingTeams&&<button onClick={()=>{
-              const cleaned = teamsDraft.map(x=>String(x||"").trim()).filter(Boolean);
-              const tc = {...champ, teams: cleaned};
-              onUpdate(tc);
-              setEditingTeams(false);
-            }} style={S.btnSm("#1D9E75")}>Salvar Times</button>}
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,flexWrap:"wrap"}}>
-          <label style={{fontSize:13,fontWeight:700,color:t.text,whiteSpace:"nowrap"}}>🏆 Time:</label>
-          <select
-            value={selTeamElenco}
-            onChange={e => setSelTeamElenco(e.target.value)}
-            style={{...S.select, flex:1, minWidth:180, maxWidth:320, fontWeight:600}}
-          >
-            {(editingTeams ? teamsDraft : c.teams).map((tm,i) => (
-              <option key={tm+String(i)} value={tm}>{tm}</option>
-            ))}
-          </select>
-          {editingTeams && (
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              <button onClick={() => setTeamsDraft(d => [...d,""])} style={{...S.btnSm("#1D9E7522","#1D9E75")}}>+ Time</button>
-            </div>
-          )}
-        </div>
-
-        
-        {selTeamElenco ? (
-          <div style={S.card}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}}>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <Avatar name={selTeamElenco} color={colorOf(selTeamElenco,c.teams)} size={32} src={c.emblems?.[selTeamElenco]}/>
-                <span style={{fontWeight:800,fontSize:15,color:colorOf(selTeamElenco,c.teams)}}>Elenco: {selTeamElenco}</span>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <label style={{
-                  ...S.btnSm("#22b7d922","#22b7d9"),
-                  display:"inline-flex",
-                  alignItems:"center",
-                  cursor:"pointer",
-                  fontWeight:700,
-                  fontSize:11,
-                  padding:"4px 8px"
-                }}>
-                  🛡️ Upload Escudo
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={(e)=>{
-                      const file = e.target.files?.[0];
-                      if(!file) return;
-                      resizeImage(file, 200, (b64) => {
-                        const tc = deepClone(c);
-                        tc.emblems = tc.emblems || {};
-                        tc.emblems[selTeamElenco] = b64;
-                        onUpdate(tc);
-                      });
-                    }} 
-                    style={{display:"none"}}
-                  />
-                </label>
-                {c.emblems?.[selTeamElenco] && (
-                  <button 
-                    onClick={()=>{
-                      if(window.confirm(`Remover emblema de "${selTeamElenco}"?`)){
-                        const tc = deepClone(c);
-                        tc.emblems = tc.emblems || {};
-                        delete tc.emblems[selTeamElenco];
-                        onUpdate(tc);
-                      }
-                    }} 
-                    style={S.btnSm("#E24B4A22","#E24B4A")}
-                  >
-                    Remover
-                  </button>
-                )}
-              </div>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
-              {teamRoster.map(id=>{
-                const a = atletas.find(x=>x.id===id);
-                if(!a || !Array.isArray(a.vinculos) || !a.vinculos.includes("campeonato_" + c.id)) return null;
-                const regs = c.registrations || [];
-                const isPaid = regs.some(r => r.atletaId === id && r.team === selTeamElenco && r.paid);
-                return (
-                  <div key={id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",borderRadius:12,background:t.inputBg,border:`1px solid ${t.cardBorder}`,gap:8,flexWrap:"wrap"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:180}}>
-                      <PlayerAvatar atleta={a} size={22}/>
-                      <div style={{display:"flex",flexDirection:"column"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <span style={{fontSize:13,fontWeight:600,color:t.text}}>{getPlayerName(a)}</span>
-                          {a.numeroCamisa && <span style={{fontSize:11,fontWeight:800,color:"#22b7d9",background:"#22b7d915",padding:"1px 5px",borderRadius:4}}>#{a.numeroCamisa}</span>}
-                        </div>
-                        <div style={{fontSize:11,color:t.textSec,marginTop:2,display:"flex",gap:8,flexWrap:"wrap"}}>
-                          {a.documento && <span>RG/CPF: {a.documento}</span>}
-                          {a.dataNascimento && <span>Nasc: {a.dataNascimento.split("-").reverse().join("/")}</span>}
-                          {c.customFieldsDef && c.customFieldsDef.map(f => a.customFields?.[f] && (
-                            <span key={f}><strong>{f}:</strong> {a.customFields[f]}</span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      {isPaid ? (
-                        <span style={{fontSize:11,color:"#1D9E75",fontWeight:700,background:"#1D9E7522",padding:"2px 8px",borderRadius:8}}>Inscrição Paga</span>
-                      ) : (
-                        <button onClick={()=>{
-                          const fee = Number(c.fee||0);
-                          if(fee > 0){
-                            setFinanceiro(s=>{
-                              const entries = Array.isArray(s.entries)?[...s.entries]:[];
-                              entries.push({
-                                id:Date.now(),
-                                desc:`Inscrição - ${c.name} - ${selTeamElenco} - ${getPlayerName(a)}`,
-                                amount:fee,
-                                type:"receita",
-                                date:todayStr(),
-                                category:"Taxa de inscrição",
-                                champ_id:c.id,
-                                manager_id:c.manager_id||null
-                              });
-                              return {entries};
-                            });
-                          }
-                          const tc = deepClone(c);
-                          tc.registrations = tc.registrations||[];
-                          tc.registrations.push({atletaId:id,team:selTeamElenco,paid:true,date:todayStr(),amount:fee});
-                          onUpdate(tc);
-                        }} style={S.btnSm("#22b7d922","#22b7d9")}>Pagar Taxa {c.fee ? `(${fmtCur(c.fee)})` : ""}</button>
-                      )}
-                      <button onClick={()=>abrirEditarAtletaCamp(a)} style={{background:"none",border:"none",color:"#22b7d9",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Editar Cadastro do Atleta"><IconEdit size={12} /></button>
-                      <button onClick={()=>{
-                        if(window.confirm(`Remover ${getPlayerName(a)} do time?`)){
-                          const tc = deepClone(c);
-                          tc.rosters = tc.rosters||{};
-                          tc.rosters[selTeamElenco]=tc.rosters[selTeamElenco].filter(x=>x!==id);
-                          tc.registrations = (tc.registrations||[]).filter(r=> !(r.atletaId===id && r.team===selTeamElenco));
-                          onUpdate(tc);
-                        }
-                      }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontSize:14,fontWeight:700,padding:"4px 8px"}}>✕</button>
-                    </div>
-                  </div>
-                );
-              })}
-              {teamRoster.length===0 && <div style={{fontSize:12,color:t.textSec,textAlign:"center",padding:12}}>Nenhum atleta associado a este time.</div>}
-            </div>
-            <div style={{fontWeight:700,fontSize:12,color:t.textSec,marginBottom:16}}>Adicionar ao time:</div>
-            <div style={{display:"flex",gap:8,marginBottom:16,flexDirection:"column"}}>
-              <div style={{display:"flex",gap:8}}>
-                <input style={{...S.input,flex:1,margin:0}} placeholder="Buscar atleta para escalar..." value={filtroElenco} onChange={e=>setFiltroElenco(e.target.value)}/>
-                {filtroElenco.trim() && (
-                  <button onClick={abrirNovoAtletaCamp} style={S.btn("#10b981")}>+ Novo Atleta</button>
-                )}
-              </div>
-              {gruposUnicos.length > 0 && (
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:12,color:t.textSec,fontWeight:600}}>Filtrar por Grupo:</span>
-                  <select style={{...S.select,flex:1,margin:0,padding:"6px 10px",height:36}} value={filtroGrupoElenco} onChange={e=>setFiltroGrupoElenco(e.target.value)}>
-                    <option value="">Todos os Grupos</option>
-                    {gruposUnicos.map(g => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-            <div style={{maxHeight:200,overflowY:"auto",display:"flex",flexDirection:"column",gap:4}}>
-              {(() => {
-                const sorted = [...dispFiltrados].sort((a, b) => {
-                  const aMatches = c.modalidade && Array.isArray(a.modalidades) && a.modalidades.includes(c.modalidade) ? 1 : 0;
-                  const bMatches = c.modalidade && Array.isArray(b.modalidades) && b.modalidades.includes(c.modalidade) ? 1 : 0;
-                  return bMatches - aMatches;
-                });
-                return sorted.map(a => {
-                  const temModalidade = c.modalidade && Array.isArray(a.modalidades) && a.modalidades.includes(c.modalidade);
-                  const mDef = c.modalidade ? MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade) : null;
-                  return (
-                    <div key={a.id} onClick={()=>{
-                      const tc=deepClone(c); tc.rosters = tc.rosters||{}; tc.rosters[selTeamElenco]=[...(tc.rosters[selTeamElenco]||[]), a.id]; onUpdate(tc);
-                      setFiltroElenco("");
-                    }} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:8,background:t.inputBg,cursor:"pointer",border:`1px solid ${temModalidade ? `${mDef?.color || "#22b7d9"}44` : "transparent"}`}}>
-                      <PlayerAvatar atleta={a} size={20}/>
-                      <span style={{fontSize:12,color:t.text,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
-                        {getPlayerName(a)}
-                        {a.grupo && <span style={{fontSize:10,fontWeight:700,color:"#9C27B0",background:"#9C27B015",padding:"1px 4px",borderRadius:4}}>👥 {a.grupo}</span>}
-                        {temModalidade && mDef && (
-                          <span style={{fontSize:9,fontWeight:800,color:mDef.color,background:`${mDef.color}15`,border:`1px solid ${mDef.color}33`,padding:"1px 4px",borderRadius:4,display:"inline-flex",alignItems:"center",gap:2}}>
-                            {mDef.icon} {mDef.label}
-                          </span>
-                        )}
-                      </span>
-                      <span style={{marginLeft:"auto",color:"#22b7d9",fontWeight:700,fontSize:14}}>+</span>
-                    </div>
-                  );
-                });
-              })()}
-              {dispFiltrados.length === 0 && <div style={{fontSize:12,color:t.textSec,textAlign:"center",padding:10}}>Nenhum atleta disponível correspondente ou crie um acima.</div>}
-            </div>
-          </div>
-        ) : (
-          <div style={{...S.card, textAlign:"center", padding:24, color:t.textSec}}>
-            ⚽ Comece adicionando ou inscrevendo um time acima para gerenciar os elencos!
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  function AbaSolicitacoes() {
-    const pendingRegs = c.pendingRegistrations || [];
-    const [feedbackTexts, setFeedbackTexts] = useState({});
-
-    const handleAccept = (sub) => {
-      if (!window.confirm(`Deseja aprovar a inscrição do time "${sub.teamName}"?`)) return;
-
-      const tc = deepClone(c);
-      tc.rosters = tc.rosters || {};
-      
-      if (!tc.teams.includes(sub.teamName)) {
-        tc.teams.push(sub.teamName);
-      }
-      tc.rosters[sub.teamName] = tc.rosters[sub.teamName] || [];
-
-      sub.players.forEach(p => {
-        let a = atletas.find(x => x.nome.toLowerCase() === p.nome.toLowerCase() || (x.apelido && x.apelido.toLowerCase() === p.apelido.toLowerCase()));
-        
-        if (!a) {
-          const newPlayer = {
-            id: p.id || Date.now() + Math.floor(Math.random() * 100000),
-            nome: p.nome,
-            apelido: p.apelido || "",
-            foto: "",
-            habilidade: p.habilidade || 3,
-            goleiro: p.goleiro || false,
-            ativo: true,
-            documento: p.documento || "",
-            dataNascimento: p.dataNascimento || "",
-            numeroCamisa: p.numeroCamisa || "",
-            customFields: p.customFields || {},
-            vinculos: ["campeonato_" + c.id]
-          };
-          onAddAtleta(newPlayer);
-          a = newPlayer;
-        } else {
-          const vinculos = Array.isArray(a.vinculos) ? [...a.vinculos] : [];
-          if (!vinculos.includes("campeonato_" + c.id)) {
-            vinculos.push("campeonato_" + c.id);
-          }
-          onUpdateAtleta(a.id, {
-            ...a,
-            documento: a.documento || p.documento || "",
-            dataNascimento: a.dataNascimento || p.dataNascimento || "",
-            numeroCamisa: a.numeroCamisa || p.numeroCamisa || "",
-            customFields: { ...(a.customFields || {}), ...(p.customFields || {}) },
-            vinculos
-          });
-        }
-
-        if (!tc.rosters[sub.teamName].includes(a.id)) {
-          tc.rosters[sub.teamName].push(a.id);
-        }
-      });
-
-      tc.pendingRegistrations = tc.pendingRegistrations.filter(r => r.id !== sub.id);
-
-      onUpdate(tc);
-      alert(`Inscrição do time "${sub.teamName}" aprovada!`);
-    };
-
-    const handleReject = (subId) => {
-      if (!window.confirm("Deseja rejeitar e excluir esta solicitação?")) return;
-      const tc = deepClone(c);
-      tc.pendingRegistrations = tc.pendingRegistrations.filter(r => r.id !== subId);
-      onUpdate(tc);
-      alert("Inscrição rejeitada.");
-    };
-
-    const handleReturn = (sub, feedback) => {
-      if (!feedback.trim()) {
-        alert("Por favor, informe a observação para devolução.");
-        return;
-      }
-      const tc = deepClone(c);
-      const target = tc.pendingRegistrations.find(r => r.id === sub.id);
-      if (target) {
-        target.status = "devolvido";
-        target.feedback = feedback.trim();
-      }
-      onUpdate(tc);
-      alert("Solicitação devolvida para correção.");
-    };
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={S.card}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: t.text, marginBottom: 16 }}>📥 Solicitações de Inscrições Pendentes</h3>
-          <p style={{ fontSize: 12, color: t.textSec, lineHeight: 1.5, marginBottom: 16 }}>
-            Aprove, rejeite ou devolva inscrições de times e elencos enviadas por responsáveis do formulário online.
-          </p>
-
-          {pendingRegs.length === 0 ? (
-            <div style={{ padding: 24, textAlign: "center", color: t.textSec, fontStyle: "italic" }}>
-              Nenhuma solicitação de inscrição pendente.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {pendingRegs.map((sub, idx) => (
-                <div key={idx} style={{ border: `1.5px solid ${t.cardBorder}`, borderRadius: 12, padding: 12, background: t.inputBg }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8, marginBottom: 16, borderBottom: `1px dashed ${t.cardBorder}`, paddingBottom: 8 }}>
-                    <div>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: t.text }}>{sub.teamName}</span>
-                      {sub.teamColors && <span style={{ fontSize: 11, color: t.textSec, marginLeft: 8 }}>({sub.teamColors})</span>}
-                    </div>
-                    <span style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      color: sub.status === "devolvido" ? "#BA7517" : "#BA7517",
-                      background: sub.status === "devolvido" ? "#BA751718" : "transparent",
-                      padding: sub.status === "devolvido" ? "2px 6px" : "0",
-                      borderRadius: 6
-                    }}>
-                      {sub.status === "devolvido" ? "Devolvido" : "Pendente"}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: 12, color: t.textSec, marginBottom: 16 }}>
-                    <strong>Responsável:</strong> {sub.leaderName} ({sub.leaderContact}) · <strong>Data:</strong> {fmtDate(sub.date)}
-                  </div>
-
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: t.textSec, marginBottom: 6 }}>ATLETAS SOLICITADOS ({sub.players?.length}):</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      {sub.players?.map((p, i) => (
-                        <div key={i} style={{ fontSize: 11, color: t.text, display: "flex", justifyContent: "space-between", background: t.card, padding: "4px 8px", borderRadius: 6, border: `1px solid ${t.cardBorder}` }}>
-                          <span>
-                            <strong>{p.numeroCamisa ? `#${p.numeroCamisa} ` : ""}</strong>
-                            {p.nome} {p.apelido ? `(${p.apelido})` : ""}
-                          </span>
-                          <span style={{ fontSize: 10, color: t.textSec }}>
-                            Nasc: {p.dataNascimento ? p.dataNascimento.split("-").reverse().join("/") : "—"} · RG/CPF: {p.documento || "—"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {sub.feedback && (
-                    <div style={{ fontSize: 11, color: "#BA7517", background: "#BA751712", padding: 6, borderRadius: 6, marginBottom: 16, borderLeft: "3.5px solid #BA7517" }}>
-                      <strong>Feedback enviado:</strong> {sub.feedback}
-                    </div>
-                  )}
-
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                    <button onClick={() => handleAccept(sub)} style={S.btnSm("#1D9E75", "#fff")}>✓ Aprovar</button>
-                    <button onClick={() => handleReject(sub.id)} style={S.btnSm("#E24B4A22", "#E24B4A")}><IconTrash size={12} /> Rejeitar</button>
-                    
-                    <div style={{ display: "flex", gap: 6, flex: 1, minWidth: 200, marginLeft: "auto" }}>
-                      <input 
-                        style={{ ...S.input, padding: "5px 10px", fontSize: 11, flex: 1, margin: 0 }} 
-                        placeholder="Motivo para devolver..." 
-                        value={feedbackTexts[sub.id] || ""} 
-                        onChange={e => setFeedbackTexts(prev => ({ ...prev, [sub.id]: e.target.value }))}
-                      />
-                      <button onClick={() => handleReturn(sub, feedbackTexts[sub.id] || "")} style={S.btnSm("#BA751722", "#BA7517")}>↩ Devolver</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-
-
-  function AbaConfiguracoes() {
-    const [editName, setEditName] = useState(c.name);
-    const [editDate, setEditDate] = useState(c.date || "");
-    const [editFee, setEditFee] = useState(c.fee || 0);
-    const [editSlug, setEditSlug] = useState(c.customSlug || "");
-    const [editAllowOnline, setEditAllowOnline] = useState(c.allowOnlineReg || false);
-    const [newCustomField, setNewCustomField] = useState("");
-    const [customFields, setCustomFields] = useState(c.customFieldsDef || []);
-    const [editGroupsData, setEditGroupsData] = useState(c.groups ? c.groups.map(g => ({ name: g.name, quadra: g.quadra || "" })) : []);
-
-    const handleAddField = () => {
-      const fieldName = newCustomField.trim();
-      if (!fieldName) return;
-      if (customFields.includes(fieldName)) {
-        alert("Este campo já foi adicionado.");
-        return;
-      }
-      setCustomFields(prev => [...prev, fieldName]);
-      setNewCustomField("");
-    };
-
-    const handleRemoveField = (field) => {
-      setCustomFields(prev => prev.filter(f => f !== field));
-    };
-
-    const handleSaveConfig = () => {
-      if(!editName.trim()){
-        alert("Nome do campeonato não pode ser vazio.");
-        return;
-      }
-      
-      const slugVal = editSlug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, "");
-
-      const novosGrupos = c.groups ? c.groups.map((g, gi) => ({
-        ...g,
-        quadra: editGroupsData[gi]?.quadra || ""
-      })) : null;
-
-      const tc = {
-        ...c,
-        name: editName.trim(),
-        date: editDate,
-        fee: Number(editFee),
-        customSlug: slugVal,
-        allowOnlineReg: editAllowOnline,
-        customFieldsDef: customFields,
-        ...(novosGrupos ? { groups: novosGrupos } : {})
-      };
-      onUpdate(tc);
-      alert("Configurações salvas com sucesso!");
-    };
-
-    const getShareLink = () => {
-      const slug = editSlug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, "") || c.npointId;
-      if (!slug) return "";
-      const base = typeof window !== "undefined" ? window.location.origin + window.location.pathname : "https://futebol-manager.vercel.app";
-      return `${base}?c=${slug}`;
-    };
-
-    const shareLink = getShareLink();
-    const qrCodeUrl = shareLink ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(shareLink)}` : "";
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={S.card}>
-          <h3 style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:16}}>Configurações Básicas</h3>
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <div>
-              <label style={S.label}>Nome do Campeonato</label>
-              <input style={S.input} value={editName} onChange={e=>setEditName(e.target.value)} />
-            </div>
-            <div>
-              <label style={S.label}>Data de Início</label>
-              <input type="date" style={S.input} value={editDate} onChange={e=>setEditDate(e.target.value)} />
-            </div>
-            <div>
-              <label style={S.label}>Taxa de inscrição por atleta (R$)</label>
-              <input type="number" min={0} step="0.01" style={S.input} value={editFee} onChange={e=>setEditFee(e.target.value)} />
-            </div>
-          </div>
-        </div>
-
-        {/* Inscrições Online e Campos Customizados */}
-        <div style={S.card}>
-          <h3 style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:16}}>✍️ Inscrições Online Públicas</h3>
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text,fontWeight:600}}>
-              <input type="checkbox" checked={editAllowOnline} onChange={e=>setEditAllowOnline(e.target.checked)} />
-              Habilitar Inscrições Públicas via Link / Nuvem
-            </label>
-            
-            {editAllowOnline && (
-              <div style={{ borderTop: `1px dashed ${t.cardBorder}`, paddingTop: 12, marginTop: 4 }}>
-                <label style={S.label}>Campos Personalizados da Ficha do Jogador</label>
-                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  <input 
-                    style={{ ...S.input, flex: 1, margin: 0, padding: "7px 10px" }} 
-                    placeholder="Ex: Posição, CPF, Responsável..." 
-                    value={newCustomField} 
-                    onChange={e=>setNewCustomField(e.target.value)}
-                  />
-                  <button onClick={handleAddField} style={S.btn("#22b7d9")}>+ Adicionar</button>
-                </div>
-                
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {customFields.map(f => (
-                    <span key={f} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, padding: "4px 10px", borderRadius: 12, background: `${t.inputBg}`, border: `1px solid ${t.cardBorder}`, color: t.text, fontWeight: 600 }}>
-                      {f}
-                      <button onClick={()=>handleRemoveField(f)} style={{ background: "none", border: "none", color: "#E24B4A", fontWeight: 800, cursor: "pointer", padding: 0 }}>×</button>
-                    </span>
-                  ))}
-                  {customFields.length === 0 && (
-                    <div style={{ fontSize: 11, color: t.textSec, fontStyle: "italic" }}>Nenhum campo personalizado criado. O sistema exigirá apenas dados nativos (Nome, Apelido, Camisa, Documento e Nascimento).</div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Quadras dos Grupos/Chaves */}
-        {c.groups && c.groups.length > 0 && (
-          <div style={S.card}>
-            <h3 style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:16}}>🏟️ Quadras dos Grupos / Chaves</h3>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              {editGroupsData.map((g, gi) => (
-                <div key={gi} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
-                  <span style={{fontSize:13,fontWeight:600,color:t.text}}>{g.name}</span>
-                  <select
-                    value={g.quadra}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setEditGroupsData(prev => {
-                        const copy = [...prev];
-                        copy[gi] = { ...copy[gi], quadra: val };
-                        return copy;
-                      });
-                    }}
-                    style={{...S.input,width:180,padding:"4px 8px",fontSize:12,height:"auto"}}
-                  >
-                    <option value="">Sem Quadra</option>
-                    {quadras.filter(q => q.ativa).map(q => (
-                      <option key={q.id} value={q.nome}>{q.nome}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Divulgação & Links */}
-        <div style={S.card}>
-          <h3 style={{fontSize:15,fontWeight:700,color:t.text,marginBottom:16}}>🔗 Divulgação & Link Amigável</h3>
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <div>
-              <label style={S.label}>Apelido do Campeonato (Slug na URL)</label>
-              <input 
-                style={S.input} 
-                placeholder="Ex: copa-bairro-novo-2026" 
-                value={editSlug} 
-                onChange={e=>setEditSlug(e.target.value)} 
-              />
-              <span style={{ fontSize: 10, color: t.textSec, marginTop: 4, display: "block" }}>
-                ⚠️ Apenas letras minúsculas, números e traços. Exemplo de link: <code>{shareLink || "Pendente de publicação na nuvem"}</code>
-              </span>
-            </div>
-
-            {c.npointId && shareLink && (
-              <div style={{ display: "flex", gap: 16, alignItems: "center", borderTop: `1px dashed ${t.cardBorder}`, paddingTop: 12, marginTop: 4, flexWrap: "wrap" }}>
-                <div>
-                  <img src={qrCodeUrl} alt="QR Code de Compartilhamento" style={{ width: 120, height: 120, border: `3px solid #000`, borderRadius: 8, background: "#fff", padding: 4 }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 160 }}>
-                  <div style={{ fontWeight: 800, fontSize: 12, color: t.text, marginBottom: 4 }}>Divulgue por QR Code!</div>
-                  <p style={{ fontSize: 11, color: t.textSec, lineHeight: 1.4, margin: "0 0 10px 0" }}>Torcedores e atletas podem escanear este código com a câmera do celular para acessar placares, tabelas e fazer inscrições.</p>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(shareLink);
-                        alert("Link de compartilhamento copiado!");
-                      }} 
-                      style={S.btnSm("#22b7d922", "#22b7d9")}
-                    >
-                      📋 Copiar Link
-                    </button>
-                    <a href={qrCodeUrl} target="_blank" download="qrcode-campeonato.png" rel="noreferrer" style={{ ...S.btnSm("#1D9E7522", "#1D9E75"), textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-                      📥 Baixar QR Code
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <button onClick={handleSaveConfig} style={{...S.btn("#1D9E75"), width: "100%", justifyContent: "center", padding: "12px", fontSize: 13, marginTop: 4}}>✓ Salvar Configurações</button>
-      </div>
-    );
-  }
-
-  function MatchRow({m,eKey,onSave,roundsList=[],currentRound=null,teamsList=[],quadra=""}){
-    const isEd=editing?.key===eKey;
-    const[hs,setHs]=useState(m.homeScore||"");const[as2,setAs2]=useState(m.awayScore||"");const[dt,setDt]=useState(m.date||"");
-    const[homeTeam,setHomeTeam]=useState(m.home);const[awayTeam,setAwayTeam]=useState(m.away);
-    const[selectedRound,setSelectedRound]=useState(currentRound||"");
-    const getPlayerNameById = id => getPlayerName(atletas.find(x=>String(x.id)===String(id)));
-    if(isEd)return(
-      <div style={{...S.card,padding:12,border:"1.5px solid #1D9E7555"}}>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {!m.played && (
-            /* Cronômetro com Alarme no Campeonato */
-            <MatchTimer t={t} defaultMinutes={40} timerKey={`champ_${c.id}_match_${eKey}`} />
-          )}
-          {!m.played ? (
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              <div>
-                <label style={{...S.label,fontSize:11,marginBottom:4}}>Time Mandante</label>
-                <select value={homeTeam} onChange={e=>setHomeTeam(e.target.value)} style={S.select}>
-                  {teamsList.map(tName=><option key={tName} value={tName}>{tName}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{...S.label,fontSize:11,marginBottom:4}}>Time Visitante</label>
-                <select value={awayTeam} onChange={e=>setAwayTeam(e.target.value)} style={S.select}>
-                  {teamsList.map(tName=><option key={tName} value={tName}>{tName}</option>)}
-                </select>
-              </div>
-            </div>
-          ) : (
-            <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",justifyContent:"space-between"}}>
-              <div style={{display:"flex",alignItems:"center",gap:8}}><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={30} src={c.emblems?.[m.home]}/><span style={{fontSize:14,fontWeight:800,color:t.text}}>{m.home}</span></div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14,fontWeight:800,color:t.text}}>{m.away}</span><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={30} src={c.emblems?.[m.away]}/></div>
-            </div>
-          )}
-
-          <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:4}}>
-            <label style={{...S.label,fontSize:11}}>Resultado (Deixe em branco para partida pendente)</label>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
-              <span style={{fontSize:11,color:t.textSec,flex:1,textAlign:"right"}}>{m.played?"":"Gols Mandante"}</span>
-              <input type="number" min={0} max={99} value={hs} onChange={e=>setHs(e.target.value)} style={{...S.input,width:56,textAlign:"center",padding:"6px 4px"}} placeholder="—"/>
-              <span style={{color:t.textSec,fontWeight:700}}>×</span>
-              <input type="number" min={0} max={99} value={as2} onChange={e=>setAs2(e.target.value)} style={{...S.input,width:56,textAlign:"center",padding:"6px 4px"}} placeholder="—"/>
-              <span style={{fontSize:11,color:t.textSec,flex:1}}>{m.played?"":"Gols Visitante"}</span>
-            </div>
-          </div>
-
-          <div>
-            <label style={{...S.label,fontSize:11,marginBottom:4}}>Data da Partida</label>
-            <input type="date" value={dt} onChange={e=>setDt(e.target.value)} style={S.input}/>
-          </div>
-
-          {!m.played && roundsList.length > 1 && currentRound && (
-            <div>
-              <label style={{...S.label,fontSize:11,marginBottom:4}}>Remanejar para Rodada</label>
-              <select value={selectedRound} onChange={e=>setSelectedRound(Number(e.target.value))} style={S.select}>
-                {roundsList.map(rdNum=><option key={rdNum} value={rdNum}>Rodada {rdNum}</option>)}
-              </select>
-            </div>
-          )}
-
-          <div style={{display:"flex",gap:8,marginTop:6}}>
-            <button onClick={()=>onSave(hs,as2,dt,homeTeam,awayTeam,selectedRound)} style={{...S.btn(),flex:1,justifyContent:"center"}}>Salvar</button>
-            <button onClick={()=>setEditing(null)} style={S.btn(t.card,t.textSec)}>✕</button>
-          </div>
-        </div>
-      </div>
-    );
-    const matchEvents = m.events || [];
-    const leftEvents = matchEvents.filter(e=>e.teamName===m.home);
-    const rightEvents = matchEvents.filter(e=>e.teamName===m.away);
-    const renderSideEvents = (events, teamName) => {
-      const goals = events.filter(e=>e.type==="gol");
-      const yellows = events.filter(e=>e.type==="amarelo");
-      const reds = events.filter(e=>e.type==="vermelho");
-      return (
-        <div style={{display:"flex",flexDirection:"column",gap:6,background:t.inputBg,padding:10,border:`1px solid ${t.cardBorder}`,borderRadius:12}}>
-          <div style={{fontSize:12,fontWeight:700,color:t.text,marginBottom:6}}>{teamName}</div>
-          {goals.length>0 ? goals.map((e,i)=><div key={i} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><IconSoccer size={12} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum gol</div>}
-          {yellows.length>0 ? yellows.map((e,i)=><div key={i} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#BA7517",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum amarelo</div>}
-          {reds.length>0 ? reds.map((e,i)=><div key={i} style={{fontSize:12,color:t.text}}><span style={{marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><span style={{display:"inline-block",width:8,height:12,backgroundColor:"#E24B4A",borderRadius:1}} /></span>{getPlayerNameById(e.atletaId)}</div>) : <div style={{fontSize:12,color:t.textSec}}>Nenhum vermelho</div>}
-        </div>
-      );
-    };
-    return(
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <div style={{display:"flex",flexDirection:"column",border:`1px solid ${t.cardBorder}`,borderRadius:12,background:t.card,overflow:"hidden"}}>
-          {quadra && (
-            <div style={{background:"#22b7d918",borderBottom:`1px solid ${t.cardBorder}`,padding:"4px 12px",display:"flex",alignItems:"center",gap:6}}>
-              <span style={{fontSize:11,color:"#22b7d9"}}>🏟️</span>
-              <span style={{fontSize:11,fontWeight:600,color:"#22b7d9"}}>{quadra}</span>
-            </div>
-          )}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",gap:8,flexWrap:"wrap"}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,flex:1,justifyContent:"flex-end",minWidth:100}}><span style={{fontSize:14,fontWeight:700,color:t.text,textAlign:"right"}}>{m.home}</span><Avatar name={m.home} color={colorOf(m.home,c.teams)} size={32} src={c.emblems?.[m.home]}/></div>
-            <div style={{textAlign:"center",minWidth:80,flexShrink:0}}>{m.played?<span style={{fontWeight:900,fontSize:18,color:"#1D9E75"}}>{m.homeScore}×{m.awayScore}</span>:<span style={{color:t.textSec,fontSize:14}}>—×—</span>}</div>
-            <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:100}}><Avatar name={m.away} color={colorOf(m.away,c.teams)} size={32} src={c.emblems?.[m.away]}/><span style={{fontSize:14,fontWeight:700,color:t.text}}>{m.away}</span></div>
-            <div style={{display:"flex",gap:4,flexShrink:0,alignItems:"center"}}>
-               <button onClick={()=>setSumulaModal({m, eKey, round: m.round || currentRound})} style={{...S.btnSm("#22b7d922","#22b7d9"),padding:"6px"}} title="Súmula da Partida">📝</button>
-             {/* Câmera — apenas em dispositivos móveis/tablet com câmera */}
-             {isMobile && (
-               <label style={{...S.btnSm("#D85A3022","#D85A30"),padding:"6px",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:10}} title="Tirar foto do jogo">
-                 📷
-                 <input
-                   type="file"
-                   accept="image/*"
-                   capture="environment"
-                   style={{display:"none"}}
-                   onChange={(e) => {
-                     const file = e.target.files?.[0];
-                     if (!file) return;
-                     resizeImage(file, 400, (base64) => {
-                       saveMatchPhoto(eKey, base64);
-                     });
-                     e.target.value = '';
-                   }}
-                 />
-               </label>
-             )}
-               <button onClick={()=>setEditing({key:eKey})} style={{...S.btnSm(),padding:"6px 12px"}}>{m.played?"<IconEdit size={12} />":"▶"}</button>
-            </div>
-          </div>
-        </div>
-        {(() => {
-          const suspended = getSuspendedPlayersForMatch(c, eKey);
-          const suspendedKeys = Object.keys(suspended);
-          if (suspendedKeys.length === 0) return null;
-          return (
-            <div style={{
-              fontSize: 11,
-              color: "#E24B4A",
-              background: "#E24B4A0d",
-              border: "1px dashed #E24B4A44",
-              padding: "6px 10px",
-              borderRadius: 8,
-              marginTop: -4,
-              display: "flex",
-              flexDirection: "column",
-              gap: 2
-            }}>
-              <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                <span>⚠️ Atletas suspensos para este jogo:</span>
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
-                {suspendedKeys.map(aid => {
-                  const at = atletas.find(x => String(x.id) === String(aid));
-                  return (
-                    <span key={aid} style={{ background: "#E24B4A15", padding: "2px 6px", borderRadius: 4, fontWeight: 550 }}>
-                      {at ? getPlayerName(at) : `Atleta #${aid}`} ({suspended[aid]})
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          {renderSideEvents(leftEvents, m.home)}
-          {renderSideEvents(rightEvents, m.away)}
-        </div>
-
-        {/* Galeria de fotos da partida */}
-        {(() => {
-          const photos = m.photos || [];
-          if (photos.length === 0 && !isMobile) return null;
-          return (
-            <div style={{marginTop: 4}}>
-              {photos.length > 0 && (
-                <>
-                  <div style={{fontSize:10,fontWeight:700,color:t.textSec,marginBottom:6,textTransform:"uppercase",letterSpacing:0.5}}>📷 Fotos da Partida ({photos.length})</div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    {photos.map((photo) => (
-                      <div key={photo.id} style={{position:"relative",width:72,height:72,borderRadius:8,overflow:"hidden",border:`1px solid ${t.cardBorder}`}}>
-                        <img src={photo.data} alt="Foto da partida" style={{width:"100%",height:"100%",objectFit:"cover"}} />
-                        <button
-                          onClick={() => { if(window.confirm('Remover esta foto?')) removeMatchPhoto(eKey, photo.id); }}
-                          style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,0.6)",border:"none",color:"#fff",fontSize:10,borderRadius:4,width:18,height:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0}}
-                        >✕</button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-              {isMobile && (
-                <label style={{
-                  display:"inline-flex",alignItems:"center",gap:6,cursor:"pointer",
-                  padding:"6px 12px",borderRadius:10,border:`1px dashed ${t.cardBorder}`,
-                  fontSize:12,color:t.textSec,marginTop: photos.length>0?8:0,fontFamily:"'Inter',sans-serif"
-                }}>
-                  <span>📷</span> Adicionar foto do jogo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    style={{display:"none"}}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      resizeImage(file, 400, (base64) => saveMatchPhoto(eKey, base64));
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-              )}
-            </div>
-          );
-        })()}
-      </div>
-    );
-  }
-
-  return(
-    <div style={S.page}>
-      {/* Top Header - Estilo 365scores Competição Header */}
-      <div style={{
-        ...S.card,
-        background: 'linear-gradient(135deg, ' + t.card + ' 0%, ' + t.inputBg + ' 100%)',
-        padding:16,
-        marginBottom:16,
-        border:'1px solid ' + t.cardBorder,
-        display:"flex",
-        flexDirection:"column",
-        gap:12
-      }}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,width:"100%"}}>
-          <button onClick={onBack} style={{...S.btnSm(), padding:"6px 12px"}}>← Voltar à Home</button>
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            {champion&&<Tag label={<span style={{display:"inline-flex",alignItems:"center",gap:4}}><IconTrophy size={11} /> Vencedor: {champion}</span>} color={t.accent}/>}
-            <button onClick={()=>onDelete(c.id)} style={S.btnSm("#E24B4A15","#E24B4A")} title="Excluir Campeonato">Excluir</button>
-          </div>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:12,marginTop:4}}>
-          {(() => {
-            const mDef = c.modalidade ? MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade) : null;
-            const mIcon = mDef ? mDef.icon : <IconTrophy size={20} />;
-            const mColor = mDef ? mDef.color : (t.accent || "#20E278");
-            return (
-              <div style={{width:46,height:46,borderRadius:"50%",background:mColor + '15',color:mColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:"bold",flexShrink:0}}>
-                {mIcon}
-              </div>
-            );
-          })()}
-          <div style={{minWidth:0,flex:1}}>
-            <h2 style={{fontSize:18,fontWeight:900,margin:0,color:t.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</h2>
-            <div style={{fontSize:12,color:t.textSec,marginTop:2,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-              <span style={{fontWeight:700,color:t.accent}}>{c.type==="pontos"?"Pontos Corridos":c.type==="mata"?"Mata-Mata":c.type==="liga"?"Liga":"Misto"}</span>
-              <span>•</span>
-              <span>{c.teams.length} times</span>
-              {c.local && (
-                <>
-                  <span>•</span>
-                  <span>📍 {c.local}</span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Abas locais do Campeonato */}
-      <div style={{display:"flex",gap:0,borderBottom:`1px solid ${t.tabBorder}`,overflowX:"auto",WebkitOverflowScrolling:"touch",marginBottom:20}}>
-        {champTabs.map(tb => (
-          <button
-            key={tb}
-            onClick={() => currentSetTab(tb)}
-            style={S.tab(currentTab === tb)}
-          >
-            {tb === "nuvem" ? "🌐 Nuvem" : tb.charAt(0).toUpperCase() + tb.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Grid Container Responsivo (2 Colunas no Desktop) */}
-      <div style={S.layoutContainer(isMobile)}>
-        
-        {/* COLUNA CENTRAL (Conteúdo Ativo) */}
-        <div style={S.mainContent}>
-          {champion && (
-            <div style={{
-              background: "linear-gradient(135deg, rgba(32, 226, 120, 0.1) 0%, rgba(212, 175, 55, 0.1) 100%)",
-              border: "2px solid #D4AF37",
-              borderRadius: 12,
-              padding: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-              position: "relative",
-              overflow: "hidden"
-            }}>
-              <div style={{
-                position: "absolute",
-                inset: 0,
-                backgroundImage: "radial-gradient(circle at 80% 20%, rgba(212, 175, 55, 0.15) 0%, transparent 50%)",
-                pointerEvents: "none"
-              }} />
-              
-              <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, zIndex: 1}}>
-                <div style={{display: "flex", alignItems: "center", gap: 12}}>
-                  <span style={{fontSize: 34}}>🏆</span>
-                  <div>
-                    <div style={{fontSize: 10, fontWeight: 700, color: "#D4AF37", textTransform: "uppercase", letterSpacing: 1.5}}>Campeão Declarado</div>
-                    <div style={{fontSize: 22, fontWeight: 900, color: t.text}}>{champion}</div>
-                  </div>
-                </div>
-                {artilheiro && (
-                  <div style={{display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.06)", padding: "8px 14px", borderRadius: 14, border: '1px solid ' + t.cardBorder}}>
-                    <span style={{fontSize: 22}}>⚽</span>
-                    <div>
-                      <div style={{fontSize: 9, fontWeight: 700, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>Artilheiro</div>
-                      <div style={{fontSize: 13, fontWeight: 700, color: t.text}}>{getPlayerName(artilheiro.atleta)}</div>
-                      <div style={{fontSize: 11, color: t.textSec}}>{artilheiro.teamName} · <strong style={{color: "#22b7d9"}}>{artilheiro.gols} gols</strong></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div style={{display: "flex", gap: 8, zIndex: 1, marginTop: 4}}>
-                <button onClick={() => setShowCelebration(true)} style={{...S.btn("#D4AF37"), color: "#0F1116", fontWeight: 800, padding: "8px 16px", fontSize: 13, cursor: "pointer"}}>🎉 Celebrar Conquista</button>
-              </div>
-            </div>
-          )}
-
-          {/* Aba ativa */}
-          {currentTab==="tabela"&&c.type==="pontos"&&(
-             <div style={{display:"flex",flexDirection:"column",gap:16}}>
-               <StandingsTable standings={c.standings} teams={c.teams} colorOf={colorOf} accent={t.accent} t={t} emblems={c.emblems}/>
-               <ResumoArtilharia />
-             </div>
-          )}
-          {currentTab==="tabela"&&c.type==="misto"&&(
-             <div style={{display:"flex",flexDirection:"column",gap:20}}>
-               {c.groups.map((g,gi)=><div key={gi} style={S.card}><h3 style={{fontSize:13,fontWeight:800,marginBottom:16,color:t.text,textTransform:"uppercase",letterSpacing:0.8}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3><StandingsTable standings={g.standings} teams={c.teams} colorOf={colorOf} accent={t.accent} t={t} emblems={c.emblems}/></div>)}
-               {c.mixedPhase==="groups"&&<button onClick={advanceMixed} style={S.btn(t.accent)}>Avançar para Mata-Mata →</button>}
-               <ResumoArtilharia />
-             </div>
-          )}
-          {currentTab==="tabela"&&c.type==="liga"&&(
-             <div style={{display:"flex",flexDirection:"column",gap:20}}>
-               {c.groups.map((g,gi)=><div key={gi} style={S.card}><h3 style={{fontSize:13,fontWeight:800,marginBottom:16,color:t.text,textTransform:"uppercase",letterSpacing:0.8}}>{g.name}{g.quadra ? ` (🏟️ ${g.quadra})` : ""}</h3><StandingsTable standings={g.standings} teams={c.teams} colorOf={colorOf} accent={t.accent} t={t} emblems={c.emblems}/></div>)}
-               {c.mixedPhase==="groups"&&<button onClick={advanceMixed} style={S.btn(t.accent)}>Avançar para Mata-Mata →</button>}
-               <ResumoArtilharia />
-             </div>
-          )}
-          {currentTab==="chave"&&(c.type==="mata"||c.type==="misto"||c.type==="liga")&&renderKnockout()}
-          {currentTab==="jogos"&&renderJogos()}
-          {currentTab==="elencos" && <AbaElencos />}
-          {currentTab==="estatísticas" && renderEstatisticas()}
-          {currentTab==="solicitações" && c.allowOnlineReg && <AbaSolicitacoes />}
-          {currentTab==="mural" && <AbaMuralOrganizador c={c} onUpdate={onUpdate} t={t} />}
-          {currentTab==="galeria" && <AbaGaleriaOrganizador c={c} onUpdate={onUpdate} t={t} />}
-          {currentTab==="colaboradores" && isDonoOuAdmin && (
-            <AbaColaboradoresItem 
-              collaborators={c.collaborators || []} 
-              onSaveCollaborators={(novosColaboradores)=>onUpdate({ ...c, collaborators: novosColaboradores })} 
-              auth={auth} 
-              managers={managers} 
-              assegurarManagerColaborador={assegurarManagerColaborador} 
-              t={t} 
-              scope="campeonato"
-            />
-          )}
-          {currentTab==="configurações" && <AbaConfiguracoes />}
-          {currentTab==="nuvem" && (
-            <div style={{display:"flex",flexDirection:"column",gap:20}}>
-              <div style={S.card}>
-                <h3 style={{fontSize:16,fontWeight:800,marginBottom:16,color:t.text,display:"flex",alignItems:"center",gap:8}}>
-                  🌐 Compartilhar na Nuvem (Público)
-                </h3>
-                <p style={{fontSize:13,color:t.textSec,lineHeight:"1.5",marginBottom:16}}>
-                  Por padrão, os dados do Thorneios ficam armazenados de forma 100% segura apenas no seu dispositivo. 
-                  Ao publicar na nuvem, você gera um código e um link de acesso para que jogadores e torcedores acompanhem a tabela, rodadas, placares e artilharia em tempo real de qualquer outro dispositivo, sem precisar de login.
-                </p>
-
-                {c.npointId ? (
-                  <div style={{display:"flex",flexDirection:"column",gap:16}}>
-                    <div style={{background: t.bg, borderRadius:12, padding:24, border:'1px dashed ' + t.cardBorder, display:"flex", flexDirection:"column", gap:8}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
-                        <span style={{color:t.textSec}}>Status de Sincronização:</span>
-                        <strong style={{color:"#1D9E75"}}>● Ativo e Compartilhado</strong>
-                      </div>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
-                        <span style={{color:t.textSec}}>Última Sincronização:</span>
-                        <strong style={{color:t.text}}>{c.lastPublished || "Desconhecida"}</strong>
-                      </div>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13}}>
-                        <span style={{color:t.textSec}}>Código do Campeonato:</span>
-                        <strong style={{color:"#1D9E75",fontSize:16,fontFamily:"monospace",letterSpacing:0.5}}>{c.npointId}</strong>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label style={S.label}>Link de Acesso do Público</label>
-                      <div style={{display:"flex",gap:8,marginTop:6}}>
-                        <input 
-                          readOnly 
-                          value={window.location.origin + window.location.pathname + "?c=" + c.npointId} 
-                          style={{...S.input, flex:1, fontFamily:"monospace", fontSize:12, background:t.bg}} 
-                        />
-                        <button 
-                          onClick={() => {
-                            const link = window.location.origin + window.location.pathname + "?c=" + c.npointId;
-                            navigator.clipboard.writeText(link);
-                            alert("Link de acesso copiado para a área de transferência!");
-                          }} 
-                          style={S.btn("#22b7d9")}
-                        >
-                          Copiar
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <button onClick={publicarNaNuvem} style={S.btn("#22b7d9")}>
-                    🚀 Publicar Agora na Nuvem
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* COLUNA DIREITA (Estatísticas no Desktop) */}
-        {!isMobile && (
-          <div style={S.sidebarRight(isMobile)}>
-            {artilheiro && (
-              <div style={S.card}>
-                <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:16,textTransform:"uppercase",letterSpacing:0.8}}>⚽ Artilheiro</div>
-                <div style={{display:"flex",alignItems:"center",gap:12,marginTop:6}}>
-                  <Avatar name={getPlayerName(artilheiro.atleta)} color={t.accent} size={36}/>
-                  <div>
-                    <div style={{fontWeight:800,fontSize:14,color:t.text}}>{getPlayerName(artilheiro.atleta)}</div>
-                    <div style={{fontSize:11,color:t.textSec,marginTop:2}}>{artilheiro.teamName}</div>
-                    <div style={{fontSize:12,fontWeight:900,color:t.accent,marginTop:4}}>{artilheiro.gols} Gols Marcados</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div style={S.card}>
-              <div style={{fontSize:11,fontWeight:800,color:t.textSec,marginBottom:16,textTransform:"uppercase",letterSpacing:0.8}}>🏟️ Local das Partidas</div>
-              <div style={{fontSize:13,fontWeight:700,color:t.text}}>
-                📍 {c.local || "Quadra Geral da Liga"}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {sumulaModal && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
-          <div style={{...S.card,width:"100%",maxWidth:400,maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <div style={{fontWeight:800,fontSize:16,color:t.text}}>📝 Súmula da Partida</div>
-              <button onClick={()=>setSumulaModal(null)} style={{background:"none",border:"none",color:t.textSec,fontSize:20,cursor:"pointer"}}>✕</button>
-            </div>
-
-            <button 
-              onClick={() => window.print()}
-              style={{
-                ...S.btn("#22b7d918", "#22b7d9"),
-                justifyContent: "center",
-                marginBottom: 16,
-                fontSize: 12,
-                padding: "8px 12px",
-                width: "100%",
-                border: "1px dashed #22b7d9aa"
-              }}
-            >
-              🖨️ Exportar / Imprimir Súmula Física (A4)
-            </button>
-            
-            <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:20}}>
-              <div style={{textAlign:"center",fontWeight:700,color:t.text}}>{sumulaModal.m.home}<br/><span style={{fontSize:20,color:"#1D9E75"}}>{sumulaModal.m.homeScore}</span></div>
-              <div style={{fontSize:20,fontWeight:700,color:t.textSec,marginTop:10}}>×</div>
-              <div style={{textAlign:"center",fontWeight:700,color:t.text}}>{sumulaModal.m.away}<br/><span style={{fontSize:20,color:"#1D9E75"}}>{sumulaModal.m.awayScore}</span></div>
-            </div>
-
-            <div style={{flex:1,overflowY:"auto",paddingRight:4,display:"flex",flexDirection:"column",gap:16}}>
-              {(() => {
-                const suspended = getSuspendedPlayersForMatch(c, sumulaModal.eKey);
-                return ["home","away"].map(side=>{
-                   const tm = sumulaModal.m[side];
-                   const rst = getRosterByTeamName(tm);
-                   const tmRoster = (rst && rst.length > 0) ? rst : atletas.map(a=>a.id);
-                   const evts = (sumulaModal.m.events||[]).filter(e=>e.teamName===tm);
-                   return (
-                     <div key={side} style={{border:`1px solid ${t.cardBorder}`,padding:10,borderRadius:12}}>
-                       <div style={{fontWeight:800,color:colorOf(tm,c.teams),marginBottom:16,fontSize:13}}>{tm}</div>
-                       <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                         {evts.map((e,i)=>{
-                           const at = atletas.find(x=>String(x.id)===String(e.atletaId));
-                           return (
-                             <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:t.text,background:t.inputBg,padding:"6px 10px",borderRadius:8}}>
-                               <span>{e.type==="gol"? <IconSoccer size={14} /> : e.type==="amarelo"? <span style={{display:"inline-block",width:10,height:14,backgroundColor:"#BA7517",borderRadius:2}} /> : <span style={{display:"inline-block",width:10,height:14,backgroundColor:"#E24B4A",borderRadius:2}} />}</span>
-                               <PlayerAvatar atleta={at} size={18}/>
-                               <span style={{flex:1}}>{getPlayerName(at) || `Atleta #${e.atletaId}`}</span>
-                               <button onClick={()=>{
-                                  const newEvts = [...(sumulaModal.m.events||[])];
-                                  newEvts.splice(newEvts.indexOf(e),1);
-                                  setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                               }} style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800}}>✕</button>
-                             </div>
-                           );
-                         })}
-                       </div>
-                       <div style={{marginTop:10,display:"flex",gap:6}}>
-                         <select id={`sel-${side}`} value={sumulaSelection[side]} onChange={e=>setSumulaSelection(prev=>({...prev,[side]:e.target.value}))} style={{...S.select,padding:"6px",fontSize:12,flex:1}}>
-                           <option value="">Selecione o jogador...</option>
-                           {tmRoster.map(id=>{
-                             const at = atletas.find(x=>String(x.id)===String(id));
-                             const isSuspended = suspended && suspended[id];
-                             return (
-                               <option key={id} value={id} disabled={!!isSuspended}>
-                                 {getPlayerName(at) || `Atleta #${id}`} {isSuspended ? `(Suspenso - ${isSuspended}) ❌` : ""}
-                               </option>
-                             );
-                           })}
-                         </select>
-                         <div style={{display:"flex",gap:4}}>
-                           <button onClick={()=>{
-                              const val = sumulaSelection[side]; if(!val)return;
-                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"gol", atletaId:val, teamName:tm}];
-                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                           }} style={{...S.btnSm("#22b7d922","#22b7d9"),padding:"6px"}}>⚽</button>
-                           <button onClick={()=>{
-                              const val = sumulaSelection[side]; if(!val)return;
-                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"amarelo", atletaId:val, teamName:tm}];
-                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                           }} style={{...S.btnSm("#BA751722","#BA7517"),padding:"6px"}}>🟨</button>
-                           <button onClick={()=>{
-                              const val = sumulaSelection[side]; if(!val)return;
-                              const newEvts = [...(sumulaModal.m.events||[]), {id:Date.now()+Math.random(), type:"vermelho", atletaId:val, teamName:tm}];
-                              setSumulaModal(prev=>({...prev, m:{...prev.m, events:newEvts}}));
-                           }} style={{...S.btnSm("#E24B4A22","#E24B4A"),padding:"6px"}}>🟥</button>
-                         </div>
-                       </div>
-                     </div>
-                   );
-                });
-              })()}
-            </div>
-
-            {/* Representantes das Equipes */}
-            <div style={{border:`1px solid ${t.cardBorder}`,padding:12,borderRadius:12,display:"flex",flexDirection:"column",gap:10,marginTop:12}}>
-              <div style={{fontWeight:800,color:t.text,fontSize:13,display:"flex",alignItems:"center",gap:6}}>
-                <span>🤝</span> Representantes das Equipes
-              </div>
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                <div>
-                  <label style={{...S.label,fontSize:11,marginBottom:4}}>Representante Mandante ({sumulaModal.m.home})</label>
-                  <input 
-                    type="text" 
-                    style={S.input} 
-                    value={sumulaModal.m.homeRepresentative || ""} 
-                    onChange={e => {
-                      const val = e.target.value;
-                      setSumulaModal(prev => ({
-                        ...prev,
-                        m: { ...prev.m, homeRepresentative: val }
-                      }));
-                    }} 
-                    placeholder="Nome do representante"
-                  />
-                </div>
-                <div>
-                  <label style={{...S.label,fontSize:11,marginBottom:4}}>Representante Visitante ({sumulaModal.m.away})</label>
-                  <input 
-                    type="text" 
-                    style={S.input} 
-                    value={sumulaModal.m.awayRepresentative || ""} 
-                    onChange={e => {
-                      const val = e.target.value;
-                      setSumulaModal(prev => ({
-                        ...prev,
-                        m: { ...prev.m, awayRepresentative: val }
-                      }));
-                    }} 
-                    placeholder="Nome do representante"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Registrar Nova Ocorrência */}
-            <div style={{border:`1px solid ${t.cardBorder}`,padding:12,borderRadius:12,display:"flex",flexDirection:"column",gap:10,marginTop:12}}>
-              <div style={{fontWeight:800,color:t.text,fontSize:13,display:"flex",alignItems:"center",gap:6}}>
-                <span>⚠️</span> Registrar Ocorrência / Observação
-              </div>
-              
-              {/* Tipo de Ocorrência */}
-              <div>
-                <label style={{...S.label,fontSize:11,marginBottom:4}}>Tipo de Ocorrência</label>
-                <select 
-                  style={S.select} 
-                  value={sumulaModal.newObs?.type || "Indisciplina"}
-                  onChange={e => {
-                    const val = e.target.value;
-                    setSumulaModal(prev => ({
-                      ...prev,
-                      newObs: { ...(prev.newObs || { text: "", homeAthletes: [], awayAthletes: [] }), type: val }
-                    }));
-                  }}
-                >
-                  <option value="Indisciplina">Indisciplina</option>
-                  <option value="Irregularidade">Irregularidade</option>
-                  <option value="Reclamação">Reclamação</option>
-                </select>
-              </div>
-
-              {/* Duas listas de atletas (uma por time) com checkboxes */}
-              <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-                {["home", "away"].map(side => {
-                  const teamName = sumulaModal.m[side];
-                  const rst = getRosterByTeamName(teamName);
-                  const rosterIds = (rst && rst.length > 0) ? rst : atletas.map(a => a.id);
-                  const selectedList = side === "home" 
-                    ? (sumulaModal.newObs?.homeAthletes || [])
-                    : (sumulaModal.newObs?.awayAthletes || []);
-
-                  return (
-                    <div key={side} style={{flex:1,minWidth:140,border:`1px solid ${t.cardBorder}`,borderRadius:8,padding:6,background:t.card}}>
-                      <div style={{fontSize:11,fontWeight:700,color:colorOf(teamName, c.teams),marginBottom:6,borderBottom:`1px solid ${t.cardBorder}`,paddingBottom:4}}>
-                        {side === "home" ? "Atletas Mandante" : "Atletas Visitante"}
-                      </div>
-                      <div style={{maxHeight:120,overflowY:"auto",display:"flex",flexDirection:"column",gap:4,paddingRight:2}}>
-                        {rosterIds.map(id => {
-                          const at = atletas.find(x => String(x.id) === String(id));
-                          if (!at) return null;
-                          const isChecked = selectedList.includes(id);
-                          return (
-                            <label key={id} style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:t.text,cursor:"pointer",padding:"2px 4px",borderRadius:4,background:isChecked?t.inputBg:"transparent"}}>
-                              <input 
-                                type="checkbox" 
-                                checked={isChecked}
-                                onChange={() => {
-                                  setSumulaModal(prev => {
-                                    const currentObs = prev.newObs || { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] };
-                                    const oldList = side === "home" ? (currentObs.homeAthletes || []) : (currentObs.awayAthletes || []);
-                                    const newList = oldList.includes(id)
-                                      ? oldList.filter(x => x !== id)
-                                      : [...oldList, id];
-                                    
-                                    return {
-                                      ...prev,
-                                      newObs: {
-                                        ...currentObs,
-                                        [side === "home" ? "homeAthletes" : "awayAthletes"]: newList
-                                      }
-                                    };
-                                  });
-                                }}
-                              />
-                              <span style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPlayerName(at)}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Texto da Ocorrência */}
-              <div>
-                <label style={{...S.label,fontSize:11,marginBottom:4}}>Descrição da Ocorrência</label>
-                <textarea 
-                  style={{...S.input,height:60,fontFamily:"inherit",fontSize:12,resize:"none"}}
-                  value={sumulaModal.newObs?.text || ""}
-                  onChange={e => {
-                    const val = e.target.value;
-                    setSumulaModal(prev => ({
-                      ...prev,
-                      newObs: { ...(prev.newObs || { type: "Indisciplina", homeAthletes: [], awayAthletes: [] }), text: val }
-                    }));
-                  }}
-                  placeholder="Ex: Ofendeu o árbitro aos 10 minutos de jogo..."
-                />
-              </div>
-
-              {/* Botão de Adicionar */}
-              <button 
-                onClick={() => {
-                  const currentObs = sumulaModal.newObs || { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] };
-                  if (!currentObs.text || !currentObs.text.trim()) {
-                    alert("Por favor, digite uma descrição para a ocorrência.");
-                    return;
-                  }
-                  const newObsItem = {
-                    id: Date.now() + Math.random(),
-                    type: currentObs.type || "Indisciplina",
-                    text: currentObs.text.trim(),
-                    homeAthletes: currentObs.homeAthletes || [],
-                    awayAthletes: currentObs.awayAthletes || []
-                  };
-                  setSumulaModal(prev => ({
-                    ...prev,
-                    m: {
-                      ...prev.m,
-                      observations: [...(prev.m.observations || []), newObsItem]
-                    },
-                    newObs: { type: "Indisciplina", text: "", homeAthletes: [], awayAthletes: [] }
-                  }));
-                }}
-                style={{...S.btn("#22b7d918","#22b7d9"),justifyContent:"center",fontSize:11,padding:6}}
-              >
-                ＋ Adicionar Ocorrência
-              </button>
-            </div>
-
-            {/* Lista de Ocorrências Cadastradas */}
-            {sumulaModal.m.observations && sumulaModal.m.observations.length > 0 && (
-              <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:12}}>
-                <div style={{fontWeight:700,fontSize:12,color:t.textSec}}>Ocorrências Registradas:</div>
-                {sumulaModal.m.observations.map(obs => {
-                  // Mapeia nomes dos atletas
-                  const homeNames = (obs.homeAthletes || []).map(id => {
-                    const at = atletas.find(x => String(x.id) === String(id));
-                    return at ? (at.apelido || at.nome) : `Atleta #${id}`;
-                  });
-                  const awayNames = (obs.awayAthletes || []).map(id => {
-                    const at = atletas.find(x => String(x.id) === String(id));
-                    return at ? (at.apelido || at.nome) : `Atleta #${id}`;
-                  });
-
-                  // Cores por tipo
-                  let badgeBg = "#BA751722";
-                  let badgeColor = "#BA7517";
-                  if (obs.type === "Irregularidade") {
-                    badgeBg = "#E24B4A22";
-                    badgeColor = "#E24B4A";
-                  } else if (obs.type === "Reclamação") {
-                    badgeBg = "#22b7d922";
-                    badgeColor = "#22b7d9";
-                  }
-
-                  return (
-                    <div key={obs.id} style={{border:`1px solid ${t.cardBorder}`,padding:10,borderRadius:10,background:t.inputBg,display:"flex",flexDirection:"column",gap:6}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span style={{fontSize:10,fontWeight:800,background:badgeBg,color:badgeColor,padding:"2px 8px",borderRadius:6,textTransform:"uppercase"}}>
-                          {obs.type}
-                        </span>
-                        <button 
-                          onClick={() => {
-                            const updatedObs = sumulaModal.m.observations.filter(x => x.id !== obs.id);
-                            setSumulaModal(prev => ({
-                              ...prev,
-                              m: { ...prev.m, observations: updatedObs }
-                            }));
-                          }}
-                          style={{background:"none",border:"none",color:"#E24B4A",cursor:"pointer",fontWeight:800,fontSize:12}}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <div style={{fontSize:12,color:t.text,lineHeight:"1.4",whiteSpace:"pre-wrap"}}>
-                        {obs.text}
-                      </div>
-                      {(homeNames.length > 0 || awayNames.length > 0) && (
-                        <div style={{borderTop:`1px dashed ${t.cardBorder}`,paddingTop:4,marginTop:2,fontSize:10,color:t.textSec,display:"flex",flexDirection:"column",gap:2}}>
-                          {homeNames.length > 0 && (
-                            <div><strong>{sumulaModal.m.home}:</strong> {homeNames.join(", ")}</div>
-                          )}
-                          {awayNames.length > 0 && (
-                            <div><strong>{sumulaModal.m.away}:</strong> {awayNames.join(", ")}</div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            
-            <div style={{marginTop:16}}>
-              <button onClick={()=>handleSaveSumula(sumulaModal.m, sumulaModal.m.events||[])} style={{...S.btn(),width:"100%",justifyContent:"center"}}>Salvar Súmula</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Súmula Oficial Formatada para Impressão A4 Física */}
-      {renderPrintableSumula()}
-    </div>
-  );
-}
-
-/* ─────────────────────────── NOVO CAMPEONATO ────────────────────── */
-function NovoCampeonato({quadras,onSave,onCancel,t}){
-  const S=makeStyles(t);
-  const[cf,setCf]=useState({
-    name:"",
-    type:"pontos",
-    modalidade:"Futsal",
-    turno:true,
-    date:"",
-    teams:["",""],
-    groupCount:2,
-    teamsPerGroup:4,
-    groupsData:[],
-    fee:0
-  });
-
-  const [importedAtletas, setImportedAtletas] = useState([]);
-  const [importFeedback, setImportFeedback] = useState("");
-
-  const handleImportPlanilha = async (event) => {
-    const file = event.target?.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      let rows;
-      if (file.name.endsWith('.csv') || !text.trimStart().startsWith('<')) {
-        const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
-        rows = lines.map(line => line.split(',').map(cell => cell.startsWith('"') && cell.endsWith('"') ? cell.slice(1,-1).replace(/""/g,'"') : cell));
-      } else {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(text, "text/html");
-        const table = doc.querySelector("table");
-        if (!table) throw new Error("O arquivo não contém uma tabela válida. Use o modelo CSV.");
-        rows = Array.from(table.querySelectorAll("tr")).map(row => Array.from(row.querySelectorAll("th,td")).map(cell => cell.textContent || ""));
-      }
-      if (rows.length < 2) throw new Error("A tabela não contém dados de atletas.");
-      const headers = rows[0].map(h => String(h).trim());
-      const dataRows = rows.slice(1).filter(r => r.some(cell => String(cell).trim() !== ""));
-
-      const athletesList = [];
-      const timesUnicosSet = new Set();
-
-      dataRows.forEach((cells, index) => {
-        const item = {};
-        cells.forEach((value, idx) => {
-          const key = headers[idx];
-          if (!key) return;
-          if (key === "customFields") {
-            try {
-              item.customFields = JSON.parse(value || "{}");
-            } catch {
-              item.customFields = {};
-            }
-            return;
-          }
-          if (key === "habilidade") {
-            item.habilidade = Number(value) || 3;
-            return;
-          }
-          if (key === "goleiro" || key === "ativo") {
-            item[key] = String(value).trim().toLowerCase() === "true";
-            return;
-          }
-          if (key === "id") {
-            item.id = value ? Number(value) : undefined;
-            return;
-          }
-          item[key] = value;
-        });
-
-        const timeAtleta = (item.time || item.grupo || "").trim();
-        if (timeAtleta) {
-          timesUnicosSet.add(timeAtleta);
-        }
-
-        athletesList.push({
-          ...item,
-          id: item.id || Date.now() + Math.floor(Math.random() * 100000) + index,
-          habilidade: Number(item.habilidade) || 3,
-          ativo: item.ativo !== false,
-          goleiro: item.goleiro === true,
-          grupo: timeAtleta,
-          customFields: item.customFields && typeof item.customFields === "object" ? item.customFields : {},
-        });
-      });
-
-      const timesUnicos = Array.from(timesUnicosSet);
-      setImportedAtletas(athletesList);
-      setImportFeedback(`Sucesso: ${athletesList.length} atleta(s) e ${timesUnicos.length} time(s) carregados da planilha.`);
-
-      if (cf.type === "liga") {
-        const totalTimes = timesUnicos.length;
-        let gc = cf.groupCount;
-        let tpg = cf.teamsPerGroup;
-
-        if (totalTimes > 0) {
-          gc = Math.max(2, Math.ceil(totalTimes / 4));
-          tpg = Math.ceil(totalTimes / gc);
-        }
-
-        const activeQuadrasImport = quadras.filter(q => q.ativa);
-        const newGroups = [];
-        for (let i = 0; i < gc; i++) {
-          const name = "Grupo " + (i + 1);
-          const teams = [];
-          for (let j = 0; j < tpg; j++) {
-            const timeIdx = i * tpg + j;
-            teams.push(timesUnicos[timeIdx] || "");
-          }
-          const autoQuadra = activeQuadrasImport.length > 0
-            ? (activeQuadrasImport[i % activeQuadrasImport.length]?.nome || "")
-            : "";
-          newGroups.push({
-            name: name,
-            teams: teams,
-            quadra: autoQuadra
-          });
-        }
-
-        setCf(prev => ({
-          ...prev,
-          groupCount: gc,
-          teamsPerGroup: tpg,
-          groupsData: newGroups,
-          teams: timesUnicos
-        }));
-      } else {
-        setCf(prev => ({
-          ...prev,
-          teams: timesUnicos.length >= 2 ? timesUnicos : [...timesUnicos, ""]
-        }));
-      }
-
-    } catch (error) {
-      console.error("Erro na importação da planilha no campeonato:", error);
-      alert("Erro ao ler planilha: " + (error.message || error));
-    } finally {
-      if (event.target) event.target.value = "";
-    }
-  };
-
-  const downloadModeloPlanilha = () => {
-    const headers = ["id", "nome", "apelido", "foto", "habilidade", "goleiro", "ativo", "documento", "dataNascimento", "numeroCamisa", "time", "celular1", "celular2", "foneResidencial", "email", "logradouro", "nomeVia", "cep", "complemento", "bairro", "nomeMae", "docFoto", "customFields"];
-    const sample = {
-      id: "",
-      nome: "João Silva",
-      apelido: "João",
-      foto: "",
-      habilidade: "3",
-      goleiro: "false",
-      ativo: "true",
-      documento: "1234567",
-      dataNascimento: "1990-01-01",
-      numeroCamisa: "10",
-      time: "Ex: Real Madrid",
-      celular1: "11999999999",
-      celular2: "",
-      foneResidencial: "",
-      email: "joao@email.com",
-      logradouro: "Rua",
-      nomeVia: "Das Flores",
-      cep: "01001-000",
-      complemento: "Apto 12",
-      bairro: "Centro",
-      nomeMae: "Maria Silva",
-      docFoto: "",
-      customFields: "{}"
-    };
-    const _csvLines = [headers.map(h => { const s = String(sample[h] ?? ''); return (s.includes(',') || s.includes('"')) ? '"' + s.replace(/"/g,'""') + '"' : s; }).join(',')];
-    const csv = '\uFEFF' + [headers.map(h => h).join(','), ..._csvLines].join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const href = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = href;
-    link.download = `modelo-cadastro-atletas-campeonato.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
-  };
-
-  const shuffleArray = (array) => {
-    const arr = [...array];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  };
-
-  useEffect(() => {
-    if (cf.type === "liga") {
-      const gc = cf.groupCount || 2;
-      const tpg = cf.teamsPerGroup || 4;
-      const newGroups = [];
-      const activeQuadras = quadras.filter(q => q.ativa);
-      for (let i = 0; i < gc; i++) {
-        const name = "Grupo " + (i + 1);
-        const existing = cf.groupsData?.[i];
-        const teams = [];
-        for (let j = 0; j < tpg; j++) {
-          teams.push(existing?.teams?.[j] || "");
-        }
-        const defaultQuadra = activeQuadras.length > 0 ? (activeQuadras[i % activeQuadras.length]?.nome || "") : "";
-        newGroups.push({
-          name: name,
-          teams: teams,
-          quadra: existing?.quadra !== undefined ? existing.quadra : defaultQuadra
-        });
-      }
-      
-      const same = cf.groupsData && cf.groupsData.length === newGroups.length &&
-        cf.groupsData.every((g, gi) => g.teams.length === newGroups[gi].teams.length);
-      if (!same) {
-        setCf(prev => ({ ...prev, groupsData: newGroups }));
-      }
-    }
-  }, [cf.type, cf.groupCount, cf.teamsPerGroup, quadras]);
-
-  function criar(){
-    if (cf.type === "liga") {
-      const allTeamsList = cf.groupsData.flatMap(g => g.teams.map(t => t.trim()).filter(Boolean));
-      if (allTeamsList.length < (cf.groupCount * 2)) {
-        alert(`Preencha pelo menos ${cf.groupCount * 2} times no total (mínimo de 2 por grupo)!`);
-        return;
-      }
-      if (new Set(allTeamsList).size !== allTeamsList.length) {
-        alert("Não é permitido times duplicados no campeonato!");
-        return;
-      }
-      
-      // Embaralha de forma aleatória todos os times preenchidos
-      const shuffledTeams = shuffleArray(allTeamsList);
-
-      // Inicializa os grupos vazios
-      const groups = cf.groupsData.map(g => ({
-        name: g.name,
-        teams: [],
-        quadra: g.quadra
-      }));
-
-      // Distribui os times embaralhados de forma equilibrada (round-robin) nos grupos
-      shuffledTeams.forEach((tm, i) => {
-        const groupIdx = i % cf.groupCount;
-        groups[groupIdx].teams.push(tm);
-      });
-
-      // Mapeia os grupos com suas respectivas rodadas e tabelas de classificação
-      const finalGroups = groups.map(g => ({
-        ...g,
-        rounds: generateRR(g.teams, false),
-        standings: initStandings(g.teams)
-      }));
-      
-      let data = {
-        id: Date.now(),
-        name: cf.name || "Campeonato",
-        type: "liga",
-        modalidade: cf.modalidade || "Futsal",
-        teams: shuffledTeams,
-        date: cf.date,
-        fee: Number(cf.fee || 0),
-        groups: finalGroups,
-        knockout: null,
-        mixedPhase: "groups"
-      };
-      onSave(data, importedAtletas);
-    } else {
-      const teams=cf.teams.map(x=>x.trim()).filter(Boolean);
-      if(teams.length<2){alert("Mínimo 2 times!");return;}
-      if(new Set(teams).size!==teams.length){alert("Times duplicados!");return;}
-      
-      let data={id:Date.now(),name:cf.name||"Campeonato",type:cf.type,modalidade:cf.modalidade||"Futsal",teams,date:cf.date,fee:Number(cf.fee||0)};
-      if(cf.type==="pontos"){data.rounds=generateRR(teams,cf.turno);data.standings=initStandings(teams);}
-      else if(cf.type==="mata"){data.knockout=generateKO(teams);}
-      else {
-        const gc=Math.min(cf.groupCount,Math.floor(teams.length/2));
-        const shuffledTeams = shuffleArray(teams); // Embaralha a lista plana de times
-        const activeQuadras = quadras.filter(q => q.ativa);
-        const groups=Array.from({length:gc},(_,i)=>({
-          name:"Grupo "+(i+1),
-          teams:[],
-          quadra: activeQuadras.length > 0 ? (activeQuadras[i % activeQuadras.length]?.nome || "") : ""
-        }));
-        shuffledTeams.forEach((tm,i)=>groups[i%gc].teams.push(tm));
-        
-        data.teams = shuffledTeams; // Salva na ordem embaralhada
-        data.groups=groups.map(g=>({...g,rounds:generateRR(g.teams,false),standings:initStandings(g.teams)}));
-        data.knockout=null;
-        data.mixedPhase="groups";
-      }
-      onSave(data, importedAtletas);
-    }
-  }
-
-  return(
-    <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <div><label style={S.label}>Nome</label><input style={S.input} value={cf.name} onChange={e=>setCf(v=>({...v,name:e.target.value}))} placeholder="Ex: Copa da Várzea"/></div>
-        <div><label style={S.label}>Data</label><input style={S.input} type="date" value={cf.date} onChange={e=>setCf(v=>({...v,date:e.target.value}))}/></div>
-      </div>
-
-      <div>
-        <label style={S.label}>Esporte / Modalidade</label>
-        <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:4}}>
-          {MODALIDADES_ESPORTIVAS.map(m => (
-            <button key={m.id} onClick={()=>setCf(f=>({...f,modalidade:m.id}))}
-              style={{padding:"8px 14px",borderRadius:20,border:`2px solid ${cf.modalidade===m.id?m.color:t.inputBorder}`,
-                background:cf.modalidade===m.id?m.color+"22":t.inputBg,
-                color:cf.modalidade===m.id?m.color:t.textSec,cursor:"pointer",
-                fontWeight:cf.modalidade===m.id?700:500,fontSize:13,transition:"all 0.15s"
-              }}
-            >{m.icon} {m.label}</button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <label style={S.label}>Tipo de Torneio</label>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(80px, 1fr))",gap:8}}>
-          {[["pontos","Pontos Corridos"],["mata","Mata-Mata"],["misto","Misto"],["liga","Liga (Grupos + Mata)"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setCf(f=>({...f,type:v}))} style={{padding:"10px 4px",borderRadius:10,border:`2px solid ${cf.type===v?"#1D9E75":t.inputBorder}`,background:cf.type===v?"#1D9E7522":t.inputBg,color:cf.type===v?"#1D9E75":t.text,cursor:"pointer",fontWeight:cf.type===v?700:400,fontSize:12}}>{l}</button>
-          ))}
-        </div>
-      </div>
-      
-      {cf.type==="pontos"&&<label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer",color:t.text}}><input type="checkbox" checked={cf.turno} onChange={e=>setCf(v=>({...v,turno:e.target.checked}))}/>Turno e returno</label>}
-      
-      {cf.type==="misto"&&<div style={{display:"flex",gap:10,alignItems:"center"}}><label style={{fontSize:13,color:t.textSec}}>Grupos:</label><input type="number" min={2} max={8} value={cf.groupCount} onChange={e=>setCf(v=>({...v,groupCount:Number(e.target.value)}))} style={{...S.input,width:60}}/></div>}
-      
-      {cf.type==="liga"&& (
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <div>
-            <label style={S.label}>Quantidade de Chaves/Grupos</label>
-            <input type="number" min={2} max={16} value={cf.groupCount} onChange={e=>setCf(v=>({...v,groupCount:Math.max(2, Number(e.target.value))}))} style={S.input}/>
-          </div>
-          <div>
-            <label style={S.label}>Times por Chave/Grupo</label>
-            <input type="number" min={2} max={20} value={cf.teamsPerGroup} onChange={e=>setCf(v=>({...v,teamsPerGroup:Math.max(2, Number(e.target.value))}))} style={S.input}/>
-          </div>
-        </div>
-      )}
-
-      <div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><label style={S.label}>Taxa de inscrição por atleta (R$)</label><input type="number" min={0} value={cf.fee} onChange={e=>setCf(v=>({...v,fee:Number(e.target.value)}))} style={{...S.input,width:180}}/></div>
-      </div>
-
-      <div style={{...S.card, padding: 24, border: `1px solid ${t.cardBorder}`, background: t.cardBg || t.inputBg, display: "flex", flexDirection: "column", gap: 10, borderRadius: 8}}>
-        <div style={{fontSize: 13, fontWeight: 700, color: t.text}}>📥 Importar Atletas & Times por Planilha (Opcional)</div>
-        <div style={{fontSize: 11, color: t.textSec, lineHeight: "1.4"}}>
-          Selecione uma planilha de atletas com a coluna <strong>time</strong> para criar o campeonato com os times e atletas já cadastrados e vinculados.
-        </div>
-        <div style={{display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center"}}>
-          <button 
-            type="button" 
-            onClick={downloadModeloPlanilha} 
-            style={{...S.btnSm("#20E27815", t.accent), display: "flex", alignItems: "center", gap: 6, border: `1px solid ${t.accent}`, background: "transparent", color: t.accent, cursor: "pointer", padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600}}
-          >
-            <span>📄</span> Baixar Modelo CSV
-          </button>
-          <label 
-            style={{
-              padding: "6px 12px", 
-              borderRadius: 6, 
-              background: "#20E27822", 
-              color: t.accent, 
-              cursor: "pointer", 
-              fontSize: 12, 
-              fontWeight: 600, 
-              display: "flex", 
-              alignItems: "center", 
-              gap: 6, 
-              border: `1px solid ${t.accent}`
-            }}
-          >
-            <span>📥</span> Carregar Planilha
-            <input type="file" accept=".csv,.xls,.xlsx" style={{display: "none"}} onChange={handleImportPlanilha} />
-          </label>
-        </div>
-        {importFeedback && (
-          <div style={{fontSize: 12, color: "#1D9E75", fontWeight: 600, display: "flex", alignItems: "center", gap: 6}}>
-            <span>✅</span> {importFeedback}
-          </div>
-        )}
-      </div>
-
-      <div>
-        {cf.type==="liga" ? (
-          <div>
-            <label style={{...S.label, marginBottom:16, display:"block"}}>Grupos e Quadras</label>
-            <div style={{display:"flex",flexDirection:"column",gap:16,marginTop:8}}>
-              {cf.groupsData && cf.groupsData.map((g, gi) => (
-                <div key={gi} style={{...S.card,padding:24,border:`1px solid ${t.cardBorder}`}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
-                    <h4 style={{margin:0,fontSize:14,fontWeight:700,color:t.text}}>{g.name}</h4>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <label style={{fontSize:12,color:t.textSec,margin:0}}>Quadra:</label>
-                      <select 
-                        value={g.quadra || ""} 
-                        onChange={e => {
-                          const val = e.target.value;
-                          setCf(prev => {
-                            const newGData = [...prev.groupsData];
-                            newGData[gi] = { ...newGData[gi], quadra: val };
-                            return { ...prev, groupsData: newGData };
-                          });
-                        }}
-                        style={{...S.input,width:160,padding:"4px 8px",fontSize:12,height:"auto"}}
-                      >
-                        <option value="">Sem Quadra</option>
-                        {quadras.filter(q => q.ativa).map(q => (
-                          <option key={q.id} value={q.nome}>{q.nome}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                    {g.teams && g.teams.map((tm, ti) => {
-                      const absoluteIndex = gi * (cf.teamsPerGroup || 4) + ti;
-                      return (
-                        <div key={ti} style={{display:"flex",alignItems:"center",gap:8}}>
-                          <Avatar name={tm || String(ti+1)} color={COLORS[absoluteIndex % COLORS.length]} size={28}/>
-                          <input 
-                            value={tm} 
-                            onChange={e => {
-                              const val = e.target.value;
-                              setCf(prev => {
-                                const newGData = [...prev.groupsData];
-                                const newTeams = [...newGData[gi].teams];
-                                newTeams[ti] = val;
-                                newGData[gi] = { ...newGData[gi], teams: newTeams };
-                                return { ...prev, groupsData: newGData };
-                              });
-                            }} 
-                            placeholder={`Time ${ti+1}`} 
-                            style={{...S.input,flex:1,padding:"6px 10px",fontSize:12}}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><label style={S.label}>Times ({cf.teams.filter(Boolean).length})</label><button onClick={()=>setCf(f=>({...f,teams:[...f.teams,""]}))} style={S.btnSm("#1D9E7522","#1D9E75")}>+ Time</button></div>
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {cf.teams.map((tm,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
-                  <Avatar name={tm||String(i+1)} color={COLORS[i%COLORS.length]} size={32}/>
-                  <input value={tm} onChange={e=>{const ts=[...cf.teams];ts[i]=e.target.value;setCf(f=>({...f,teams:ts}));}} placeholder={`Time ${i+1}`} style={{...S.input,flex:1}}/>
-                  {cf.teams.length>2&&<button onClick={()=>setCf(f=>({...f,teams:f.teams.filter((_,j)=>j!==i)}))} style={{fontSize:18,border:"none",background:"none",color:t.textSec,cursor:"pointer",padding:"0 4px"}}>×</button>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div style={{display:"flex",gap:8}}>
-        <button onClick={criar} style={{...S.btn("#10b981"),flex:1,justifyContent:"center"}}>Criar Campeonato</button>
-        <button onClick={onCancel} style={S.btn(t.card,t.textSec)}>Cancelar</button>
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────── APP ROOT ───────────────────────────── */
 export default function App(){
   const{dark,setDark,t:themeBase}=useTheme();
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 1024 : false);
@@ -16294,7 +11641,7 @@ export default function App(){
   const [selectedFinanceChamp, setSelectedFinanceChamp] = useState("geral");
 
   const GEHeader = () => {
-    let subBarTitle = "Thorneios";
+    let subBarTitle = "Minhas Peladas";
     let links = [];
     const isGlobalScreen = ["home", "atletas", "quadras", "financeiro", "backup", "managerRegistry", "novoChamp", "novaPelada"].includes(screen);
     if (isGlobalScreen) {
@@ -16481,7 +11828,7 @@ export default function App(){
               <div style={{display: "flex", flexDirection: "column"}}>
                 {[
                   { label: "Início / Home", icon: <IconHome size={16} />, active: screen === "home", onClick: () => { setScreen("home"); setMenuOpen(false); } },
-                  { label: "Atletas Campeonato", icon: <IconUsers size={16} />, active: screen === "atletas", onClick: () => { setScreen("atletas"); setMenuOpen(false); } },
+                  { label: "Atletas / Mensalistas", icon: <IconUsers size={16} />, active: screen === "atletas", onClick: () => { setScreen("atletas"); setMenuOpen(false); } },
                   { label: "Quadras / Campos", icon: <IconGoalNet size={16} />, active: screen === "quadras", onClick: () => { setScreen("quadras"); setMenuOpen(false); } },
                   { label: "Caixa Financeiro", icon: <IconWallet size={16} />, active: screen === "financeiro", onClick: () => { setScreen("financeiro"); setMenuOpen(false); } },
                   { label: "Importar / Exportar (Backup)", icon: <IconDatabase size={16} />, active: screen === "backup", onClick: () => { setScreen("backup"); setMenuOpen(false); } },
@@ -16513,10 +11860,7 @@ export default function App(){
               </div>
             </div>
             <div>
-              <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, padding: "0 20px 8px 20px", textTransform: "uppercase", letterSpacing: "1px", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
-                <span>Minhas Ligas ({campeonatos.length})</span>
-                <button onClick={() => { setScreen("novoChamp"); setMenuOpen(false); }} style={{background: "none", border: "none", color: "#10b981", fontWeight: "900", cursor: "pointer", fontSize: 11, padding: 0}}>+ Nova</button>
-              </div>
+              
               <div style={{display: "flex", flexDirection: "column", maxHeight: 180, overflowY: "auto"}}>
                 {campeonatos.map(c => {
                   const mDef = MODALIDADES_ESPORTIVAS.find(x => x.id === c.modalidade);
@@ -16717,52 +12061,7 @@ export default function App(){
           })}
         </div>
 
-        {/* Campeonatos */}
-        <div style={{padding: "0 0 8px 0", borderTop: "1px solid " + t.cardBorder}}>
-          <div style={{
-            fontSize: 9, fontWeight: 900, color: t.textSec,
-            padding: "10px 14px 6px 14px", textTransform: "uppercase", letterSpacing: 1.2,
-            display: "flex", justifyContent: "space-between", alignItems: "center"
-          }}>
-            <span>Ligas ({campeonatos.length})</span>
-            <button onClick={() => setScreen("novoChamp")} style={{background: "none", border: "none", color: t.accent, fontWeight: 900, cursor: "pointer", fontSize: 11, padding: 0, fontFamily: "'Inter', sans-serif"}}>
-              + Nova
-            </button>
-          </div>
-          <div style={{maxHeight: 180, overflowY: "auto"}}>
-            {campeonatos.map(c2 => {
-              const mDef = MODALIDADES_ESPORTIVAS.find(x => x.id === c2.modalidade);
-              const mIcon = mDef ? mDef.icon : <IconTrophy size={12} />;
-              const isCur = screen === "gerenciarChamp" && current?.id === c2.id;
-              return (
-                <button
-                  key={c2.id}
-                  onClick={() => { setCurrent(c2); setScreen("gerenciarChamp"); }}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 8, padding: "7px 14px",
-                    width: "100%", textAlign: "left",
-                    background: isCur ? `${t.accent}12` : "transparent",
-                    border: "none",
-                    borderLeft: `3px solid ${isCur ? t.accent : "transparent"}`,
-                    color: isCur ? t.accent : t.text,
-                    fontWeight: isCur ? 800 : 500,
-                    fontSize: 12, cursor: "pointer",
-                    fontFamily: "'Inter', sans-serif",
-                    transition: "all 0.15s ease",
-                  }}
-                  onMouseEnter={e => { if (!isCur) e.currentTarget.style.background = t.inputBg; }}
-                  onMouseLeave={e => { if (!isCur) e.currentTarget.style.background = "transparent"; }}
-                >
-                  <span style={{fontSize: 12, flexShrink: 0}}>{mIcon}</span>
-                  <span style={{overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>{c2.name}</span>
-                </button>
-              );
-            })}
-            {campeonatos.length === 0 && (
-              <div style={{fontSize: 11, color: t.textSec, fontStyle: "italic", padding: "4px 14px"}}>Nenhuma liga.</div>
-            )}
-          </div>
-        </div>
+        
 
         {/* Peladas */}
         <div style={{padding: "0 0 8px 0", borderTop: "1px solid " + t.cardBorder}}>
@@ -17039,71 +12338,6 @@ export default function App(){
               ? "Seus dados estão sincronizados em tempo real."
               : "Os dados estão salvos apenas no navegador."}
           </div>
-        </div>
-
-        {/* Bloco 3: Resumo Financeiro - Campeonatos */}
-        <div style={{...S.card, flex: isMobile ? "1 1 240px" : "none"}}>
-          <div style={{fontSize: 10, fontWeight: "900", color: t.textSec, textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 16}}>
-            Caixa - Campeonatos
-          </div>
-          <div style={{marginBottom: 16}}>
-            <select
-              value={sidebarChampId}
-              onChange={e => setSidebarChampId(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "5px 8px",
-                borderRadius: 6,
-                border: `1px solid ${t.cardBorder}`,
-                background: t.inputBg,
-                color: t.text,
-                fontSize: 11,
-                fontWeight: 600,
-                outline: "none",
-                fontFamily: "'Inter', sans-serif"
-              }}
-            >
-              <option value="all">Todos os Campeonatos</option>
-              {visibleChamps.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div style={{display: "flex", flexDirection: "column", gap: 6, fontSize: 11.5}}>
-            <div style={{display: "flex", justifyContent: "space-between"}}>
-              <span style={{color: t.textSec}}>Arrecadado:</span>
-              <span style={{fontWeight: 700, color: "#10B981"}}>{fmtCur(champReceitas)}</span>
-            </div>
-            <div style={{display: "flex", justifyContent: "space-between"}}>
-              <span style={{color: t.textSec}}>Despesas:</span>
-              <span style={{fontWeight: 700, color: "#EF4444"}}>{fmtCur(champDespesas)}</span>
-            </div>
-            <div style={{height: 1, background: t.cardBorder, margin: "2px 0"}} />
-            <div style={{display: "flex", justifyContent: "space-between", alignItems: "center"}}>
-              <span style={{fontWeight: 800, color: t.text}}>Saldo:</span>
-              <span style={{fontWeight: 900, color: champSaldo >= 0 ? ac : "#EF4444", fontSize: 13}}>{fmtCur(champSaldo)}</span>
-            </div>
-          </div>
-          <button
-            onClick={() => setScreen("financeiro")}
-            style={{
-              marginTop: 10,
-              width: "100%",
-              padding: "6px 8px",
-              borderRadius: 6,
-              border: `1px solid ${ac}33`,
-              background: `${ac}10`,
-              color: ac,
-              fontSize: 10.5,
-              fontWeight: 700,
-              cursor: "pointer",
-              transition: "all 0.2s"
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = `${ac}20`; }}
-            onMouseLeave={e => { e.currentTarget.style.background = `${ac}10`; }}
-          >
-            Ver Caixa Completo
-          </button>
         </div>
 
         {/* Bloco 4: Resumo Financeiro - Peladas */}
@@ -17408,7 +12642,7 @@ export default function App(){
   const [auth, setAuth] = useState({ role:"", name:"", manager_id: null, scope: "geral", email: "" });
   const [authLoading, setAuthLoading] = useState(true);
 
-  const [dashboardTab, setDashboardTab] = useState("campeonatos");
+  const [dashboardTab, setDashboardTab] = useState("peladas");
   const [dashboardSelectedId, setDashboardSelectedId] = useState("");
   const [dashboardSelectedDataId, setDashboardSelectedDataId] = useState("");
   const [sidebarPeladaId, setSidebarPeladaId] = useState("all");
@@ -19360,18 +14594,11 @@ export default function App(){
       }
     }
 
-    // 2. Ajuste do Card 2 (Campeonatos ou Peladas)
-    let card2Label = "Campeonatos";
-    let card2Value = campeonatos.length;
-    let card2Icon = <IconTrophy size={18} />;
-    let card2Color = t.accent;
-
-    if (dashboardTab === "peladas") {
-      card2Label = "Peladas";
-      card2Value = peladas.length;
-      card2Icon = <IconSoccer size={18} />;
-      card2Color = "#22b7d9";
-    }
+    // 2. Ajuste do Card 2 (Peladas)
+    let card2Label = "Peladas";
+    let card2Value = peladas.length;
+    let card2Icon = <IconSoccer size={18} />;
+    let card2Color = "#22b7d9";
 
     const statCards = [
       { label: card1Label, value: card1Value, icon: <IconUsers size={18} />, color: "#8e44ad" },
@@ -19648,73 +14875,33 @@ export default function App(){
           </div>
         </div>
 
-        {/* Seleção de Modalidade (Tabs) */}
-        <div style={{display: "flex", gap: 10, background: t.inputBg, padding: 6, borderRadius: 12, border: `1px solid ${t.cardBorder}`}}>
-          <button 
-            onClick={() => { setDashboardTab("campeonatos"); setDashboardSelectedId(""); setDashboardSelectedDataId(""); }}
-            style={{
-              flex: 1, padding: "24px", borderRadius: 12, fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", transition: "all 0.2s ease",
-              background: dashboardTab === "campeonatos" ? t.accent : "transparent",
-              color: dashboardTab === "campeonatos" ? "#fff" : t.textSec
-            }}
-          >
-            🏆 Campeonatos / Ligas
-          </button>
-          <button 
-            onClick={() => { setDashboardTab("peladas"); setDashboardSelectedId(""); setDashboardSelectedDataId(""); }}
-            style={{
-              flex: 1, padding: "24px", borderRadius: 12, fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", transition: "all 0.2s ease",
-              background: dashboardTab === "peladas" ? "#22b7d9" : "transparent",
-              color: dashboardTab === "peladas" ? "#fff" : t.textSec
-            }}
-          >
-            Peladas / Sorteadores
-          </button>
-        </div>
-
         {/* Filtros Elegantes do Dashboard */}
         <div style={{...S.card, padding: 24, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center"}}>
-          <div style={{fontSize: 12, fontWeight: 800, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>Filtro Rápido:</div>
-          {dashboardTab === "campeonatos" ? (
+          <div style={{fontSize: 12, fontWeight: 800, color: t.textSec, textTransform: "uppercase", letterSpacing: 0.5}}>Filtro de Peladas:</div>
+          <select 
+            value={dashboardSelectedId} 
+            onChange={e => { setDashboardSelectedId(e.target.value); setDashboardSelectedDataId(""); }} 
+            style={{...S.select, flex: 1, minWidth: 200}}
+          >
+            <option value="">Todas as Peladas</option>
+            {peladas.map(p => (
+              <option key={p.id} value={p.id}>{p.nome}</option>
+            ))}
+          </select>
+          
+          {dashboardSelectedId !== "" && (
             <select 
-              value={dashboardSelectedId} 
-              onChange={e => setDashboardSelectedId(e.target.value)} 
-              style={{...S.select, flex: 1, minWidth: 200}}
+              value={dashboardSelectedDataId} 
+              onChange={e => setDashboardSelectedDataId(e.target.value)} 
+              style={{...S.select, flex: 1, minWidth: 180}}
             >
-              <option value="">Todos os Campeonatos</option>
-              {campeonatos.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+              <option value="todas">Todas as Datas</option>
+              {datasRealizacao.filter(d => d.pelada_id === Number(dashboardSelectedId)).map(d => (
+                <option key={d.id} value={d.id}>{formatarData(d.data)} {d.local ? `(${d.local})` : ""}</option>
               ))}
             </select>
-          ) : (
-            <>
-              <select 
-                value={dashboardSelectedId} 
-                onChange={e => { setDashboardSelectedId(e.target.value); setDashboardSelectedDataId(""); }} 
-                style={{...S.select, flex: 1, minWidth: 200}}
-              >
-                <option value="">Todas as Peladas</option>
-                {peladas.map(p => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
-              </select>
-              
-              {dashboardSelectedId !== "" && (
-                <select 
-                  value={dashboardSelectedDataId} 
-                  onChange={e => setDashboardSelectedDataId(e.target.value)} 
-                  style={{...S.select, flex: 1, minWidth: 180}}
-                >
-                  <option value="todas">Todas as Datas</option>
-                  {datasRealizacao.filter(d => d.pelada_id === Number(dashboardSelectedId)).map(d => (
-                    <option key={d.id} value={d.id}>{formatarData(d.data)} {d.local ? `(${d.local})` : ""}</option>
-                  ))}
-                </select>
-              )}
-            </>
           )}
         </div>
-
         {/* Cards de Estatísticas */}
         <div style={{display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(180px, 1fr))", gap: 12}}>
           {statCards.map((sc, i) => (
@@ -19748,23 +14935,10 @@ export default function App(){
 
             {/* Feed de Partidas Recentes removido */}
 
-            {/* Lista Mobile de campeonatos */}
-            {isMobile && (
-              <>
-                {campeonatos.length > 0 && (
-                  <div>
-                    <h3 style={{fontSize: 14, fontWeight: 700, margin: "8px 0 16px 0", color: t.text}}><IconTrophy size={14} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Campeonatos</h3>
-                    <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-                      {campeonatos.map(c => (
-                        <div key={c.id} style={{...S.card, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px", cursor: "pointer"}} onClick={() => {setCurrent(c); setScreen("gerenciarChamp");}}>
-                          <div style={{fontWeight: 700, fontSize: 14, color: t.text}}>{c.name}</div>
-                          <div style={{fontSize: 11, color: t.textSec}}>{c.teams.length} times</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {peladas.length > 0 && (
+                  {/* Lista Mobile de peladas */}
+      {isMobile && (
+        <>
+          {peladas.length > 0 && (
                   <div>
                     <h3 style={{fontSize: 14, fontWeight: 700, margin: "8px 0 16px 0", color: t.text}}><IconSoccer size={14} style={{marginRight: 6, display: "inline-block", verticalAlign: "middle"}} /> Peladas</h3>
                     <div style={{display: "flex", flexDirection: "column", gap: 8}}>
@@ -19818,7 +14992,7 @@ export default function App(){
 
   /* ── FINANCEIRO ────────────────────────────────────────────────── */
   if(screen==="financeiro"){
-    return renderComLayout(<FinanceiroScreen financeiro={financeiroFiltered} setFinanceiro={setFinanceiroWrapped} participacoes={participacoes} peladas={peladas} campeonatos={campeonatos} datasRealizacao={datasRealizacao} setScreen={setScreen} DarkBtn={DarkBtn} FontScaleBtn={FontScaleBtn} t={t} atletas={atletas} auth={auth} />);
+    return renderComLayout(<FinanceiroScreen financeiro={financeiroFiltered} setFinanceiro={setFinanceiroWrapped} participacoes={participacoes} peladas={peladas} datasRealizacao={datasRealizacao} setScreen={setScreen} DarkBtn={DarkBtn} FontScaleBtn={FontScaleBtn} t={t} atletas={atletas} auth={auth} />);
   }
 
   /* ── BACKUP ────────────────────────────────────────────────────── */
@@ -19902,13 +15076,7 @@ export default function App(){
         onExport={exportAtletas} 
         onImport={importAtletas} 
         onDownloadTemplate={downloadAtletasTemplate} 
-        atletasCampeonato={atletasCampeonato} 
-        onAddCamp={adicionarAtletaCampeonato} 
-        onUpdateCamp={atualizarAtletaCampeonato} 
-        onRemoveCamp={removerAtletaCampeonato} 
-        onExportCamp={exportAtletasCampeonato} 
-        onImportCamp={importAtletasCampeonato} 
-        onDownloadTemplateCamp={downloadAtletasCampeonatoTemplate} 
+         
         campeonatos={campeonatos}
         peladas={peladas}
         t={t}
