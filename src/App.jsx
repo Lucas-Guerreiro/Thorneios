@@ -2305,7 +2305,7 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey, onTimerUpdate }) {
   return (
     <div style={{
       background: "#0D0E12",
-      border: `1.5px solid ${isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : "#1E293B"}`,
+      border: `1.5px solid ${isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : `${t.accent}33`}`,
       borderRadius: 16,
       padding: 16,
       display: "flex",
@@ -2316,7 +2316,7 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey, onTimerUpdate }) {
       marginBottom: 16,
       boxShadow: isFinished || isUrgent 
         ? "0 0 15px rgba(226, 75, 74, 0.25), inset 0 0 8px rgba(226, 75, 74, 0.1)"
-        : "0 0 15px rgba(255, 159, 10, 0.15), inset 0 0 8px rgba(255, 159, 10, 0.05)",
+        : `0 0 15px ${t.accent}25, inset 0 0 8px ${t.accent}10`,
       transition: "all 0.3s ease"
     }}>
       <style>{`
@@ -2378,8 +2378,8 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey, onTimerUpdate }) {
               fontSize: 36,
               fontWeight: 900,
               fontFamily: "monospace",
-              color: isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : "#FF9F0A",
-              textShadow: isFinished ? "0 0 10px #E24B4A" : isUrgent ? "0 0 10px #E24B4A" : "0 0 10px #FF9F0A",
+              color: isFinished ? "#E24B4A" : isUrgent ? "#E24B4A" : t.accent,
+              textShadow: isFinished ? "0 0 10px #E24B4A" : isUrgent ? "0 0 10px #E24B4A" : `0 0 10px ${t.accent}`,
               animation: isUrgent ? "pulse-red-timer 1s infinite" : isFinished ? "blink-red-timer 1.5s infinite" : "none",
               letterSpacing: 1
             }}>
@@ -2416,8 +2416,8 @@ function MatchTimer({ t, defaultMinutes = 10, timerKey, onTimerUpdate }) {
               <div style={{
                 width: `${progressPercent}%`,
                 height: "100%",
-                background: isUrgent ? "#E24B4A" : "linear-gradient(90deg, #FF9F0A, #FFB020)",
-                boxShadow: isUrgent ? "0 0 8px #E24B4A" : "0 0 8px #FF9F0A",
+                background: isUrgent ? "#E24B4A" : `linear-gradient(90deg, ${t.accent}, #22b7d9)`,
+                boxShadow: isUrgent ? "0 0 8px #E24B4A" : `0 0 8px ${t.accent}`,
                 transition: "width 1s linear"
               }} />
             </div>
