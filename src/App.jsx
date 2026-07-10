@@ -7541,10 +7541,12 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
   const [autorGolId, setAutorGolId] = useState("");
   const [autorAssistenciaId, setAutorAssistenciaId] = useState("");
 
-  function getJogadoresEmCampo(teamLetter) {
+  function getJogadoresEmCampo(teamNameOrLetter) {
     const match = peladaState?.currentMatch;
     if (!match) return [];
-    const teamName = teamLetter === 'A' ? match.teamA : match.teamB;
+    let teamName = teamNameOrLetter;
+    if (teamNameOrLetter === 'A') teamName = match.teamA;
+    else if (teamNameOrLetter === 'B') teamName = match.teamB;
     const players = peladaState.teams?.find(tm => tm.name === teamName)?.players || [];
     const atrasadosIds = (match.jogadoresAtrasados || []).map(String);
     return players.filter(p => !atrasadosIds.includes(String(p.id || p.atleta_id || p.idAtleta)));
@@ -10471,6 +10473,31 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                               <div style={{display:"flex", alignItems:"center", gap:6}}>
                                 <div style={{width:8, height:8, borderRadius:"50%", background:colorOfTeam(teamName)}}/>
                                 <span>{qIdx === 0 ? "Próximo a entrar" : `${qIdx + 1}º na Fila`}: {teamName}</span>
+                                {!isRealizada && (
+                                  <button 
+                                    onClick={() => setModalGerenciarTime(teamName)}
+                                    style={{
+                                      background: `linear-gradient(135deg, ${t.accent}, #22b7d9)`,
+                                      border: "none",
+                                      color: "#fff",
+                                      fontWeight: 800,
+                                      fontSize: 10,
+                                      padding: "2px 8px",
+                                      borderRadius: 20,
+                                      cursor: "pointer",
+                                      boxShadow: `0 0 10px ${t.accent}50`,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 4,
+                                      marginLeft: 8,
+                                      transition: "transform 0.15s"
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+                                    onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                                  >
+                                    <IconSettings size={10} color="#fff" /> TIME
+                                  </button>
+                                )}
                               </div>
                               {!isRealizada && (
                                 <div style={{display:"flex", gap:4}}>
@@ -10583,13 +10610,7 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
                                       {!isEmprestadoAtivo && isCandidatoEmprestimo && " 🤝"}
                                     </span>
                                     {pIsRev && <span style={{fontSize:9, color:"#7F77DD", opacity:0.8}} title={`Reveza com ${pAnfNome}`}>🔄</span>}
-                                    {!isRealizada && (
-                                      <>
-                                        <button onClick={()=>setSubModal(p.id)} style={{border:"none", background:"transparent", color:"#0095F6", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Mover / Substituir"><IconRefresh size={12} /></button>
-                                        <button onClick={()=>{setSairMotivo("cansaco");setSairSubstitutoId("");setSairModal({playerId:p.id,playerName:getPlayerName(p),teamName:teamName});}} style={{border:"none", background:"transparent", color:"#E24B4A", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Sair do jogo"><IconX size={10} color="#E24B4A" /></button>
-                                        <button onClick={()=>removeFromRotation(p.id)} style={{border:"none", background:"transparent", color:"#E24B4A", cursor:"pointer", padding:"0 2px", fontSize:11}} title="Remover do Rodízio">×</button>
-                                      </>
-                                    )}
+                                    {/* Botões removidos para gestão centralizada no modal TIME */}
                                   </div>
                                 );
                               })}
@@ -11356,159 +11377,200 @@ function GerenciarPelada({pelada,atletas,participacoes,datasRealizacao,onUpdateP
       {modalGerenciarTime && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100,padding:16}}>
           <div style={{...S.card, width:"100%", maxWidth:400, background: "#1E293B", border: `1px solid ${t.accent}33`, boxShadow: `0 0 20px ${t.accent}20`}}>
-            <div style={{fontWeight:800, fontSize:15, color:"#F8FAFC", marginBottom:16, display: "flex", alignItems: "center", justifyContent: "space-between"}}>
-              <span style={{display: "flex", alignItems: "center", gap: 6}}>
-                <IconUser size={16} color={t.accent} /> Gerenciar: {modalGerenciarTime === 'A' ? peladaState.currentMatch.teamA : peladaState.currentMatch.teamB}
-              </span>
-              <button onClick={() => setModalGerenciarTime(null)} style={{background: "none", border: "none", color: "#94A3B8", cursor: "pointer", display: "inline-flex", alignItems: "center"}}>
-                <IconX size={16} color="#94A3B8" />
-              </button>
-            </div>
-
-            <div style={{display:"flex", flexDirection:"column", gap:10, maxHeight: "250px", overflowY: "auto", marginBottom: 16}}>
-              {getJogadoresEmCampo(modalGerenciarTime).map((p, idx) => (
-                <div key={idx} style={{display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "#0F172A", borderRadius: 8, border: "1px solid #1E293B", gap: 8}}>
-                  <span style={{fontSize: 12, fontWeight: 600, color: "#F8FAFC", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1}}>{getPlayerName(p)}</span>
-                  
-                  <div style={{display: "flex", gap: 4, flexShrink: 0}}>
-                    {/* Trocar de Time */}
-                    <button 
-                      onClick={() => trocarTimeAtleta(p.id, modalGerenciarTime === 'A' ? peladaState.currentMatch.teamA : peladaState.currentMatch.teamB)}
-                      style={{
-                        background: "transparent", 
-                        border: "1px solid #22b7d944", 
-                        color: "#22b7d9", 
-                        borderRadius: 6, 
-                        padding: "3px 6px", 
-                        fontSize: 9, 
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 2
-                      }}
-                      title="Mover para o time adversário"
-                    >
-                      <IconRefresh size={10} color="#22b7d9" /> Mover
-                    </button>
-
-                    {/* Substituir */}
-                    <button 
-                      onClick={() => {
-                        setSubModal(p.id);
-                        setModalGerenciarTime(null);
-                      }}
-                      style={{
-                        background: "transparent", 
-                        border: "1px solid #10B98144", 
-                        color: "#10B981", 
-                        borderRadius: 6, 
-                        padding: "3px 6px", 
-                        fontSize: 9, 
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 2
-                      }}
-                      title="Substituir por atleta do banco"
-                    >
-                      <IconRefresh size={10} color="#10B981" /> Substituir
-                    </button>
-
-                    {/* Sair do jogo */}
-                    <button 
-                      onClick={() => {
-                        setSairMotivo("cansaco");
-                        setSairSubstitutoId("");
-                        setSairModal({
-                          playerId: p.id,
-                          playerName: getPlayerName(p),
-                          teamName: modalGerenciarTime === 'A' ? peladaState.currentMatch.teamA : peladaState.currentMatch.teamB
-                        });
-                        setModalGerenciarTime(null);
-                      }}
-                      style={{
-                        background: "transparent", 
-                        border: "1px solid #E24B4A44", 
-                        color: "#E24B4A", 
-                        borderRadius: 6, 
-                        padding: "3px 6px", 
-                        fontSize: 9, 
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 2
-                      }}
-                      title="Retirar do jogo para o banco"
-                    >
-                      <IconX size={10} color="#E24B4A" /> Sair
+            {(() => {
+              const match = peladaState?.currentMatch;
+              const currentModalTeamName = modalGerenciarTime === 'A' ? match?.teamA : modalGerenciarTime === 'B' ? match?.teamB : modalGerenciarTime;
+              const isAtivo = match && (currentModalTeamName === match.teamA || currentModalTeamName === match.teamB);
+              const isTeamA = currentModalTeamName === match?.teamA;
+              
+              return (
+                <>
+                  <div style={{fontWeight:800, fontSize:15, color:"#F8FAFC", marginBottom:16, display: "flex", alignItems: "center", justifyContent: "space-between"}}>
+                    <span style={{display: "flex", alignItems: "center", gap: 6}}>
+                      <IconUser size={16} color={t.accent} /> Gerenciar: {currentModalTeamName}
+                    </span>
+                    <button onClick={() => setModalGerenciarTime(null)} style={{background: "none", border: "none", color: "#94A3B8", cursor: "pointer", display: "inline-flex", alignItems: "center"}}>
+                      <IconX size={16} color="#94A3B8" />
                     </button>
                   </div>
-                </div>
-              ))}
-            </div>
 
-            {/* Configuração de Goleiro Integrada no Modal */}
-            <div style={{marginTop: 12, borderTop: "1px dashed #334155", paddingTop: 12, display: "flex", flexDirection: "column", gap: 8}}>
-              <div style={{display: "flex", alignItems: "center", justifyContent: "space-between"}}>
-                <span style={{fontSize: 11, fontWeight: 700, color: "#94A3B8", display: "flex", alignItems: "center", gap: 4}}>
-                  <IconGoalkeeper size={12} color="#94A3B8" /> Goleiro:
-                </span>
-                <select 
-                  value={modalGerenciarTime === 'A' ? (peladaState.currentMatch.goleiroA || "") : (peladaState.currentMatch.goleiroB || "")} 
-                  onChange={e => {
-                    const value = e.target.value;
-                    const ps = {
-                      ...peladaState,
-                      currentMatch: { 
-                        ...peladaState.currentMatch, 
-                        [modalGerenciarTime === 'A' ? 'goleiroA' : 'goleiroB']: value 
-                      }
-                    };
-                    setPeladaStateLocal(ps);
-                    saveDateState({ peladaState: ps });
-                  }}
-                  style={{...S.select, padding: "2px 6px", fontSize: 11, background: "#0F172A", color: "#F8FAFC", border: "1px solid #334155", outline: "none", width: "160px", height: "26px"}}
-                >
-                  <option value="">Nenhum</option>
-                  {getJogadoresEmCampo(modalGerenciarTime).map(p => (
-                    <option key={p.id} value={p.id}>{getPlayerName(p)}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div style={{display: "flex", alignItems: "center", justifyContent: "space-between"}}>
-                <span style={{fontSize: 11, fontWeight: 700, color: "#94A3B8"}}>Jogou todo o jogo:</span>
-                <input 
-                  type="checkbox" 
-                  checked={modalGerenciarTime === 'A' ? (peladaState.currentMatch.goleiroAInteiro !== false) : (peladaState.currentMatch.goleiroBInteiro !== false)} 
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    const ps = {
-                      ...peladaState,
-                      currentMatch: { 
-                        ...peladaState.currentMatch, 
-                        [modalGerenciarTime === 'A' ? 'goleiroAInteiro' : 'goleiroBInteiro']: checked 
-                      }
-                    };
-                    setPeladaStateLocal(ps);
-                    saveDateState({ peladaState: ps });
-                  }}
-                  style={{width: 14, height: 14, cursor: "pointer"}}
-                />
-              </div>
-            </div>
+                  <div style={{display:"flex", flexDirection:"column", gap:10, maxHeight: "250px", overflowY: "auto", marginBottom: 16}}>
+                    {getJogadoresEmCampo(modalGerenciarTime).map((p, idx) => (
+                      <div key={idx} style={{display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "#0F172A", borderRadius: 8, border: "1px solid #1E293B", gap: 8}}>
+                        <span style={{fontSize: 12, fontWeight: 600, color: "#F8FAFC", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1}}>{getPlayerName(p)}</span>
+                        
+                        <div style={{display: "flex", gap: 4, flexShrink: 0}}>
+                          {/* Mover (Trocar de Time) - apenas se for time ativo */}
+                          {isAtivo && (
+                            <button 
+                              onClick={() => trocarTimeAtleta(p.id, currentModalTeamName)}
+                              style={{
+                                background: "transparent", 
+                                border: "1px solid #22b7d944", 
+                                color: "#22b7d9", 
+                                borderRadius: 6, 
+                                padding: "3px 6px", 
+                                fontSize: 9, 
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2
+                              }}
+                              title="Mover para o time adversário"
+                            >
+                              <IconRefresh size={10} color="#22b7d9" /> Mover
+                            </button>
+                          )}
 
-            <div style={{marginTop: 16, display: "flex", justifyContent: "flex-end"}}>
-              <button 
-                onClick={() => setModalGerenciarTime(null)} 
-                style={{...S.btn("#334155", "#94A3B8"), padding: "6px 16px", fontWeight: 700, fontSize: 11}}
-              >
-                Fechar
-              </button>
-            </div>
+                          {/* Substituir */}
+                          <button 
+                            onClick={() => {
+                              setSubModal(p.id);
+                              setModalGerenciarTime(null);
+                            }}
+                            style={{
+                              background: "transparent", 
+                              border: "1px solid #10B98144", 
+                              color: "#10B981", 
+                              borderRadius: 6, 
+                              padding: "3px 6px", 
+                              fontSize: 9, 
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 2
+                            }}
+                            title="Substituir por atleta do banco"
+                          >
+                            <IconRefresh size={10} color="#10B981" /> Substituir
+                          </button>
+
+                          {/* Sair do jogo */}
+                          <button 
+                            onClick={() => {
+                              setSairMotivo("cansaco");
+                              setSairSubstitutoId("");
+                              setSairModal({
+                                playerId: p.id,
+                                playerName: getPlayerName(p),
+                                teamName: currentModalTeamName
+                              });
+                              setModalGerenciarTime(null);
+                            }}
+                            style={{
+                              background: "transparent", 
+                              border: "1px solid #E24B4A44", 
+                              color: "#E24B4A", 
+                              borderRadius: 6, 
+                              padding: "3px 6px", 
+                              fontSize: 9, 
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 2
+                            }}
+                            title="Retirar do jogo para o banco"
+                          >
+                            <IconX size={10} color="#E24B4A" /> Sair
+                          </button>
+
+                          {/* Remover do Rodízio - apenas se for time na fila */}
+                          {!isAtivo && (
+                            <button 
+                              onClick={() => {
+                                removeFromRotation(p.id);
+                                setModalGerenciarTime(null);
+                              }}
+                              style={{
+                                background: "transparent", 
+                                border: "1px solid #E24B4A44", 
+                                color: "#E24B4A", 
+                                borderRadius: 6, 
+                                padding: "3px 6px", 
+                                fontSize: 9, 
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 2
+                              }}
+                              title="Remover do Rodízio (presença)"
+                            >
+                              <IconX size={10} color="#E24B4A" /> Remover
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Configuração de Goleiro Integrada no Modal (apenas time ativo) */}
+                  {isAtivo && (
+                    <div style={{marginTop: 12, borderTop: "1px dashed #334155", paddingTop: 12, display: "flex", flexDirection: "column", gap: 8}}>
+                      <div style={{display: "flex", alignItems: "center", justifyContent: "space-between"}}>
+                        <span style={{fontSize: 11, fontWeight: 700, color: "#94A3B8", display: "flex", alignItems: "center", gap: 4}}>
+                          <IconGoalkeeper size={12} color="#94A3B8" /> Goleiro:
+                        </span>
+                        <select 
+                          value={isTeamA ? (peladaState.currentMatch.goleiroA || "") : (peladaState.currentMatch.goleiroB || "")} 
+                          onChange={e => {
+                            const value = e.target.value;
+                            const ps = {
+                              ...peladaState,
+                              currentMatch: { 
+                                ...peladaState.currentMatch, 
+                                [isTeamA ? 'goleiroA' : 'goleiroB']: value 
+                              }
+                            };
+                            setPeladaStateLocal(ps);
+                            saveDateState({ peladaState: ps });
+                          }}
+                          style={{...S.select, padding: "2px 6px", fontSize: 11, background: "#0F172A", color: "#F8FAFC", border: "1px solid #334155", outline: "none", width: "160px", height: "26px"}}
+                        >
+                          <option value="">Nenhum</option>
+                          {getJogadoresEmCampo(modalGerenciarTime).map(p => (
+                            <option key={p.id} value={p.id}>{getPlayerName(p)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div style={{display: "flex", alignItems: "center", justifyContent: "space-between"}}>
+                        <span style={{fontSize: 11, fontWeight: 700, color: "#94A3B8"}}>Jogou todo o jogo:</span>
+                        <input 
+                          type="checkbox" 
+                          checked={isTeamA ? (peladaState.currentMatch.goleiroAInteiro !== false) : (peladaState.currentMatch.goleiroBInteiro !== false)} 
+                          onChange={e => {
+                            const checked = e.target.checked;
+                            const ps = {
+                              ...peladaState,
+                              currentMatch: { 
+                                ...peladaState.currentMatch, 
+                                [isTeamA ? 'goleiroAInteiro' : 'goleiroBInteiro']: checked 
+                              }
+                            };
+                            setPeladaStateLocal(ps);
+                            saveDateState({ peladaState: ps });
+                          }}
+                          style={{width: 14, height: 14, cursor: "pointer"}}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{marginTop: 16, display: "flex", justifyContent: "flex-end"}}>
+                    <button 
+                      onClick={() => setModalGerenciarTime(null)} 
+                      style={{...S.btn("#334155", "#94A3B8"), padding: "6px 16px", fontWeight: 700, fontSize: 11}}
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
