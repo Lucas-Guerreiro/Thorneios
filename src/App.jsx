@@ -21,6 +21,7 @@ import { Input } from "./components/ui/Input";
 import { Card } from "./components/ui/Card";
 import { Modal } from "./components/ui/Modal";
 import { useMatchTimer } from "./hooks/useMatchTimer";
+import { usePelada } from "./hooks/usePelada";
 
 import { 
   cryptoShuffle, deepClone, fmtDate, fmtCur, todayStr, formatarData, 
@@ -11638,117 +11639,28 @@ export default function App(){
   const atualizarQuadra = (id, d) => setQuadras(p => p.map(q => q.id === id ? { ...q, ...d } : q));
   const removerQuadra = id => setQuadras(p => p.filter(q => q.id !== id));
 
-  // ── CRUD Datas Realização ──────────────────────────────────────
-  const adicionarData=(d)=>setDatasRealizacao(p=>[...p,{...d,id:Date.now()}]);
-  const atualizarData = (id, d) => {
-    setDatasRealizacao(prev => prev.map(x => {
-      if (String(x.id) === String(id)) {
-        const dataAtualizada = { ...x, ...d };
-        const presenca = dataAtualizada.presenca || x.presenca || [];
-        const formacoes = dataAtualizada.drawnTeams || dataAtualizada.formacoes || x.formacoes || x.drawnTeams || null;
-        const matchLog = dataAtualizada.peladaState?.matchLog || dataAtualizada.confrontos || x.confrontos || (x.peladaState?.matchLog) || [];
-        const confrontos = matchLog;
-        const estatisticas = calcularEstatisticasData(matchLog);
-        const classificacao = calcularClassificacaoData(dataAtualizada.drawnTeams || x.drawnTeams || formacoes, matchLog);
-        
-        return {
-          ...dataAtualizada,
-          presenca,
-          formacoes,
-          confrontos,
-          estatisticas,
-          classificacao,
-          drawnTeams: formacoes
-        };
-      }
-      return x;
-    }));
-  };
-  const removerData = id => {
-    setDatasRealizacao(p => p.filter(x => String(x.id) !== String(id)));
-    setParticipacoes(p => p.filter(x => String(x.data_realizacao_id) !== String(id)));
-    setFinanceiro(f => ({
-      ...f,
-      entries: (f.entries || []).filter(e => String(e.data_id) !== String(id))
-    }));
-  };
+  // ── CRUD das Peladas via Custom Hook (usePelada) ─────────────────
+  const {
+    adicionarPelada,
+    atualizarPelada,
+    removerPelada,
+    adicionarData,
+    atualizarData,
+    removerData,
+    adicionarPart,
+    atualizarPart,
+    removerPart,
+    salvarParticipacoesLote
+  } = usePelada(
+    appState,
+    setAppState,
+    auth,
+    current,
+    dashboardSelectedId,
+    sincronizarPeladaImediatamente
+  );
 
-  // ── CRUD Participações ─────────────────────────────────────────
-  const adicionarPart=(d)=>{
-    setParticipacoes(p=>{
-      const next = [...p,{...d,id:Date.now()}];
-      if (d.data_realizacao_id) {
-        const presentesIds = next.filter(x => String(x.data_realizacao_id) === String(d.data_realizacao_id) && x.compareceu).map(x => x.atleta_id);
-        setTimeout(() => atualizarData(d.data_realizacao_id, { presenca: presentesIds }), 0);
-      }
-      return next;
-    });
-  };
-  const atualizarPart=(id,d)=>{
-    setParticipacoes(p=>{
-      const next = p.map(x=>x.id===id?{...x,...d}:x);
-      const part = p.find(x=>x.id===id);
-      if (part && part.data_realizacao_id) {
-        const presentesIds = next.filter(x => String(x.data_realizacao_id) === String(part.data_realizacao_id) && x.compareceu).map(x => x.atleta_id);
-        setTimeout(() => atualizarData(part.data_realizacao_id, { presenca: presentesIds }), 0);
-      }
-      return next;
-    });
-  };
-  const removerPart  =id=>{
-    setParticipacoes(p=>{
-      const part = p.find(x=>x.id===id);
-      const next = p.filter(x=>x.id!==id);
-      if (part && part.data_realizacao_id) {
-        const presentesIds = next.filter(x => String(x.data_realizacao_id) === String(part.data_realizacao_id) && x.compareceu).map(x => x.atleta_id);
-        setTimeout(() => atualizarData(part.data_realizacao_id, { presenca: presentesIds }), 0);
-      }
-      return next;
-    });
-  };
-
-  const salvarParticipacoesLote = (peladaId, dataRealizacaoId, novasParts) => {
-    setParticipacoes(prev => {
-      const filtered = prev.filter(p => !(p.pelada_id === peladaId && String(p.data_realizacao_id) === String(dataRealizacaoId)));
-      const cleanNew = novasParts.map(p => {
-        const cleaned = { ...p };
-        if (String(cleaned.id).startsWith("temp_")) {
-          cleaned.id = Date.now() + Math.floor(Math.random() * 10000);
-        }
-        return cleaned;
-      });
-      const next = [...filtered, ...cleanNew];
-      if (dataRealizacaoId !== null) {
-        const presentesIds = next.filter(x => String(x.data_realizacao_id) === String(dataRealizacaoId) && x.compareceu).map(x => x.atleta_id);
-        setTimeout(() => atualizarData(dataRealizacaoId, { presenca: presentesIds }), 0);
-      }
-      return next;
-    });
-
-    if (dataRealizacaoId === null) {
-      const atletasIdsNovos = novasParts.map(p => p.atleta_id);
-      setAtletas(prev => prev.map(a => {
-        const vinculos = Array.isArray(a.vinculos) ? [...a.vinculos] : [];
-        const vinculoId = "pelada_" + peladaId;
-        const temVinculo = vinculos.includes(vinculoId);
-        const deveTerVinculo = atletasIdsNovos.includes(a.id);
-        
-        if (deveTerVinculo && !temVinculo) {
-          return { ...a, vinculos: [...vinculos, vinculoId] };
-        } else if (!deveTerVinculo && temVinculo) {
-          return { ...a, vinculos: vinculos.filter(v => v !== vinculoId) };
-        }
-        return a;
-      }));
-    }
-  };
-
-  // ── CRUD Peladas ───────────────────────────────────────────────
-  const adicionarPelada=d=>setPeladas(p=>[...p,{id:Date.now(),nome:d.nome,data_criacao:d.data_criacao||todayStr(),ativo:d.ativo!==false, manager_id: auth.role === "manager" ? auth.manager_id : null}]);
-  const atualizarPelada=(id,d)=>setPeladas(p=>p.map(x=>x.id===id?{...x,...d}:x));
-  const removerPelada  =id=>{setPeladas(p=>p.filter(x=>x.id!==id));setDatasRealizacao(p=>p.filter(x=>x.pelada_id!==id));setParticipacoes(p=>p.filter(x=>x.pelada_id!==id));};
-
-
+  
   // ── BACKUP / RESTAURAR ─────────────────────────────────────────
   async function exportJSON(){
     const data = {peladas,datasRealizacao,atletas,quadras,participacoes,financeiro,managers};
